@@ -2,7 +2,7 @@ name: moneyy
 description: "Un gestore di finanze personali completo, costruito con Flutter."
 publish_to: 'none'
 
-version: 1.0.0+3
+version: 1.0.0+4
 
 environment:
   sdk: '>=3.1.0 <4.0.0'
@@ -32,10 +32,12 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  # ✅ IMPORTAZIONE FILE
+  # ✅ IMPORTAZIONE FILE AVANZATA
   file_picker: ^5.5.0
   excel: ^2.1.0
   path_provider: ^2.1.1
+  # ✅ DRAG & DROP SUPPORT
+  desktop_drop: ^0.4.4
 
 dev_dependencies:
   flutter_test:
