@@ -16,20 +16,29 @@ class Repository {
     final path = join(dbPath, 'moneyy.db');
     return await openDatabase(
       path,
-      version: 2,  // ✅ Versione aggiornata
+      version: 3,  // ✅ Versione aggiornata per i nuovi campi
       onCreate: _createDb,
-      onUpgrade: _onUpgrade,  // ✅ Gestisce l'aggiornamento
+      onUpgrade: _onUpgrade,
     );
   }
 
-  // ✅ Metodo per aggiornare il database
+  // ✅ Gestisce aggiornamenti database
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Ricrea le tabelle con la struttura corretta
-      await db.execute('DROP TABLE IF EXISTS transactions');
-      await db.execute('DROP TABLE IF EXISTS goals');
-      await db.execute('DROP TABLE IF EXISTS recurring');
-      await _createDb(db, newVersion);
+    if (oldVersion < 3) {
+      // Aggiunge i nuovi campi alla tabella transactions
+      try {
+        await db.execute('ALTER TABLE transactions ADD COLUMN isFromRecurring INTEGER DEFAULT 0');
+      } catch (e) {
+        // Campo già presente, ignora l'errore
+      }
+
+      // Aggiunge i nuovi campi alla tabella recurring
+      try {
+        await db.execute('ALTER TABLE recurring ADD COLUMN timeHour INTEGER DEFAULT 9');
+        await db.execute('ALTER TABLE recurring ADD COLUMN timeMinute INTEGER DEFAULT 0');
+      } catch (e) {
+        // Campi già presenti, ignora l'errore
+      }
     }
   }
 
@@ -42,7 +51,8 @@ class Repository {
         amount REAL NOT NULL,
         date TEXT NOT NULL,
         note TEXT,
-        payment INTEGER NOT NULL
+        payment INTEGER NOT NULL,
+        isFromRecurring INTEGER DEFAULT 0
       )
     ''');
 
@@ -62,6 +72,8 @@ class Repository {
         category TEXT NOT NULL,
         amount REAL NOT NULL,
         dayOfMonth INTEGER NOT NULL,
+        timeHour INTEGER DEFAULT 9,
+        timeMinute INTEGER DEFAULT 0,
         payment INTEGER NOT NULL,
         note TEXT,
         lastProcessed TEXT
