@@ -81,6 +81,23 @@ class Repository {
     ''');
   }
 
+  // ✅ NUOVO: Reset completo del database
+  Future<void> resetDatabase() async {
+    final db = await database;
+    
+    // Elimina tutte le tabelle
+    await db.execute('DROP TABLE IF EXISTS transactions');
+    await db.execute('DROP TABLE IF EXISTS goals');
+    await db.execute('DROP TABLE IF EXISTS recurring');
+    
+    // Ricrea le tabelle vuote
+    await _createDb(db, 3);
+    
+    // Forza la chiusura e riapertura del database
+    await db.close();
+    _database = null;
+  }
+
   // TRANSACTIONS
   Future<void> insertTx(MoneyTx tx) async {
     final db = await database;
