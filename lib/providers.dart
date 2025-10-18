@@ -212,6 +212,13 @@ class MoneyModel extends ChangeNotifier {
       'CASA': CategoryStyle(Icons.home, const Color(0xFFF59E0B)),
       'INVESTIMENTI': CategoryStyle(Icons.trending_up, const Color(0xFF14B8A6)),
       'ALTRO': CategoryStyle(Icons.flag, const Color(0xFF6B7280)),
+      // ✅ MAPPATURA AUTOMATICA per categorie comuni da Excel
+      'Alimentari': CategoryStyle(Icons.shopping_cart, const Color(0xFF10B981)),
+      'Auto': CategoryStyle(Icons.directions_car, const Color(0xFF3B82F6)), 
+      'Svago': CategoryStyle(Icons.sports_esports, const Color(0xFFF59E0B)),
+      'Attività fisica': CategoryStyle(Icons.fitness_center, const Color(0xFF84CC16)),
+      'PAC': CategoryStyle(Icons.trending_up, const Color(0xFF8B5CF6)),
+      'Ricarica': CategoryStyle(Icons.phone, const Color(0xFF6366F1)),
     };
     return styles[category] ?? CategoryStyle(Icons.help_outline, const Color(0xFF6B7280));
   }
@@ -376,14 +383,15 @@ class MoneyModel extends ChangeNotifier {
     debugPrint('✅ Importate $imported transazioni da CSV');
   }
 
-  // ✅ NUOVO: Importa da file Excel (.xlsx)
+  // ✅ NUOVO: Importa da file Excel (.xlsx) - Compatibile con excel v2.1.0
   Future<void> importFromExcel(Uint8List fileBytes, Map<String, String> categoryMapping) async {
     try {
       final excel = Excel.decodeBytes(fileBytes);
       int totalImported = 0;
       
       for (var tableName in excel.tables.keys) {
-        final sheet = excel.tables[tableName]!;
+        final sheet = excel.tables[tableName];
+        if (sheet == null) continue;
         
         // Analizza il nome del foglio per determinare il tipo
         bool isExpenseSheet = tableName.toLowerCase().contains('spese');
@@ -407,16 +415,21 @@ class MoneyModel extends ChangeNotifier {
     }
   }
 
-  // ✅ NUOVO: Processa fogli Spese/Entrate
+  // ✅ NUOVO: Processa fogli Spese/Entrate - Compatibile con excel v2.1.0
   Future<int> _processStandardSheet(Sheet sheet, bool isIncome, Map<String, String> categoryMapping) async {
     int imported = 0;
     
-    // Trova le colonne (header sulla riga 1)
+    if (sheet.rows.isEmpty) return 0;
+    
+    // Trova le colonne (header sulla riga 0)
     final headerRow = sheet.rows.first;
     int? dateCol, categoryCol, amountCol, noteCol;
     
     for (int i = 0; i < headerRow.length; i++) {
-      final header = headerRow[i]?.value?.toString()?.toLowerCase() ?? '';
+      final cell = headerRow[i];
+      if (cell?.value == null) continue;
+      
+      final header = cell!.value.toString().toLowerCase();
       if (header.contains('data')) dateCol = i;
       if (header.contains('categoria')) categoryCol = i;
       if (header.contains('importo') && header.contains('predefinita')) amountCol = i;
@@ -434,14 +447,14 @@ class MoneyModel extends ChangeNotifier {
       if (row.isEmpty) continue;
       
       try {
-        final dateCell = row[dateCol]?.value;
-        final categoryCell = row[categoryCol]?.value;
-        final amountCell = row[amountCol]?.value;
-        final noteCell = noteCol != null ? row[noteCol]?.value : null;
+        final dateCell = dateCol < row.length ? row[dateCol]?.value : null;
+        final categoryCell = categoryCol < row.length ? row[categoryCol]?.value : null;
+        final amountCell = amountCol < row.length ? row[amountCol]?.value : null;
+        final noteCell = noteCol != null && noteCol < row.length ? row[noteCol]?.value : null;
         
         if (dateCell == null || categoryCell == null || amountCell == null) continue;
         
-        // Parse data (formato "2025-10-16 000000")
+        // Parse data (formato "2025-10-16 000000" o "2025-10-16")
         DateTime date;
         final dateStr = dateCell.toString();
         if (dateStr.contains(' ')) {
@@ -452,10 +465,10 @@ class MoneyModel extends ChangeNotifier {
         
         // Parse categoria con mapping
         final rawCategory = categoryCell.toString().trim();
-        final category = categoryMapping[rawCategory] ?? rawCategory;
+        final category = categoryMapping[rawCategory] ?? _mapCommonCategory(rawCategory);
         
         // Parse importo
-        double amount = double.parse(amountCell.toString());
+        double amount = double.parse(amountCell.toString().replaceAll(',', '.'));
         
         // Crea transazione
         final tx = MoneyTx(
@@ -477,16 +490,21 @@ class MoneyModel extends ChangeNotifier {
     return imported;
   }
 
-  // ✅ NUOVO: Processa foglio Bonifici
+  // ✅ NUOVO: Processa foglio Bonifici - Compatibile con excel v2.1.0
   Future<int> _processTransferSheet(Sheet sheet, Map<String, String> categoryMapping) async {
     int imported = 0;
+    
+    if (sheet.rows.isEmpty) return 0;
     
     // Trova le colonne
     final headerRow = sheet.rows.first;
     int? dateCol, outCol, inCol, outAmountCol, inAmountCol, noteCol;
     
     for (int i = 0; i < headerRow.length; i++) {
-      final header = headerRow[i]?.value?.toString()?.toLowerCase() ?? '';
+      final cell = headerRow[i];
+      if (cell?.value == null) continue;
+      
+      final header = cell!.value.toString().toLowerCase();
       if (header.contains('data')) dateCol = i;
       if (header.contains('uscita') && !header.contains('importo')) outCol = i;
       if (header.contains('entrata') && !header.contains('importo')) inCol = i;
@@ -501,12 +519,12 @@ class MoneyModel extends ChangeNotifier {
       if (row.isEmpty) continue;
       
       try {
-        final dateCell = row[dateCol!]?.value;
-        final outCell = outCol != null ? row[outCol]?.value : null;
-        final inCell = inCol != null ? row[inCol]?.value : null;
-        final outAmountCell = outAmountCol != null ? row[outAmountCol]?.value : null;
-        final inAmountCell = inAmountCol != null ? row[inAmountCol]?.value : null;
-        final noteCell = noteCol != null ? row[noteCol]?.value : null;
+        final dateCell = dateCol != null && dateCol < row.length ? row[dateCol]?.value : null;
+        final outCell = outCol != null && outCol < row.length ? row[outCol]?.value : null;
+        final inCell = inCol != null && inCol < row.length ? row[inCol]?.value : null;
+        final outAmountCell = outAmountCol != null && outAmountCol < row.length ? row[outAmountCol]?.value : null;
+        final inAmountCell = inAmountCol != null && inAmountCol < row.length ? row[inAmountCol]?.value : null;
+        final noteCell = noteCol != null && noteCol < row.length ? row[noteCol]?.value : null;
         
         if (dateCell == null) continue;
         
@@ -514,11 +532,12 @@ class MoneyModel extends ChangeNotifier {
         
         // Crea uscita se presente
         if (outCell != null && outAmountCell != null) {
-          final category = categoryMapping[outCell.toString()] ?? 'Trasferimento';
+          final rawCategory = outCell.toString().trim();
+          final category = categoryMapping[rawCategory] ?? _mapCommonCategory(rawCategory);
           final tx = MoneyTx(
             isIncome: false,
             category: category,
-            amount: double.parse(outAmountCell.toString()),
+            amount: double.parse(outAmountCell.toString().replaceAll(',', '.')),
             date: date,
             note: noteCell?.toString(),
             payment: PaymentMethod.bonifico,
@@ -529,11 +548,12 @@ class MoneyModel extends ChangeNotifier {
         
         // Crea entrata se presente
         if (inCell != null && inAmountCell != null) {
-          final category = categoryMapping[inCell.toString()] ?? 'Trasferimento';
+          final rawCategory = inCell.toString().trim();
+          final category = categoryMapping[rawCategory] ?? _mapCommonCategory(rawCategory);
           final tx = MoneyTx(
             isIncome: true,
             category: category,
-            amount: double.parse(inAmountCell.toString()),
+            amount: double.parse(inAmountCell.toString().replaceAll(',', '.')),
             date: date,
             note: noteCell?.toString(),
             payment: PaymentMethod.bonifico,
@@ -547,6 +567,24 @@ class MoneyModel extends ChangeNotifier {
     }
     
     return imported;
+  }
+
+  // ✅ NUOVO: Mappatura automatica per categorie comuni
+  String _mapCommonCategory(String rawCategory) {
+    final mappings = {
+      'Alimentari': 'Spesa',
+      'Auto': 'Trasporti',
+      'Svago': 'Ristoranti',
+      'Attività fisica': 'Sport',
+      'PAC': 'Investimenti',
+      'Ricarica': 'Telefono',
+      'Telefono': 'Bollette',
+      'Internet': 'Bollette',
+      'Luce': 'Bollette',
+      'Gas': 'Bollette',
+      'Acqua': 'Bollette',
+    };
+    return mappings[rawCategory] ?? rawCategory;
   }
 
   // ✅ NUOVO: Importa da MMBackup (.mmbackup - JSON)
@@ -585,7 +623,7 @@ class MoneyModel extends ChangeNotifier {
       if (amount == 0) return null;
       
       final rawCategory = txData['category']?.toString() ?? 'Altro';
-      final category = categoryMapping[rawCategory] ?? rawCategory;
+      final category = categoryMapping[rawCategory] ?? _mapCommonCategory(rawCategory);
       
       final date = DateTime.fromMillisecondsSinceEpoch(txData['date'] ?? 0);
       final note = txData['note']?.toString();
@@ -632,14 +670,14 @@ class MoneyModel extends ChangeNotifier {
       
       // Categoria con mapping
       final rawCategory = fields[1].trim();
-      category = categoryMapping[rawCategory] ?? rawCategory;
+      category = categoryMapping[rawCategory] ?? _mapCommonCategory(rawCategory);
       
       // Amount (gestisce virgola e punto)
       amount = double.parse(fields[2].replaceAll(',', '.'));
       
       // Tipo (prova diversi formati)
       final typeField = fields.length > 4 ? fields[4].toLowerCase().trim() : '';
-      if (typeField.contains('entrata') || typeField.contains('income') || typeField.contains('+'  ) || amount > 0) {
+      if (typeField.contains('entrata') || typeField.contains('income') || typeField.contains('+') || amount > 0) {
         isIncome = true;
         amount = amount.abs();
       } else {
@@ -693,14 +731,18 @@ class MoneyModel extends ChangeNotifier {
       final excel = Excel.decodeBytes(fileBytes);
       
       for (var tableName in excel.tables.keys) {
-        final sheet = excel.tables[tableName]!;
+        final sheet = excel.tables[tableName];
+        if (sheet == null || sheet.rows.isEmpty) continue;
         
         // Trova colonna categoria
         final headerRow = sheet.rows.first;
         int? categoryCol;
         
         for (int i = 0; i < headerRow.length; i++) {
-          final header = headerRow[i]?.value?.toString()?.toLowerCase() ?? '';
+          final cell = headerRow[i];
+          if (cell?.value == null) continue;
+          
+          final header = cell!.value.toString().toLowerCase();
           if (header.contains('categoria')) {
             categoryCol = i;
             break;
@@ -716,8 +758,9 @@ class MoneyModel extends ChangeNotifier {
           
           final categoryCell = row[categoryCol]?.value?.toString()?.trim();
           if (categoryCell != null && categoryCell.isNotEmpty) {
-            if (!expenseCats.contains(categoryCell) && 
-                !incomeCats.contains(categoryCell)) {
+            final mappedCategory = _mapCommonCategory(categoryCell);
+            if (!expenseCats.contains(mappedCategory) && 
+                !incomeCats.contains(mappedCategory)) {
               unrecognized.add(categoryCell);
             }
           }
@@ -739,11 +782,12 @@ class MoneyModel extends ChangeNotifier {
       final transactions = data['transactions'] as List<dynamic>? ?? [];
       
       for (final txData in transactions) {
-        final category = txData['category']?.toString()?.trim();
-        if (category != null && category.isNotEmpty) {
-          if (!expenseCats.contains(category) && 
-              !incomeCats.contains(category)) {
-            unrecognized.add(category);
+        final rawCategory = txData['category']?.toString()?.trim();
+        if (rawCategory != null && rawCategory.isNotEmpty) {
+          final mappedCategory = _mapCommonCategory(rawCategory);
+          if (!expenseCats.contains(mappedCategory) && 
+              !incomeCats.contains(mappedCategory)) {
+            unrecognized.add(rawCategory);
           }
         }
       }
@@ -766,11 +810,13 @@ class MoneyModel extends ChangeNotifier {
       
       final fields = _parseCSVFields(line);
       if (fields.length >= 2) {
-        final category = fields[1].trim();
-        if (category.isNotEmpty && 
-            !expenseCats.contains(category) && 
-            !incomeCats.contains(category)) {
-          unrecognized.add(category);
+        final rawCategory = fields[1].trim();
+        if (rawCategory.isNotEmpty) {
+          final mappedCategory = _mapCommonCategory(rawCategory);
+          if (!expenseCats.contains(mappedCategory) && 
+              !incomeCats.contains(mappedCategory)) {
+            unrecognized.add(rawCategory);
+          }
         }
       }
     }
