@@ -32,11 +32,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  # ✅ IMPORTAZIONE FILE - Versione stabile senza conflitti
+  # ✅ IMPORTAZIONE FILE
   file_picker: ^5.5.0
-  file_picker_linux: ^5.5.0
-  file_picker_macos: ^5.5.0
-  file_picker_windows: ^5.5.0
   excel: ^2.1.0
   path_provider: ^2.1.1
 
