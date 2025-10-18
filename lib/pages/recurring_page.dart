@@ -146,7 +146,19 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                           ),
                         ],
                       ),
-                      if (recurring.note != null) ...[
+                      // ✅ NUOVO: Mostra l'orario
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time, size: 12, color: isDark ? Colors.white60 : Colors.grey[500]),
+                          const SizedBox(width: 4),
+                          Text(
+                            'alle ${recurring.formattedTime}',
+                            style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                      if (recurring.note != null) ..[
                         const SizedBox(height: 2),
                         Text(
                           recurring.note!,
@@ -204,6 +216,7 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
     String selectedCategory = model.expenseCats.first;
     PaymentMethod selectedPayment = PaymentMethod.carta;
     int selectedDay = 1;
+    TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0); // ✅ NUOVO: Orario predefinito
 
     showDialog(
       context: context,
@@ -249,6 +262,32 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                   onChanged: (val) => setState(() => selectedDay = val!),
                 ),
                 const SizedBox(height: 16),
+                // ✅ NUOVO: Time picker
+                ListTile(
+                  leading: const Icon(Icons.access_time),
+                  title: const Text('Orario'),
+                  subtitle: Text(selectedTime.format(context)),
+                  onTap: () async {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: selectedTime,
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            timePickerTheme: TimePickerThemeData(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (time != null) {
+                      setState(() => selectedTime = time);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<PaymentMethod>(
                   value: selectedPayment,
                   decoration: const InputDecoration(labelText: 'Metodo di pagamento', prefixIcon: Icon(Icons.payment)),
@@ -275,6 +314,7 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                     category: selectedCategory,
                     amount: amount,
                     dayOfMonth: selectedDay,
+                    time: selectedTime, // ✅ NUOVO
                     payment: selectedPayment,
                     note: noteCtrl.text.isEmpty ? null : noteCtrl.text,
                   );
@@ -299,6 +339,7 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
     String selectedCategory = recurring.category;
     PaymentMethod selectedPayment = recurring.payment;
     int selectedDay = recurring.dayOfMonth;
+    TimeOfDay selectedTime = recurring.time; // ✅ NUOVO
 
     showDialog(
       context: context,
@@ -350,6 +391,32 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                   onChanged: (val) => setState(() => selectedDay = val!),
                 ),
                 const SizedBox(height: 16),
+                // ✅ NUOVO: Time picker per modifica
+                ListTile(
+                  leading: const Icon(Icons.access_time),
+                  title: const Text('Orario'),
+                  subtitle: Text(selectedTime.format(context)),
+                  onTap: () async {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: selectedTime,
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            timePickerTheme: TimePickerThemeData(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (time != null) {
+                      setState(() => selectedTime = time);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<PaymentMethod>(
                   value: selectedPayment,
                   decoration: const InputDecoration(labelText: 'Metodo di pagamento', prefixIcon: Icon(Icons.payment)),
@@ -377,6 +444,7 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                     category: selectedCategory,
                     amount: amount,
                     dayOfMonth: selectedDay,
+                    time: selectedTime, // ✅ NUOVO
                     payment: selectedPayment,
                     note: noteCtrl.text.isEmpty ? null : noteCtrl.text,
                     lastProcessed: recurring.lastProcessed,
