@@ -768,7 +768,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                                 color: isDark ? Colors.white60 : Colors.grey[600],
                               ),
                             ),
-                            if (tx.note != null && tx.note!.isNotEmpty) ..[
+                            if (tx.note != null && tx.note!.isNotEmpty) ...[
                               const SizedBox(width: 8),
                               Icon(
                                 Icons.note,
