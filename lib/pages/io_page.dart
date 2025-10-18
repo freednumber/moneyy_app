@@ -38,7 +38,7 @@ class _IOPageState extends State<IOPage> {
             const Color(0xFF10B981),
             [
               ListTile(
-                leading: const Icon(Icons.csv_file, color: Color(0xFF10B981)),
+                leading: const Icon(Icons.description, color: Color(0xFF10B981)),
                 title: const Text('Esporta CSV'),
                 subtitle: const Text('Salva tutte le transazioni in formato CSV'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
