@@ -1,0 +1,48 @@
+name: moneyy
+description: "Un gestore di finanze personali completo, costruito con Flutter."
+publish_to: 'none'
+
+version: 1.0.0+2
+
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Pacchetti per l'interfaccia utente e icone
+  cupertino_icons: ^1.0.2
+
+  # Gestione del database locale
+  sqflite: ^2.3.0
+  path: ^1.8.3
+
+  # State management
+  provider: ^6.0.5
+
+  http: ^1.1.0
+  google_generative_ai: ^0.2.2
+  
+  # Preferenze utente (per salvare valuta, tema, etc.)
+  shared_preferences: ^2.2.1
+
+  # Localizzazione e formattazione
+  intl: ^0.20.2  # <-- VERSIONE AGGIORNATA
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  fl_chart: ^0.68.0 # Aggiungi questa linea
+  
+  flutter_lints: ^2.0.0
+
+# Configurazione specifica per Flutter
+flutter:
+  uses-material-design: true
+
+  # Dichiarazione degli assets (immagini)
+  assets:
+    - assets/images/
