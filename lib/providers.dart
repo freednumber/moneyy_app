@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:excel/excel.dart';
 import 'models.dart';
 import 'repository.dart';
 
@@ -373,6 +376,235 @@ class MoneyModel extends ChangeNotifier {
     debugPrint('✅ Importate $imported transazioni da CSV');
   }
 
+  // ✅ NUOVO: Importa da file Excel (.xlsx)
+  Future<void> importFromExcel(Uint8List fileBytes, Map<String, String> categoryMapping) async {
+    try {
+      final excel = Excel.decodeBytes(fileBytes);
+      int totalImported = 0;
+      
+      for (var tableName in excel.tables.keys) {
+        final sheet = excel.tables[tableName]!;
+        
+        // Analizza il nome del foglio per determinare il tipo
+        bool isExpenseSheet = tableName.toLowerCase().contains('spese');
+        bool isIncomeSheet = tableName.toLowerCase().contains('entrate');
+        bool isTransferSheet = tableName.toLowerCase().contains('bonifici');
+        
+        debugPrint('📄 Elaborando foglio: $tableName');
+        
+        if (isExpenseSheet || isIncomeSheet) {
+          totalImported += await _processStandardSheet(sheet, !isExpenseSheet, categoryMapping);
+        } else if (isTransferSheet) {
+          totalImported += await _processTransferSheet(sheet, categoryMapping);
+        }
+      }
+      
+      await loadInitial();
+      debugPrint('✅ Importate $totalImported transazioni da Excel');
+    } catch (e) {
+      debugPrint('❌ Errore importazione Excel: $e');
+      rethrow;
+    }
+  }
+
+  // ✅ NUOVO: Processa fogli Spese/Entrate
+  Future<int> _processStandardSheet(Sheet sheet, bool isIncome, Map<String, String> categoryMapping) async {
+    int imported = 0;
+    
+    // Trova le colonne (header sulla riga 1)
+    final headerRow = sheet.rows.first;
+    int? dateCol, categoryCol, amountCol, noteCol;
+    
+    for (int i = 0; i < headerRow.length; i++) {
+      final header = headerRow[i]?.value?.toString()?.toLowerCase() ?? '';
+      if (header.contains('data')) dateCol = i;
+      if (header.contains('categoria')) categoryCol = i;
+      if (header.contains('importo') && header.contains('predefinita')) amountCol = i;
+      if (header.contains('commento')) noteCol = i;
+    }
+    
+    if (dateCol == null || categoryCol == null || amountCol == null) {
+      debugPrint('⚠️ Colonne non trovate nel foglio');
+      return 0;
+    }
+    
+    // Processa le righe dati (salta header)
+    for (int i = 1; i < sheet.rows.length; i++) {
+      final row = sheet.rows[i];
+      if (row.isEmpty) continue;
+      
+      try {
+        final dateCell = row[dateCol]?.value;
+        final categoryCell = row[categoryCol]?.value;
+        final amountCell = row[amountCol]?.value;
+        final noteCell = noteCol != null ? row[noteCol]?.value : null;
+        
+        if (dateCell == null || categoryCell == null || amountCell == null) continue;
+        
+        // Parse data (formato "2025-10-16 000000")
+        DateTime date;
+        final dateStr = dateCell.toString();
+        if (dateStr.contains(' ')) {
+          date = DateTime.parse(dateStr.split(' ')[0]);
+        } else {
+          date = DateTime.parse(dateStr);
+        }
+        
+        // Parse categoria con mapping
+        final rawCategory = categoryCell.toString().trim();
+        final category = categoryMapping[rawCategory] ?? rawCategory;
+        
+        // Parse importo
+        double amount = double.parse(amountCell.toString());
+        
+        // Crea transazione
+        final tx = MoneyTx(
+          isIncome: isIncome,
+          category: category,
+          amount: amount,
+          date: date,
+          note: noteCell?.toString(),
+          payment: PaymentMethod.carta, // Default
+        );
+        
+        await _repo.insertTx(tx);
+        imported++;
+      } catch (e) {
+        debugPrint('Errore parsing riga $i: $e');
+      }
+    }
+    
+    return imported;
+  }
+
+  // ✅ NUOVO: Processa foglio Bonifici
+  Future<int> _processTransferSheet(Sheet sheet, Map<String, String> categoryMapping) async {
+    int imported = 0;
+    
+    // Trova le colonne
+    final headerRow = sheet.rows.first;
+    int? dateCol, outCol, inCol, outAmountCol, inAmountCol, noteCol;
+    
+    for (int i = 0; i < headerRow.length; i++) {
+      final header = headerRow[i]?.value?.toString()?.toLowerCase() ?? '';
+      if (header.contains('data')) dateCol = i;
+      if (header.contains('uscita') && !header.contains('importo')) outCol = i;
+      if (header.contains('entrata') && !header.contains('importo')) inCol = i;
+      if (header.contains('importo') && header.contains('uscita')) outAmountCol = i;
+      if (header.contains('importo') && header.contains('entrata')) inAmountCol = i;
+      if (header.contains('commento')) noteCol = i;
+    }
+    
+    // Processa righe
+    for (int i = 1; i < sheet.rows.length; i++) {
+      final row = sheet.rows[i];
+      if (row.isEmpty) continue;
+      
+      try {
+        final dateCell = row[dateCol!]?.value;
+        final outCell = outCol != null ? row[outCol]?.value : null;
+        final inCell = inCol != null ? row[inCol]?.value : null;
+        final outAmountCell = outAmountCol != null ? row[outAmountCol]?.value : null;
+        final inAmountCell = inAmountCol != null ? row[inAmountCol]?.value : null;
+        final noteCell = noteCol != null ? row[noteCol]?.value : null;
+        
+        if (dateCell == null) continue;
+        
+        DateTime date = DateTime.parse(dateCell.toString().split(' ')[0]);
+        
+        // Crea uscita se presente
+        if (outCell != null && outAmountCell != null) {
+          final category = categoryMapping[outCell.toString()] ?? 'Trasferimento';
+          final tx = MoneyTx(
+            isIncome: false,
+            category: category,
+            amount: double.parse(outAmountCell.toString()),
+            date: date,
+            note: noteCell?.toString(),
+            payment: PaymentMethod.bonifico,
+          );
+          await _repo.insertTx(tx);
+          imported++;
+        }
+        
+        // Crea entrata se presente
+        if (inCell != null && inAmountCell != null) {
+          final category = categoryMapping[inCell.toString()] ?? 'Trasferimento';
+          final tx = MoneyTx(
+            isIncome: true,
+            category: category,
+            amount: double.parse(inAmountCell.toString()),
+            date: date,
+            note: noteCell?.toString(),
+            payment: PaymentMethod.bonifico,
+          );
+          await _repo.insertTx(tx);
+          imported++;
+        }
+      } catch (e) {
+        debugPrint('Errore parsing bonifico riga $i: $e');
+      }
+    }
+    
+    return imported;
+  }
+
+  // ✅ NUOVO: Importa da MMBackup (.mmbackup - JSON)
+  Future<void> importFromMMBackup(String jsonContent, Map<String, String> categoryMapping) async {
+    try {
+      final data = json.decode(jsonContent) as Map<String, dynamic>;
+      int imported = 0;
+      
+      // Struttura tipica MMBackup
+      final transactions = data['transactions'] as List<dynamic>? ?? [];
+      
+      for (final txData in transactions) {
+        try {
+          final tx = _parseMMBackupTransaction(txData, categoryMapping);
+          if (tx != null) {
+            await _repo.insertTx(tx);
+            imported++;
+          }
+        } catch (e) {
+          debugPrint('Errore parsing transazione MMBackup: $e');
+        }
+      }
+      
+      await loadInitial();
+      debugPrint('✅ Importate $imported transazioni da MMBackup');
+    } catch (e) {
+      debugPrint('❌ Errore importazione MMBackup: $e');
+      rethrow;
+    }
+  }
+
+  // ✅ NUOVO: Parser transazione MMBackup
+  MoneyTx? _parseMMBackupTransaction(Map<String, dynamic> txData, Map<String, String> categoryMapping) {
+    try {
+      final amount = double.parse(txData['amount']?.toString() ?? '0');
+      if (amount == 0) return null;
+      
+      final rawCategory = txData['category']?.toString() ?? 'Altro';
+      final category = categoryMapping[rawCategory] ?? rawCategory;
+      
+      final date = DateTime.fromMillisecondsSinceEpoch(txData['date'] ?? 0);
+      final note = txData['note']?.toString();
+      final isIncome = (txData['type']?.toString() ?? '').toLowerCase() == 'income';
+      
+      return MoneyTx(
+        isIncome: isIncome,
+        category: category,
+        amount: amount.abs(),
+        date: date,
+        note: note,
+        payment: PaymentMethod.carta, // Default
+      );
+    } catch (e) {
+      debugPrint('Errore parsing singola transazione: $e');
+      return null;
+    }
+  }
+
   // ✅ NUOVO: Parser CSV line
   MoneyTx? _parseCSVLine(String line, Map<String, String> categoryMapping) {
     final fields = _parseCSVFields(line);
@@ -451,6 +683,75 @@ class MoneyModel extends ChangeNotifier {
     }
     fields.add(currentField.trim());
     return fields;
+  }
+
+  // ✅ NUOVO: Ottieni categorie non riconosciute da Excel
+  Set<String> getUnrecognizedCategoriesFromExcel(Uint8List fileBytes) {
+    final unrecognized = <String>{};
+    
+    try {
+      final excel = Excel.decodeBytes(fileBytes);
+      
+      for (var tableName in excel.tables.keys) {
+        final sheet = excel.tables[tableName]!;
+        
+        // Trova colonna categoria
+        final headerRow = sheet.rows.first;
+        int? categoryCol;
+        
+        for (int i = 0; i < headerRow.length; i++) {
+          final header = headerRow[i]?.value?.toString()?.toLowerCase() ?? '';
+          if (header.contains('categoria')) {
+            categoryCol = i;
+            break;
+          }
+        }
+        
+        if (categoryCol == null) continue;
+        
+        // Estrai categorie
+        for (int i = 1; i < sheet.rows.length; i++) {
+          final row = sheet.rows[i];
+          if (row.length <= categoryCol) continue;
+          
+          final categoryCell = row[categoryCol]?.value?.toString()?.trim();
+          if (categoryCell != null && categoryCell.isNotEmpty) {
+            if (!expenseCats.contains(categoryCell) && 
+                !incomeCats.contains(categoryCell)) {
+              unrecognized.add(categoryCell);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Errore analisi categorie Excel: $e');
+    }
+    
+    return unrecognized;
+  }
+
+  // ✅ NUOVO: Ottieni categorie non riconosciute da MMBackup
+  Set<String> getUnrecognizedCategoriesFromMMBackup(String jsonContent) {
+    final unrecognized = <String>{};
+    
+    try {
+      final data = json.decode(jsonContent) as Map<String, dynamic>;
+      final transactions = data['transactions'] as List<dynamic>? ?? [];
+      
+      for (final txData in transactions) {
+        final category = txData['category']?.toString()?.trim();
+        if (category != null && category.isNotEmpty) {
+          if (!expenseCats.contains(category) && 
+              !incomeCats.contains(category)) {
+            unrecognized.add(category);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Errore analisi categorie MMBackup: $e');
+    }
+    
+    return unrecognized;
   }
 
   // ✅ NUOVO: Ottieni categorie non riconosciute dal CSV
