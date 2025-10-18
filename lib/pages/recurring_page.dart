@@ -158,7 +158,7 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                           ),
                         ],
                       ),
-                      if (recurring.note != null) ..[
+                      if (recurring.note != null) ...[
                         const SizedBox(height: 2),
                         Text(
                           recurring.note!,
