@@ -212,9 +212,9 @@ class MoneyModel extends ChangeNotifier {
       'CASA': CategoryStyle(Icons.home, const Color(0xFFF59E0B)),
       'INVESTIMENTI': CategoryStyle(Icons.trending_up, const Color(0xFF14B8A6)),
       'ALTRO': CategoryStyle(Icons.flag, const Color(0xFF6B7280)),
-      // ✅ MAPPATURA AUTOMATICA per categorie comuni da Excel
+      // Mappature comuni
       'Alimentari': CategoryStyle(Icons.shopping_cart, const Color(0xFF10B981)),
-      'Auto': CategoryStyle(Icons.directions_car, const Color(0xFF3B82F6)), 
+      'Auto': CategoryStyle(Icons.directions_car, const Color(0xFF3B82F6)),
       'Svago': CategoryStyle(Icons.sports_esports, const Color(0xFFF59E0B)),
       'Attività fisica': CategoryStyle(Icons.fitness_center, const Color(0xFF84CC16)),
       'PAC': CategoryStyle(Icons.trending_up, const Color(0xFF8B5CF6)),
@@ -383,7 +383,7 @@ class MoneyModel extends ChangeNotifier {
     debugPrint('✅ Importate $imported transazioni da CSV');
   }
 
-  // ✅ NUOVO: Importa da file Excel (.xlsx) - Compatibile con excel v2.1.0
+  // ✅ NUOVO: Importa da file Excel (.xlsx)
   Future<void> importFromExcel(Uint8List fileBytes, Map<String, String> categoryMapping) async {
     try {
       final excel = Excel.decodeBytes(fileBytes);
@@ -415,7 +415,7 @@ class MoneyModel extends ChangeNotifier {
     }
   }
 
-  // ✅ NUOVO: Processa fogli Spese/Entrate - Compatibile con excel v2.1.0
+  // ✅ NUOVO: Processa fogli Spese/Entrate
   Future<int> _processStandardSheet(Sheet sheet, bool isIncome, Map<String, String> categoryMapping) async {
     int imported = 0;
     
@@ -454,7 +454,7 @@ class MoneyModel extends ChangeNotifier {
         
         if (dateCell == null || categoryCell == null || amountCell == null) continue;
         
-        // Parse data (formato "2025-10-16 000000" o "2025-10-16")
+        // Parse data
         DateTime date;
         final dateStr = dateCell.toString();
         if (dateStr.contains(' ')) {
@@ -490,7 +490,7 @@ class MoneyModel extends ChangeNotifier {
     return imported;
   }
 
-  // ✅ NUOVO: Processa foglio Bonifici - Compatibile con excel v2.1.0
+  // ✅ NUOVO: Processa foglio Bonifici (mappa a carta per scelta B)
   Future<int> _processTransferSheet(Sheet sheet, Map<String, String> categoryMapping) async {
     int imported = 0;
     
@@ -530,7 +530,7 @@ class MoneyModel extends ChangeNotifier {
         
         DateTime date = DateTime.parse(dateCell.toString().split(' ')[0]);
         
-        // Crea uscita se presente
+        // Crea uscita se presente (mappata a carta)
         if (outCell != null && outAmountCell != null) {
           final rawCategory = outCell.toString().trim();
           final category = categoryMapping[rawCategory] ?? _mapCommonCategory(rawCategory);
@@ -540,13 +540,13 @@ class MoneyModel extends ChangeNotifier {
             amount: double.parse(outAmountCell.toString().replaceAll(',', '.')),
             date: date,
             note: noteCell?.toString(),
-            payment: PaymentMethod.bonifico,
+            payment: PaymentMethod.carta,
           );
           await _repo.insertTx(tx);
           imported++;
         }
         
-        // Crea entrata se presente
+        // Crea entrata se presente (mappata a carta)
         if (inCell != null && inAmountCell != null) {
           final rawCategory = inCell.toString().trim();
           final category = categoryMapping[rawCategory] ?? _mapCommonCategory(rawCategory);
@@ -556,7 +556,7 @@ class MoneyModel extends ChangeNotifier {
             amount: double.parse(inAmountCell.toString().replaceAll(',', '.')),
             date: date,
             note: noteCell?.toString(),
-            payment: PaymentMethod.bonifico,
+            payment: PaymentMethod.carta,
           );
           await _repo.insertTx(tx);
           imported++;
@@ -635,7 +635,7 @@ class MoneyModel extends ChangeNotifier {
         amount: amount.abs(),
         date: date,
         note: note,
-        payment: PaymentMethod.carta, // Default
+        payment: PaymentMethod.carta,
       );
     } catch (e) {
       debugPrint('Errore parsing singola transazione: $e');
@@ -694,7 +694,7 @@ class MoneyModel extends ChangeNotifier {
         amount: amount,
         date: date,
         note: note,
-        payment: PaymentMethod.carta, // Default
+        payment: PaymentMethod.carta,
       );
     } catch (e) {
       debugPrint('Errore parsing: $e');
