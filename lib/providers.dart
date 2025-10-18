@@ -66,6 +66,31 @@ class MoneyModel extends ChangeNotifier {
     }
   }
 
+  // ✅ NUOVO: Reset completo di tutti i dati
+  Future<void> resetAllData() async {
+    loading = true;
+    notifyListeners();
+    
+    try {
+      await _repo.resetDatabase();
+      
+      // Pulisci le liste locali
+      transactions.clear();
+      goals.clear();
+      recurringTransactions.clear();
+      
+      loading = false;
+      notifyListeners();
+      
+      debugPrint('✅ Reset completo effettuato con successo');
+    } catch (e) {
+      loading = false;
+      notifyListeners();
+      debugPrint('❌ Errore durante il reset: $e');
+      rethrow;
+    }
+  }
+
   // ✅ Genera transazioni dalle ricorrenti - partono da OGGI in avanti
   List<MoneyTx> getRecurringTransactionsForPeriod(DateTime start, DateTime end) {
     final List<MoneyTx> generatedTxs = [];
@@ -318,6 +343,138 @@ class MoneyModel extends ChangeNotifier {
   Future<void> deleteRecurring(int id) async {
     await _repo.deleteRecurring(id);
     await loadInitial();
+  }
+
+  // ✅ NUOVO: Importa transazioni da CSV
+  Future<void> importFromCSV(String csvContent, Map<String, String> categoryMapping) async {
+    final lines = csvContent.split('\n');
+    if (lines.isEmpty) return;
+    
+    // Salta l'header se presente
+    final startIndex = lines[0].toLowerCase().contains('data') ? 1 : 0;
+    
+    int imported = 0;
+    for (int i = startIndex; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty) continue;
+      
+      try {
+        final tx = _parseCSVLine(line, categoryMapping);
+        if (tx != null) {
+          await _repo.insertTx(tx);
+          imported++;
+        }
+      } catch (e) {
+        debugPrint('Errore parsing linea $i: $e');
+      }
+    }
+    
+    await loadInitial();
+    debugPrint('✅ Importate $imported transazioni da CSV');
+  }
+
+  // ✅ NUOVO: Parser CSV line
+  MoneyTx? _parseCSVLine(String line, Map<String, String> categoryMapping) {
+    final fields = _parseCSVFields(line);
+    if (fields.length < 4) return null;
+    
+    try {
+      DateTime date;
+      double amount;
+      String category;
+      bool isIncome;
+      String? note;
+      
+      // Prova diversi formati di data
+      try {
+        date = DateTime.parse(fields[0]);
+      } catch (_) {
+        // Prova formato italiano
+        final parts = fields[0].split('/');
+        if (parts.length == 3) {
+          date = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+        } else {
+          return null;
+        }
+      }
+      
+      // Categoria con mapping
+      final rawCategory = fields[1].trim();
+      category = categoryMapping[rawCategory] ?? rawCategory;
+      
+      // Amount (gestisce virgola e punto)
+      amount = double.parse(fields[2].replaceAll(',', '.'));
+      
+      // Tipo (prova diversi formati)
+      final typeField = fields.length > 4 ? fields[4].toLowerCase().trim() : '';
+      if (typeField.contains('entrata') || typeField.contains('income') || typeField.contains('+'  ) || amount > 0) {
+        isIncome = true;
+        amount = amount.abs();
+      } else {
+        isIncome = false;
+        amount = amount.abs();
+      }
+      
+      // Nota
+      note = fields.length > 3 && fields[3].trim().isNotEmpty ? fields[3].trim() : null;
+      
+      return MoneyTx(
+        isIncome: isIncome,
+        category: category,
+        amount: amount,
+        date: date,
+        note: note,
+        payment: PaymentMethod.carta, // Default
+      );
+    } catch (e) {
+      debugPrint('Errore parsing: $e');
+      return null;
+    }
+  }
+
+  // ✅ NUOVO: Parser CSV semplice
+  List<String> _parseCSVFields(String line) {
+    final fields = <String>[];
+    bool inQuotes = false;
+    String currentField = '';
+    
+    for (int i = 0; i < line.length; i++) {
+      final char = line[i];
+      if (char == '"') {
+        inQuotes = !inQuotes;
+      } else if (char == ',' && !inQuotes) {
+        fields.add(currentField.trim());
+        currentField = '';
+      } else {
+        currentField += char;
+      }
+    }
+    fields.add(currentField.trim());
+    return fields;
+  }
+
+  // ✅ NUOVO: Ottieni categorie non riconosciute dal CSV
+  Set<String> getUnrecognizedCategories(String csvContent) {
+    final unrecognized = <String>{};
+    final lines = csvContent.split('\n');
+    final startIndex = lines[0].toLowerCase().contains('data') ? 1 : 0;
+    
+    for (int i = startIndex; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty) continue;
+      
+      final fields = _parseCSVFields(line);
+      if (fields.length >= 2) {
+        final category = fields[1].trim();
+        if (category.isNotEmpty && 
+            !expenseCats.contains(category) && 
+            !incomeCats.contains(category)) {
+          unrecognized.add(category);
+        }
+      }
+    }
+    
+    return unrecognized;
   }
 }
 
