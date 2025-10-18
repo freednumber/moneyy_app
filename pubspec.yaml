@@ -28,9 +28,14 @@ dependencies:
   shared_preferences: ^2.2.1
 
   # Localizzazione e formattazione
-  intl: ^0.20.2  # <-- VERSIONE AGGIORNATA
+  intl: ^0.20.2
   flutter_localizations:
     sdk: flutter
+
+  # ✅ NUOVO: Dipendenze per importazione file avanzata
+  file_picker: ^6.1.1
+  excel: ^4.0.3
+  path_provider: ^2.1.1
 
 dev_dependencies:
   flutter_test:
