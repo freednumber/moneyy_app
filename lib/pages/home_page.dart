@@ -316,7 +316,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     final cat = mostUsed[index];
                     final style = model.getTransactionStyle(cat);
                     final isIncome = model.incomeCats.contains(cat);
-                    return _buildCategoryChipEnhanced(cat, style.icon, style.color, isIncome, () {
+                    final lastUsed = _getLastUsedDate(model, cat);
+                    return _buildCategoryChipEnhanced(cat, style.icon, style.color, isIncome, lastUsed, () {
                       _showQuickEntryDialog(context, cat, isIncome);
                     });
                   },
@@ -327,7 +328,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                   children: mostUsed.map((cat) {
                     final style = model.getTransactionStyle(cat);
                     final isIncome = model.incomeCats.contains(cat);
-                    return _buildCategoryChipEnhanced(cat, style.icon, style.color, isIncome, () {
+                    final lastUsed = _getLastUsedDate(model, cat);
+                    return _buildCategoryChipEnhanced(cat, style.icon, style.color, isIncome, lastUsed, () {
                       _showQuickEntryDialog(context, cat, isIncome);
                     });
                   }).toList(),
@@ -337,8 +339,34 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // ✅ CHIP MIGLIORATO
-  Widget _buildCategoryChipEnhanced(String category, IconData icon, Color color, bool isIncome, VoidCallback onTap) {
+  // ✅ NUOVO: Ottiene l'ultima data di utilizzo di una categoria
+  String _getLastUsedDate(MoneyModel model, String category) {
+    final txForCategory = model.transactions
+        .where((tx) => tx.category == category)
+        .toList();
+    
+    if (txForCategory.isEmpty) {
+      return 'Mai utilizzato';
+    }
+    
+    // Trova la transazione più recente
+    final mostRecent = txForCategory.first; // già ordinati per data DESC
+    final now = DateTime.now();
+    final difference = now.difference(mostRecent.date).inDays;
+    
+    if (difference == 0) {
+      return 'Oggi';
+    } else if (difference == 1) {
+      return 'Ieri';
+    } else if (difference < 7) {
+      return '$difference giorni fa';
+    } else {
+      return DateFormat('d MMM', 'it_IT').format(mostRecent.date);
+    }
+  }
+
+  // ✅ CHIP MIGLIORATO CON DATA
+  Widget _buildCategoryChipEnhanced(String category, IconData icon, Color color, bool isIncome, String lastUsed, VoidCallback onTap) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -435,11 +463,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     ),
                   ),
                   const SizedBox(height: 2),
+                  // ✅ NUOVO: Mostra la data dell'ultimo utilizzo
                   Text(
-                    isIncome ? 'Entrata' : 'Uscita',
+                    lastUsed,
                     style: TextStyle(
                       fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                       color: color.withOpacity(0.7),
                     ),
                   ),
@@ -636,36 +665,92 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [style.color, style.color.withOpacity(0.7)],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: style.color.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [style.color, style.color.withOpacity(0.7)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: style.color.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Icon(style.icon, color: Colors.white, size: 24),
+                        child: Icon(style.icon, color: Colors.white, size: 24),
+                      ),
+                      // ✅ NUOVO: Badge per transazioni ricorrenti
+                      if (tx.isFromRecurring)
+                        Positioned(
+                          right: -6,
+                          top: -6,
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.repeat,
+                              color: Colors.white,
+                              size: 12,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          tx.category,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                tx.category,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                            ),
+                            // ✅ NUOVO: Tag per transazioni ricorrenti
+                            if (tx.isFromRecurring)
+                              Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6366F1).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'AUTO',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF6366F1),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Row(
@@ -677,13 +762,13 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              DateFormat('d MMM yyyy', 'it_IT').format(tx.date),
+                              DateFormat('d MMM yyyy • HH:mm', 'it_IT').format(tx.date),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: isDark ? Colors.white60 : Colors.grey[600],
                               ),
                             ),
-                            if (tx.note != null && tx.note!.isNotEmpty) ...[
+                            if (tx.note != null && tx.note!.isNotEmpty) ..[
                               const SizedBox(width: 8),
                               Icon(
                                 Icons.note,
@@ -864,6 +949,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     date: selectedDate,
                     note: noteCtrl.text.isEmpty ? null : noteCtrl.text,
                     payment: selectedPayment,
+                    isFromRecurring: tx.isFromRecurring,
                   );
                   await model.updateTransaction(updatedTx);
                   Navigator.pop(context);
