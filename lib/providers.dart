@@ -30,6 +30,42 @@ class MoneyModel extends ChangeNotifier {
   List<Goal> get activeGoals => goals.where((g) => !g.isCompleted).toList();
   List<Goal> get completedGoals => goals.where((g) => g.isCompleted).toList();
 
+  // ✅ NUOVO: Processa automaticamente le transazioni ricorrenti
+  Future<void> processRecurringTransactions() async {
+    final now = DateTime.now();
+    bool hasNewTransactions = false;
+
+    for (var recurring in recurringTransactions) {
+      if (recurring.shouldProcessNow()) {
+        // Crea la transazione automatica
+        final automaticTx = recurring.toTransaction();
+        await _repo.insertTx(automaticTx);
+        
+        // Aggiorna il lastProcessed della ricorrente
+        final updatedRecurring = Recurring(
+          id: recurring.id,
+          category: recurring.category,
+          amount: recurring.amount,
+          dayOfMonth: recurring.dayOfMonth,
+          time: recurring.time,
+          payment: recurring.payment,
+          note: recurring.note,
+          lastProcessed: now,
+        );
+        
+        await _repo.updateRecurring(updatedRecurring);
+        hasNewTransactions = true;
+        
+        debugPrint('✅ Transazione ricorrente processata: ${recurring.category} - €${recurring.amount}');
+      }
+    }
+
+    if (hasNewTransactions) {
+      await loadInitial();
+      debugPrint('🔄 Transazioni ricorrenti aggiornate automaticamente');
+    }
+  }
+
   // ✅ Genera transazioni dalle ricorrenti - partono da OGGI in avanti
   List<MoneyTx> getRecurringTransactionsForPeriod(DateTime start, DateTime end) {
     final List<MoneyTx> generatedTxs = [];
@@ -50,6 +86,8 @@ class MoneyModel extends ChangeNotifier {
           currentMonth.year,
           currentMonth.month,
           recurring.dayOfMonth > 28 ? 28 : recurring.dayOfMonth,
+          recurring.time.hour,
+          recurring.time.minute,
         );
         
         // ✅ Solo se la data è >= oggi e cade nel periodo
@@ -62,8 +100,9 @@ class MoneyModel extends ChangeNotifier {
             category: recurring.category,
             amount: recurring.amount,
             date: recurringDate,
-            note: '🔁 ${recurring.note ?? recurring.category}',
+            note: '🔄 ${recurring.note ?? recurring.category}',
             payment: recurring.payment,
+            isFromRecurring: true,
           ));
         }
         
@@ -168,6 +207,10 @@ class MoneyModel extends ChangeNotifier {
     transactions = await _repo.getAllTx();
     goals = await _repo.getAllGoals();
     recurringTransactions = await _repo.getRecurring();
+    
+    // ✅ NUOVO: Processa automaticamente le ricorrenti quando si carica l'app
+    await processRecurringTransactions();
+    
     loading = false;
     notifyListeners();
   }
