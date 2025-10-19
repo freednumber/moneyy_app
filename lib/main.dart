@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers.dart';
@@ -68,8 +69,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   late AnimationController _fabController;
 
   // GlobalKey per accedere allo State delle pagine
-  final GlobalKey goalsKey = GlobalKey();
-  final GlobalKey recurringKey = GlobalKey();
+  final GlobalKey<_GoalsPageState> goalsKey = GlobalKey<_GoalsPageState>();
+  final GlobalKey<_RecurringPageState> recurringKey = GlobalKey<_RecurringPageState>();
 
   @override
   void initState() {
@@ -330,6 +331,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         icon: Icons.add,
         tooltip: 'Aggiungi Transazione',
         onTap: () {
+          HapticFeedback.mediumImpact();
           _fabController.forward().then((_) => _fabController.reverse());
           _showQuickAddMenu(context);
         },
@@ -341,13 +343,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         icon: Icons.flag,
         tooltip: 'Nuovo Obiettivo',
         onTap: () {
+          HapticFeedback.mediumImpact();
           final state = goalsKey.currentState;
           if (state != null && state.mounted) {
-            try {
-              // ignore: invalid_use_of_protected_member
-              // @ts-ignore
-              (state as dynamic)._showAddGoalDialog(Provider.of<MoneyModel>(context, listen: false));
-            } catch (_) {}
+            final model = Provider.of<MoneyModel>(context, listen: false);
+            state.showAddGoalDialog(model);
           }
         },
         isDark: isDark,
@@ -358,12 +358,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         icon: Icons.add,
         tooltip: 'Nuova Ricorrente',
         onTap: () {
+          HapticFeedback.mediumImpact();
           final state = recurringKey.currentState;
           if (state != null && state.mounted) {
-            try {
-              // ignore: invalid_use_of_protected_member
-              (state as dynamic)._showAddRecurringDialog(context);
-            } catch (_) {}
+            state.showAddRecurringDialog(context);
           }
         },
         isDark: isDark,
@@ -396,9 +394,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.4 : 0.2),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
+                  color: Colors.black.withOpacity(isDark ? 0.5 : 0.25), // Shadow più marcata
+                  blurRadius: 16,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: color.withOpacity(isDark ? 0.3 : 0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -482,6 +486,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   }) {
     return InkWell(
       onTap: () {
+        HapticFeedback.lightImpact();
         Navigator.pop(context);
         Navigator.push(
           context,
