@@ -85,19 +85,12 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                 ),
               ),
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          _showAddGoalDialog(model);
-        },
-        icon: const Icon(Icons.flag, size: 24),
-        label: const Text('Nuovo Obiettivo'),
-        backgroundColor: const Color(0xFF6366F1),
-        foregroundColor: Colors.white,
-        elevation: 8,
-        extendedPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      ),
     );
+  }
+
+  // METODO PUBBLICO per essere chiamato dal FAB globale
+  void showAddGoalDialog(MoneyModel model) {
+    _showAddGoalDialog(model);
   }
 
   Widget _buildGoalCard(Goal goal, MoneyModel model, bool isCompleted, bool isDark) {
@@ -382,23 +375,6 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                _showAddGoalDialog(model);
-              },
-              icon: const Icon(Icons.flag),
-              label: const Text('Crea Primo Obiettivo'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -409,6 +385,8 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
     final targetController = TextEditingController();
     String selectedCategory = model.goalCategories.first;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    HapticFeedback.mediumImpact(); // Feedback al tap
 
     showDialog(
       context: context,
@@ -519,6 +497,7 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                     );
                     await model.addGoal(goal);
                     Navigator.pop(dialogContext);
+                    HapticFeedback.heavyImpact(); // Feedback al salvataggio
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('✅ Obiettivo creato!'),
