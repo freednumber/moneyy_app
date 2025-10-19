@@ -64,16 +64,11 @@ class MainNavigationPage extends StatefulWidget {
 class _MainNavigationPageState extends State<MainNavigationPage> with TickerProviderStateMixin {
   int _currentIndex = 0;
   MoneyModel? _model;
-  late AnimationController _fabController;
   late AnimationController _navController;
 
   @override
   void initState() {
     super.initState();
-    _fabController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
     _navController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -83,7 +78,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
 
   @override
   void dispose() {
-    _fabController.dispose();
     _navController.dispose();
     super.dispose();
   }
@@ -120,31 +114,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     ];
 
     return Scaffold(
-      body: Stack(
-        children: [
-          IndexedStack(
-            index: _currentIndex,
-            children: pages,
-          ),
-          // FAB centrale per nuova transazione
-          Positioned(
-            bottom: 90,
-            right: 20,
-            child: ScaleTransition(
-              scale: Tween<double>(begin: 0.8, end: 1.0).animate(
-                CurvedAnimation(parent: _fabController, curve: Curves.elasticOut),
-              ),
-              child: FloatingActionButton.large(
-                onPressed: () {
-                  _fabController.forward().then((_) => _fabController.reverse());
-                  _showQuickAddMenu(context);
-                },
-                backgroundColor: const Color(0xFF6366F1),
-                child: const Icon(Icons.add, size: 32, color: Colors.white),
-              ),
-            ),
-          ),
-        ],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: pages,
       ),
       extendBody: true,
       bottomNavigationBar: _buildModernDock(),
@@ -214,14 +186,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                 ),
                 _buildNavItem(
                   icon: Icons.repeat_rounded,
-                  label: isVerySmallScreen ? 'Ricorr.' : 'Ricorrenti', // Abbreviato su schermi stretti
+                  label: isVerySmallScreen ? 'Ricorr.' : 'Ricorrenti',
                   index: 3,
                   isSmall: isSmallScreen,
                   isVerySmall: isVerySmallScreen,
                 ),
                 _buildNavItem(
                   icon: Icons.settings_rounded,
-                  label: isVerySmallScreen ? 'Config.' : 'Impostazioni', // Abbreviato su schermi stretti
+                  label: isVerySmallScreen ? 'Config.' : 'Impostazioni',
                   index: 4,
                   isSmall: isSmallScreen,
                   isVerySmall: isVerySmallScreen,
@@ -256,7 +228,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
           width: isSmall 
-            ? (isVerySmallScreen ? 48 : 54) // Più largo per label complete
+            ? (isVerySmall ? 48 : 54)
             : 68,
           height: isSmall ? 50 : 60,
           decoration: BoxDecoration(
@@ -277,7 +249,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                   color: isSelected
                     ? const Color(0xFF6366F1)
                     : isDark
-                      ? Colors.grey[300] // Più chiaro in dark mode
+                      ? Colors.grey[300]
                       : Colors.grey[600],
                 ),
               ),
@@ -292,13 +264,13 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                     softWrap: false,
                     overflow: TextOverflow.fade,
                     style: TextStyle(
-                      fontSize: 11, // Leggermente più grande
+                      fontSize: 11,
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                       letterSpacing: 0.2,
                       color: isSelected
                         ? const Color(0xFF6366F1)
                         : isDark
-                          ? Colors.grey[300] // Più leggibile in dark
+                          ? Colors.grey[300]
                           : Colors.grey[600],
                     ),
                   ),
@@ -315,7 +287,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                 ),
               ],
               // Label mobile compatta su una riga
-              if (isSmall && !isVerySmallScreen) ...[
+              if (isSmall && !isVerySmall) ...[
                 const SizedBox(height: 2),
                 AnimatedOpacity(
                   opacity: isSelected ? 0.9 : 0.7,
@@ -340,154 +312,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               ],
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  void _showQuickAddMenu(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey[600] : Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Aggiungi Transazione',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildQuickAddButton(
-                    context: context,
-                    title: 'Nuova Uscita',
-                    subtitle: 'Spesa, bolletta...',
-                    icon: Icons.arrow_downward,
-                    color: Colors.red,
-                    isIncome: false,
-                    isDark: isDark,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildQuickAddButton(
-                    context: context,
-                    title: 'Nuova Entrata',
-                    subtitle: 'Stipendio, regalo...',
-                    icon: Icons.arrow_upward,
-                    color: Colors.green,
-                    isIncome: true,
-                    isDark: isDark,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickAddButton({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required bool isIncome,
-    required bool isDark,
-  }) {
-    return InkWell(
-      onTap: () {
-        Navigator.pop(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AddTxPage(initialIsIncome: isIncome),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: isDark 
-            ? color.withOpacity(0.15)
-            : color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark
-              ? color.withOpacity(0.4)
-              : color.withOpacity(0.3),
-          ),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [color, color.withOpacity(0.8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(icon, color: Colors.white, size: 26),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : color,
-                fontSize: 15,
-                letterSpacing: 0.2,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
         ),
       ),
     );
