@@ -30,6 +30,8 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
   bool _isDragging = false;
   bool _showPreview = false;
   List<Map<String, String>> _previewData = [];
+  int _previewLimit = 100; // Limite visualizzazione nella lista
+  int _maxImportItems = 10000; // Limite massimo import
   
   late AnimationController _dragAnimationController;
   late Animation<double> _dragAnimation;
@@ -62,6 +64,12 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
         actions: [
           if (_showPreview)
             IconButton(icon: const Icon(Icons.close), onPressed: _closePreview, tooltip: 'Chiudi anteprima'),
+          if (_showPreview && _previewData.length > _previewLimit)
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () => _showPreviewSettings(),
+              tooltip: 'Impostazioni preview',
+            ),
         ],
       ),
       body: AnimatedSwitcher(
@@ -122,6 +130,9 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
 
   // ====== PREVIEW WIDGET ======
   Widget _buildPreviewWidget(MoneyModel model) {
+    final itemsToShow = _previewData.length.clamp(0, _previewLimit);
+    final totalItems = _previewData.length;
+    
     return FadeTransition(
       opacity: _previewAnimation,
       child: Column(children: [
@@ -139,27 +150,45 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(_fileName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text('${_previewData.length} transazioni trovate', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                Text('$totalItems transazioni trovate', style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+                if (totalItems > _previewLimit)
+                  Text('Mostrate: $itemsToShow/$totalItems', style: TextStyle(color: Colors.orange[700], fontSize: 12, fontWeight: FontWeight.w500)),
               ])),
             ]),
+            if (totalItems > 1000)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.info, color: Colors.amber, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('File molto grande ($totalItems elementi). L\'importazione potrebbe richiedere tempo.', style: const TextStyle(fontSize: 12, color: Colors.amber))),
+                ]),
+              ),
             const SizedBox(height: 12),
             Row(children: [
-              Expanded(child: ElevatedButton.icon(onPressed: () => _analyzeFile(model), icon: const Icon(Icons.import_export), label: const Text('Importa Tutto'), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white))),
+              Expanded(child: ElevatedButton.icon(onPressed: () => _analyzeFile(model), icon: const Icon(Icons.import_export), label: Text('Importa Tutto ($totalItems)'), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white))),
               const SizedBox(width: 12),
               Expanded(child: OutlinedButton.icon(onPressed: _closePreview, icon: const Icon(Icons.close), label: const Text('Annulla'))),
             ]),
           ]),
         ),
+        
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _previewData.length.clamp(0, 50),
+            itemCount: itemsToShow,
             itemBuilder: (context, index) {
               final tx = _previewData[index];
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
-                  leading: CircleAvatar(backgroundColor: const Color(0xFFEF4444).withOpacity(0.1), child: const Icon(Icons.arrow_downward, color: Color(0xFFEF4444), size: 16)),
+                  leading: CircleAvatar(backgroundColor: const Color(0xFFEF4444).withOpacity(0.1), child: Text('${index + 1}', style: const TextStyle(fontSize: 10, color: Color(0xFFEF4444)))),
                   title: Text(tx['categoria'] ?? 'N/A', style: const TextStyle(fontWeight: FontWeight.w500)),
                   subtitle: Text(tx['data'] ?? 'N/A', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                   trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -171,9 +200,53 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
             },
           ),
         ),
-        if (_previewData.length > 50)
-          Padding(padding: const EdgeInsets.all(16), child: Text('... e altre ${_previewData.length - 50} transazioni', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic))),
+        
+        if (totalItems > _previewLimit)
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(children: [
+              Text('Mostrate $itemsToShow di $totalItems transazioni', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: OutlinedButton.icon(onPressed: () => _showMorePreview(), icon: const Icon(Icons.visibility), label: const Text('Mostra più'))),
+                const SizedBox(width: 8),
+                Expanded(child: OutlinedButton.icon(onPressed: () => _showPreviewSettings(), icon: const Icon(Icons.settings), label: const Text('Impostazioni'))),
+              ]),
+            ]),
+          ),
       ]),
+    );
+  }
+
+  void _showMorePreview() {
+    setState(() {
+      _previewLimit = (_previewLimit + 100).clamp(100, _previewData.length);
+    });
+  }
+
+  void _showPreviewSettings() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Impostazioni Preview'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('File: $_fileName'),
+          Text('Totale elementi: ${_previewData.length}'),
+          const SizedBox(height: 16),
+          const Text('Elementi da mostrare:'),
+          Slider(
+            value: _previewLimit.toDouble(),
+            min: 50,
+            max: _previewData.length.toDouble().clamp(50, 1000),
+            divisions: ((_previewData.length.clamp(50, 1000) - 50) / 50).round(),
+            label: _previewLimit.toString(),
+            onChanged: (value) => setState(() => _previewLimit = value.round()),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+        ],
+      ),
     );
   }
 
@@ -185,6 +258,7 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
         _fileName = '';
         _fileBytes = null;
         _fileExtension = '';
+        _previewLimit = 100;
       });
     });
   }
@@ -215,6 +289,8 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
                 Text(_isDragging ? 'Rilascia il file qui!' : 'Trascina qui i tuoi file', style: TextStyle(fontSize: _isDragging ? 20 : 18, fontWeight: _isDragging ? FontWeight.bold : FontWeight.w500, color: _isDragging ? const Color(0xFF6366F1) : Colors.grey[700])),
                 const SizedBox(height: 8),
                 const Text('Supporta: CSV, Excel (.xlsx), MMBackup (.mmbackup)', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 4),
+                const Text('Fino a 10.000+ transazioni', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w500)),
                 if (!_isDragging) ...[
                   const SizedBox(height: 16),
                   Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8), decoration: BoxDecoration(color: const Color(0xFF6366F1).withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: const Text('Oppure clicca "Sfoglia File" qui sotto', style: TextStyle(fontSize: 12, color: Color(0xFF6366F1), fontWeight: FontWeight.w500))),
@@ -266,7 +342,8 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
     final lines = csvContent.split('\n');
     final previewData = <Map<String, String>>[];
     final startIndex = lines[0].toLowerCase().contains('data') ? 1 : 0;
-    for (int i = startIndex; i < lines.length && previewData.length < 100; i++) {
+    // INCREMENTATO: da 100 a limite massimo import
+    for (int i = startIndex; i < lines.length && previewData.length < _maxImportItems; i++) {
       final line = lines[i].trim(); if (line.isEmpty) continue;
       try {
         final f = _parseCSVFields(line);
@@ -294,7 +371,8 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
           if (h.contains('commento')) noteCol = i;
         }
         if (dateCol == null || categoryCol == null || amountCol == null) continue;
-        for (int r = 1; r < sheet.rows.length && previewData.length < 100; r++) {
+        // INCREMENTATO: da 100 a limite massimo import
+        for (int r = 1; r < sheet.rows.length && previewData.length < _maxImportItems; r++) {
           final row = sheet.rows[r];
           try {
             final dateCell = row.length > dateCol ? row[dateCol!]?.value : null;
@@ -317,7 +395,8 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
       final jsonContent = String.fromCharCodes(_fileBytes!);
       final data = json.decode(jsonContent) as Map<String, dynamic>;
       final transactions = data['transactions'] as List<dynamic>? ?? [];
-      for (final txData in transactions.take(100)) {
+      // INCREMENTATO: da take(100) a limite massimo
+      for (final txData in transactions.take(_maxImportItems)) {
         try {
           final amount = txData['amount']?.toString() ?? '0';
           final category = txData['category']?.toString() ?? 'N/A';
@@ -452,8 +531,28 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
     ]));
   }
 
+  Future<void> _performMappedImport(MoneyModel model) async {
+    setState(() => _isAnalyzing = true);
+    try {
+      if (_fileExtension == 'xlsx') {
+        await model.importFromExcel(_fileBytes!, _categoryMapping);
+      } else if (_fileExtension == 'mmbackup' || _fileExtension == 'json') {
+        final jsonContent = String.fromCharCodes(_fileBytes!);
+        await model.importFromMMBackup(jsonContent, _categoryMapping);
+      } else if (_fileExtension == 'csv' || _fileExtension == 'txt') {
+        final csvContent = String.fromCharCodes(_fileBytes!);
+        await model.importFromCSV(csvContent, _categoryMapping);
+      }
+      _showImportSuccess(); _closePreview();
+      setState(() { _showMappingStep = false; _isAnalyzing = false; _categoryMapping.clear(); _unrecognizedCategories.clear(); });
+    } catch (e) {
+      setState(() => _isAnalyzing = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore durante l\'importazione: $e'), backgroundColor: Colors.red));
+    }
+  }
+
   void _showImportSuccess() {
-    showDialog(context: context, builder: (context) => AlertDialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('Importazione Completata')]), content: const Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.file_download_done, color: Colors.green, size: 48), SizedBox(height: 16), Text('Importazione completata con successo!', style: TextStyle(fontSize: 16), textAlign: TextAlign.center), SizedBox(height: 8), Text('Le transazioni sono state aggiunte al database', style: TextStyle(color: Colors.grey), textAlign: TextAlign.center)]), actions: [ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Chiudi'))]));
+    showDialog(context: context, builder: (context) => AlertDialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('Importazione Completata')]), content: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.file_download_done, color: Colors.green, size: 48), const SizedBox(height: 16), Text('${_previewData.length} transazioni importate con successo!', style: const TextStyle(fontSize: 16), textAlign: TextAlign.center), const SizedBox(height: 8), const Text('Le transazioni sono state aggiunte al database', style: TextStyle(color: Colors.grey), textAlign: TextAlign.center)]), actions: [ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Chiudi'))]));
   }
 
   // ====== EXPORT/CLIPBOARD ======
@@ -471,6 +570,75 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
     for (final tx in model.transactions) { final type = tx.isIncome ? 'Entrata' : 'Uscita'; final dateStr = DateFormat('yyyy-MM-dd').format(tx.date); b.writeln('$dateStr,"${tx.category}",${tx.amount},"${tx.note ?? ''}","$type"'); }
     await Clipboard.setData(ClipboardData(text: b.toString()));
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📋 Dati CSV copiati negli appunti'), backgroundColor: Colors.green));
+  }
+
+  // ====== UI HELPER WIDGETS ======
+  Widget _buildCard(String title, IconData icon, Color color, List<Widget> children) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          ...children,
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsCard(MoneyModel model) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.analytics, color: Color(0xFF8B5CF6)),
+                SizedBox(width: 8),
+                Text('Statistiche Database', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildStatItem('Transazioni', model.transactions.length.toString(), Icons.receipt),
+                _buildStatItem('Obiettivi', model.goals.length.toString(), Icons.flag),
+                _buildStatItem('Ricorrenti', model.recurringTransactions.length.toString(), Icons.repeat),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: const Color(0xFF8B5CF6), size: 24),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6))),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      ],
+    );
   }
 
   // ====== UTILS ======
