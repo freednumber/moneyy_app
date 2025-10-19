@@ -22,6 +22,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -47,7 +49,13 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
               ),
             ),
             const SizedBox(width: 12),
-            const Text('Moneyy'),
+            Text(
+              'Moneyy',
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
         automaticallyImplyLeading: false,
@@ -80,6 +88,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     fontSize: 16,
+                    letterSpacing: 0.3,
                   ),
                 ),
               );
@@ -94,10 +103,15 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Theme.of(context).colorScheme.primary.withOpacity(0.05),
-                  Theme.of(context).colorScheme.secondary.withOpacity(0.05),
-                ],
+                colors: isDark
+                  ? [
+                      const Color(0xFF1E293B),
+                      const Color(0xFF0F172A),
+                    ]
+                  : [
+                      Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                      Theme.of(context).colorScheme.secondary.withOpacity(0.05),
+                    ],
               ),
             ),
             child: RefreshIndicator(
@@ -106,15 +120,15 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 await model.loadInitial();
               },
               child: SingleChildScrollView(
-                padding: const EdgeInsets.only(top: 100, left: 16, right: 16, bottom: 16),
+                padding: const EdgeInsets.only(top: 100, left: 16, right: 16, bottom: 100),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildQuickStats(model),
+                    _buildQuickStats(model, isDark),
                     const SizedBox(height: 24),
-                    _buildCategoryBreakdown(context, model),
+                    _buildCategoryBreakdown(context, model, isDark),
                     const SizedBox(height: 24),
-                    _buildRecentTransactions(context, model),
+                    _buildRecentTransactions(context, model, isDark),
                   ],
                 ),
               ),
@@ -129,27 +143,29 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         },
         icon: const Icon(Icons.add),
         label: const Text('Nuova'),
-        elevation: 6,
+        backgroundColor: const Color(0xFF6366F1),
+        foregroundColor: Colors.white,
+        elevation: 8,
       ),
     );
   }
 
-  Widget _buildQuickStats(MoneyModel model) {
+  Widget _buildQuickStats(MoneyModel model, bool isDark) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withOpacity(0.9),
-            Colors.white.withOpacity(0.7),
-          ],
+        color: isDark 
+          ? Colors.grey[900]!.withOpacity(0.8)
+          : Colors.white.withOpacity(0.95),
+        border: Border.all(
+          color: isDark
+            ? Colors.white.withOpacity(0.12)
+            : Colors.black.withOpacity(0.05),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
+            color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
+            blurRadius: 24,
             offset: const Offset(0, 10),
           ),
         ],
@@ -168,12 +184,15 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     model.format(model.monthlyIncome),
                     const Color(0xFF10B981),
                     Icons.trending_up,
+                    isDark,
                   ),
                 ),
                 Container(
                   width: 1,
                   height: 60,
-                  color: Colors.grey.shade300,
+                  color: isDark 
+                    ? Colors.white.withOpacity(0.15)
+                    : Colors.grey.shade300,
                 ),
                 Expanded(
                   child: _buildStatItem(
@@ -181,6 +200,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     model.format(model.monthlyExpense),
                     const Color(0xFFEF4444),
                     Icons.trending_down,
+                    isDark,
                   ),
                 ),
               ],
@@ -191,49 +211,58 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color, IconData icon) {
+  Widget _buildStatItem(String label, String value, Color color, IconData icon, bool isDark) {
     return Column(
       children: [
-        Icon(icon, color: color, size: 28),
+        Icon(
+          icon,
+          color: isDark ? color.withOpacity(0.9) : color,
+          size: 28,
+        ),
         const SizedBox(height: 8),
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? Colors.grey[300] : Colors.grey[600],
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.2,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: color,
+            color: isDark ? Colors.white : color,
+            letterSpacing: 0.3,
           ),
         ),
       ],
     );
   }
 
-  // ✅ GRAFICA MIGLIORATA PER AGGIUNTE VELOCI
-  Widget _buildCategoryBreakdown(BuildContext context, MoneyModel model) {
+  Widget _buildCategoryBreakdown(BuildContext context, MoneyModel model, bool isDark) {
     final mostUsed = _getMostUsedCategories(model);
     final isDesktop = MediaQuery.of(context).size.width > 600;
     
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withOpacity(0.95),
-            Colors.white.withOpacity(0.85),
-          ],
-        ),
+        color: isDark 
+          ? Colors.grey[900]!.withOpacity(0.8)
+          : Colors.white.withOpacity(0.95),
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark
+            ? Colors.white.withOpacity(0.12)
+            : Colors.black.withOpacity(0.05),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withOpacity(isDark ? 0.4 : 0.08),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -248,50 +277,61 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF6366F1).withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: const Icon(Icons.flash_on, color: Colors.white, size: 20),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
+                  Text(
                     'Aggiungi Veloce',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,
+                      color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withOpacity(0.1),
+                  color: isDark
+                    ? const Color(0xFF6366F1).withOpacity(0.2)
+                    : const Color(0xFF6366F1).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: const Color(0xFF6366F1).withOpacity(0.3),
+                    color: const Color(0xFF6366F1).withOpacity(isDark ? 0.4 : 0.3),
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.trending_up,
                       size: 14,
-                      color: Color(0xFF6366F1),
+                      color: isDark ? const Color(0xFF8B9BFF) : const Color(0xFF6366F1),
                     ),
                     const SizedBox(width: 4),
                     Text(
                       'Più usate',
                       style: TextStyle(
                         fontSize: 11,
-                        color: const Color(0xFF6366F1),
+                        color: isDark ? const Color(0xFF8B9BFF) : const Color(0xFF6366F1),
                         fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
                       ),
                     ),
                   ],
@@ -300,7 +340,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
             ],
           ),
           const SizedBox(height: 20),
-          // Layout responsivo
           isDesktop
               ? GridView.builder(
                   shrinkWrap: true,
@@ -317,19 +356,19 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     final style = model.getTransactionStyle(cat);
                     final isIncome = model.incomeCats.contains(cat);
                     final lastUsed = _getLastUsedDate(model, cat);
-                    return _buildCategoryChipEnhanced(cat, style.icon, style.color, isIncome, lastUsed, () {
+                    return _buildCategoryChipEnhanced(cat, style.icon, style.color, isIncome, lastUsed, isDark, () {
                       _showQuickEntryDialog(context, cat, isIncome);
                     });
                   },
                 )
               : Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: 12,
+                  runSpacing: 12,
                   children: mostUsed.map((cat) {
                     final style = model.getTransactionStyle(cat);
                     final isIncome = model.incomeCats.contains(cat);
                     final lastUsed = _getLastUsedDate(model, cat);
-                    return _buildCategoryChipEnhanced(cat, style.icon, style.color, isIncome, lastUsed, () {
+                    return _buildCategoryChipEnhanced(cat, style.icon, style.color, isIncome, lastUsed, isDark, () {
                       _showQuickEntryDialog(context, cat, isIncome);
                     });
                   }).toList(),
@@ -339,18 +378,16 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // ✅ NUOVO: Ottiene l'ultima data di utilizzo di una categoria
   String _getLastUsedDate(MoneyModel model, String category) {
     final txForCategory = model.transactions
         .where((tx) => tx.category == category)
         .toList();
     
     if (txForCategory.isEmpty) {
-      return 'Mai utilizzato';
+      return 'Mai usato';
     }
     
-    // Trova la transazione più recente
-    final mostRecent = txForCategory.first; // già ordinati per data DESC
+    final mostRecent = txForCategory.first;
     final now = DateTime.now();
     final difference = now.difference(mostRecent.date).inDays;
     
@@ -365,8 +402,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     }
   }
 
-  // ✅ CHIP MIGLIORATO CON DATA
-  Widget _buildCategoryChipEnhanced(String category, IconData icon, Color color, bool isIncome, String lastUsed, VoidCallback onTap) {
+  Widget _buildCategoryChipEnhanced(String category, IconData icon, Color color, bool isIncome, String lastUsed, bool isDark, VoidCallback onTap) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -376,25 +412,24 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         },
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                color.withOpacity(0.15),
-                color.withOpacity(0.08),
-              ],
-            ),
+            color: isDark
+              ? color.withOpacity(0.15)
+              : color.withOpacity(0.12),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: color.withOpacity(0.4),
-              width: 2,
+              color: isDark
+                ? color.withOpacity(0.5)
+                : color.withOpacity(0.4),
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.15),
-                blurRadius: 8,
+                color: isDark
+                  ? color.withOpacity(0.2)
+                  : color.withOpacity(0.15),
+                blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -406,21 +441,23 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [color, color.withOpacity(0.7)],
+                        colors: [color, color.withOpacity(0.8)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: color.withOpacity(0.3),
-                          blurRadius: 6,
+                          color: color.withOpacity(0.4),
+                          blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                    child: Icon(icon, color: Colors.white, size: 20),
+                    child: Icon(icon, color: Colors.white, size: 22),
                   ),
                   Positioned(
                     right: -4,
@@ -428,12 +465,16 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     child: Container(
                       padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
-                        color: isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        gradient: LinearGradient(
+                          colors: isIncome 
+                            ? [const Color(0xFF10B981), const Color(0xFF059669)]
+                            : [const Color(0xFFEF4444), const Color(0xFFDC2626)],
+                        ),
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withOpacity(0.25),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -448,7 +489,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                   ),
                 ],
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -456,20 +497,21 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                   Text(
                     category,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: color,
-                      letterSpacing: -0.3,
+                      color: isDark ? Colors.white : color,
+                      letterSpacing: 0.2,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  // ✅ NUOVO: Mostra la data dell'ultimo utilizzo
+                  const SizedBox(height: 3),
                   Text(
                     lastUsed,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: color.withOpacity(0.7),
+                      color: isDark 
+                        ? Colors.grey[400]
+                        : color.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -504,7 +546,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         .toList();
     
     if (mostUsed.length < 6) {
-      final defaults = ['Spesa', 'Trasporti', 'Ristoranti', 'Shopping', 'Bollette', 'Casa'];
+      final defaults = ['Spesa', 'Trasporti', 'Svago', 'Shopping', 'Bollette', 'Casa'];
       for (var cat in defaults) {
         if (!mostUsed.contains(cat) && mostUsed.length < 6) {
           mostUsed.add(cat);
@@ -514,7 +556,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     return mostUsed;
   }
 
-  Widget _buildRecentTransactions(BuildContext context, MoneyModel model) {
+  Widget _buildRecentTransactions(BuildContext context, MoneyModel model, bool isDark) {
     final recentTransactions = model.recent.take(8).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -522,9 +564,14 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Transazioni Recenti',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+                letterSpacing: 0.2,
+              ),
             ),
             if (recentTransactions.isNotEmpty)
               TextButton.icon(
@@ -534,29 +581,46 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     widget.onNavigate!(2);
                   }
                 },
-                icon: const Icon(Icons.arrow_forward, size: 16),
-                label: const Text('Tutte'),
+                icon: Icon(
+                  Icons.arrow_forward,
+                  size: 16,
+                  color: isDark ? Colors.grey[300] : const Color(0xFF6366F1),
+                ),
+                label: Text(
+                  'Tutte',
+                  style: TextStyle(
+                    color: isDark ? Colors.grey[300] : const Color(0xFF6366F1),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
           ],
         ),
         const SizedBox(height: 16),
         if (recentTransactions.isEmpty)
-          _buildEmptyState()
+          _buildEmptyState(isDark)
         else
-          ...recentTransactions.map((tx) => _buildTransactionCard(tx, model)).toList(),
+          ...recentTransactions.map((tx) => _buildTransactionCard(tx, model, isDark)).toList(),
       ],
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark 
+          ? Colors.grey[900]!.withOpacity(0.6)
+          : Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+            ? Colors.white.withOpacity(0.1)
+            : Colors.grey.withOpacity(0.2),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -565,16 +629,27 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.receipt_long, size: 60, color: Colors.grey[300]),
+            Icon(
+              Icons.receipt_long,
+              size: 60,
+              color: isDark ? Colors.grey[600] : Colors.grey[300],
+            ),
             const SizedBox(height: 16),
             Text(
               'Nessuna transazione',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 16,
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Inizia aggiungendo la tua prima transazione',
-              style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.grey[500] : Colors.grey[400],
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -583,9 +658,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  Widget _buildTransactionCard(MoneyTx tx, MoneyModel model) {
+  Widget _buildTransactionCard(MoneyTx tx, MoneyModel model, bool isDark) {
     final style = model.getTransactionStyle(tx.category);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dismissible(
       key: Key(tx.id.toString()),
@@ -638,17 +712,19 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          color: isDark 
+            ? Colors.grey[900]!.withOpacity(0.7)
+            : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isDark
-                ? Colors.white.withOpacity(0.1)
+                ? Colors.white.withOpacity(0.12)
                 : Colors.grey.withOpacity(0.2),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-              blurRadius: 10,
+              color: Colors.black.withOpacity(isDark ? 0.4 : 0.05),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
@@ -674,11 +750,13 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [style.color, style.color.withOpacity(0.7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: style.color.withOpacity(0.3),
+                              color: style.color.withOpacity(0.4),
                               blurRadius: 8,
                               offset: const Offset(0, 4),
                             ),
@@ -686,7 +764,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                         ),
                         child: Icon(style.icon, color: Colors.white, size: 24),
                       ),
-                      // ✅ NUOVO: Badge per transazioni ricorrenti
                       if (tx.isFromRecurring)
                         Positioned(
                           right: -6,
@@ -700,7 +777,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                               border: Border.all(color: Colors.white, width: 2),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
+                                  color: Colors.black.withOpacity(0.25),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 ),
@@ -729,10 +806,10 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                                   fontWeight: FontWeight.w600,
                                   fontSize: 15,
                                   color: isDark ? Colors.white : Colors.black87,
+                                  letterSpacing: 0.1,
                                 ),
                               ),
                             ),
-                            // ✅ NUOVO: Tag per transazioni ricorrenti
                             if (tx.isFromRecurring)
                               Container(
                                 margin: const EdgeInsets.only(left: 8),
@@ -741,12 +818,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                                   color: const Color(0xFF6366F1).withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Text(
+                                child: const Text(
                                   'AUTO',
                                   style: TextStyle(
                                     fontSize: 9,
                                     fontWeight: FontWeight.bold,
-                                    color: const Color(0xFF6366F1),
+                                    color: Color(0xFF6366F1),
                                   ),
                                 ),
                               ),
@@ -758,14 +835,15 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                             Icon(
                               Icons.calendar_today,
                               size: 12,
-                              color: isDark ? Colors.white60 : Colors.grey[500],
+                              color: isDark ? Colors.grey[400] : Colors.grey[500],
                             ),
                             const SizedBox(width: 4),
                             Text(
                               DateFormat('d MMM yyyy • HH:mm', 'it_IT').format(tx.date),
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isDark ? Colors.white60 : Colors.grey[600],
+                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                letterSpacing: 0.1,
                               ),
                             ),
                             if (tx.note != null && tx.note!.isNotEmpty) ...[
@@ -773,7 +851,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                               Icon(
                                 Icons.note,
                                 size: 12,
-                                color: isDark ? Colors.white60 : Colors.grey[500],
+                                color: isDark ? Colors.grey[400] : Colors.grey[500],
                               ),
                             ],
                           ],
@@ -790,13 +868,16 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                           fontWeight: FontWeight.bold,
                           color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
                           fontSize: 16,
+                          letterSpacing: 0.2,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: style.color.withOpacity(0.15),
+                          color: isDark
+                            ? style.color.withOpacity(0.2)
+                            : style.color.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -804,7 +885,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: style.color,
+                            color: isDark ? Colors.white : style.color,
                           ),
                         ),
                       ),
@@ -974,22 +1055,43 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   }
 
   void _showAddTransactionDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(Icons.add_circle, color: Theme.of(context).primaryColor),
+            Icon(
+              Icons.add_circle,
+              color: Theme.of(context).primaryColor,
+            ),
             const SizedBox(width: 8),
-            const Text('Nuova Transazione'),
+            Text(
+              'Nuova Transazione',
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
           ],
         ),
-        content: const Text('Che tipo di transazione vuoi aggiungere?'),
+        content: Text(
+          'Che tipo di transazione vuoi aggiungere?',
+          style: TextStyle(
+            color: isDark ? Colors.grey[300] : Colors.black87,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annulla'),
+            child: Text(
+              'Annulla',
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
           ),
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -1043,36 +1145,58 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   void _showQuickEntryDialog(BuildContext context, String category, bool isIncome) {
     final amountCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Aggiungi a "$category"'),
+        title: Text(
+          'Aggiungi a "$category"',
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: amountCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Importo',
-                prefixIcon: Icon(Icons.euro),
+                prefixIcon: const Icon(Icons.euro),
+                labelStyle: TextStyle(
+                  color: isDark ? Colors.grey[400] : null,
+                ),
               ),
               autofocus: true,
             ),
             const SizedBox(height: 12),
             TextField(
               controller: noteCtrl,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Nota (Opzionale)',
-                prefixIcon: Icon(Icons.note),
+                prefixIcon: const Icon(Icons.note),
+                labelStyle: TextStyle(
+                  color: isDark ? Colors.grey[400] : null,
+                ),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Annulla',
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+          ),
           ElevatedButton(
             onPressed: () {
               final amount = double.tryParse(amountCtrl.text);
