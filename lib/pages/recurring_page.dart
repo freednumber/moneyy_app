@@ -410,11 +410,11 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
           ),
           actions: [
             TextButton(
-              onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Annulla'),
             ),
             ElevatedButton.icon(
-              onPressed: isLoading ? null : () async {
+              onPressed: () async {
                 // VALIDAZIONE ESPLICITA
                 if (selectedCategory == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -436,8 +436,6 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                   );
                   return;
                 }
-                
-                setState(() => isLoading = true);
                 
                 try {
                   final recurring = Recurring(
@@ -461,7 +459,6 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                     ),
                   );
                 } catch (e) {
-                  setState(() => isLoading = false);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('❌ Errore nel salvataggio: $e'),
@@ -470,138 +467,14 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                   );
                 }
               },
-              icon: isLoading 
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.save),
-              label: Text(isLoading ? 'Salvando...' : 'Salva'),
+              icon: const Icon(Icons.save),
+              label: const Text('Salva'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),
                 foregroundColor: Colors.white,
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecurringCard(Recurring recurring, MoneyModel model) {
-    final style = model.getTransactionStyle(recurring.category);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _showEditRecurringDialog(context, recurring, model),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [style.color, style.color.withOpacity(0.7)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: style.color.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Icon(style.icon, color: Colors.white, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      recurring.category,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Ogni ${recurring.dayOfMonth}° del mese',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          'alle ${recurring.time.format(context)}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                    if (recurring.note != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        recurring.note!,
-                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '- €${recurring.amount.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFEF4444),
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: style.color.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      recurring.payment.name.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: style.color,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.edit_outlined, size: 18, color: Colors.grey.shade400),
-            ],
-          ),
         ),
       ),
     );
@@ -614,7 +487,6 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
     PaymentMethod selectedPayment = recurring.payment;
     int selectedDay = recurring.dayOfMonth;
     TimeOfDay selectedTime = recurring.time;
-    bool isLoading = false;
 
     showDialog(
       context: context,
@@ -772,11 +644,11 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
           ),
           actions: [
             TextButton(
-              onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Annulla'),
             ),
             ElevatedButton.icon(
-              onPressed: isLoading ? null : () async {
+              onPressed: () async {
                 // VALIDAZIONE ESPLICITA
                 final amount = double.tryParse(amountCtrl.text);
                 if (amount == null || amount <= 0) {
@@ -788,8 +660,6 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                   );
                   return;
                 }
-                
-                setState(() => isLoading = true);
                 
                 try {
                   final updated = Recurring(
@@ -815,7 +685,6 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                     ),
                   );
                 } catch (e) {
-                  setState(() => isLoading = false);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('❌ Errore nell\'aggiornamento: $e'),
@@ -824,14 +693,8 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                   );
                 }
               },
-              icon: isLoading 
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.save),
-              label: Text(isLoading ? 'Salvando...' : 'Salva'),
+              icon: const Icon(Icons.save),
+              label: const Text('Salva'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF6366F1),
                 foregroundColor: Colors.white,
