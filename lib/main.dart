@@ -65,6 +65,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   int _currentIndex = 0;
   MoneyModel? _model;
   late AnimationController _navController;
+  late AnimationController _fabController;
 
   @override
   void initState() {
@@ -73,12 +74,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
+    _fabController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
     _initModel();
   }
 
   @override
   void dispose() {
     _navController.dispose();
+    _fabController.dispose();
     super.dispose();
   }
 
@@ -88,19 +94,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   }
 
   void _onNavigate(int index, [bool? isIncome]) {
-    if (index == 5) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AddTxPage(initialIsIncome: isIncome ?? false),
-        ),
-      );
-    } else {
-      _navController.forward();
-      setState(() {
-        _currentIndex = index;
-      });
-    }
+    setState(() => _currentIndex = index);
   }
 
   @override
@@ -114,12 +108,102 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     ];
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: pages,
+      body: Stack(
+        children: [
+          IndexedStack(index: _currentIndex, children: pages),
+          // FAB contestuale posizionato uguale per Home, Obiettivi, Ricorrenti
+          Positioned(
+            right: 20,
+            bottom: 90, // sopra il dock
+            child: _buildContextFab(),
+          ),
+        ],
       ),
       extendBody: true,
       bottomNavigationBar: _buildModernDock(),
+    );
+  }
+
+  Widget _buildContextFab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Mostra il FAB solo su Home (aggiunta veloce), Obiettivi e Ricorrenti
+    if (_currentIndex == 0) {
+      return _buildSquareFab(
+        color: const Color(0xFF6366F1),
+        icon: Icons.add,
+        tooltip: 'Aggiungi Transazione',
+        onTap: () {
+          _fabController.forward().then((_) => _fabController.reverse());
+          _showQuickAddMenu(context);
+        },
+        isDark: isDark,
+      );
+    } else if (_currentIndex == 1) {
+      return _buildSquareFab(
+        color: const Color(0xFF6366F1),
+        icon: Icons.flag,
+        tooltip: 'Nuovo Obiettivo',
+        onTap: () {
+          // Notifica la pagina obiettivi via ScaffoldMessenger (o usa un GlobalKey se preferisci)
+          // Per semplicità apriamo direttamente un dialog minimale che delega alla pagina tramite Navigator
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const GoalsPage()),
+          );
+        },
+        isDark: isDark,
+      );
+    } else if (_currentIndex == 3) {
+      return _buildSquareFab(
+        color: const Color(0xFF6366F1),
+        icon: Icons.add,
+        tooltip: 'Nuova Ricorrente',
+        onTap: () {
+          // Apri direttamente il dialog già presente nella RecurringPage tramite route
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const RecurringPage()),
+          );
+        },
+        isDark: isDark,
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildSquareFab({
+    required Color color,
+    required IconData icon,
+    required VoidCallback onTap,
+    required String tooltip,
+    required bool isDark,
+  }) {
+    return ScaleTransition(
+      scale: Tween<double>(begin: 0.95, end: 1.0).animate(
+        CurvedAnimation(parent: _fabController, curve: Curves.easeOutBack),
+      ),
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(16), // quadrato con angoli
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.4 : 0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 28),
+          ),
+        ),
+      ),
     );
   }
 
@@ -127,7 +211,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
-    final isVerySmallScreen = screenWidth < 360; // iPhone SE, schermi stretti
+    final isVerySmallScreen = screenWidth < 360;
     
     return Container(
       margin: EdgeInsets.only(
@@ -216,7 +300,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     final isSelected = _currentIndex == index;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    // Label originali per tooltip
     final originalLabels = ['Home', 'Obiettivi', 'Report', 'Ricorrenti', 'Impostazioni'];
     
     return Tooltip(
@@ -286,7 +369,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                   ),
                 ),
               ],
-              // Label mobile compatta su una riga
               if (isSmall && !isVerySmall) ...[
                 const SizedBox(height: 2),
                 AnimatedOpacity(
@@ -312,6 +394,124 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showQuickAddMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Aggiungi Transazione',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildQuickAddButton(
+                    context: context,
+                    title: 'Nuova Uscita',
+                    subtitle: 'Spesa, bolletta...',
+                    icon: Icons.arrow_downward,
+                    color: Colors.red,
+                    isIncome: false,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildQuickAddButton(
+                    context: context,
+                    title: 'Nuova Entrata',
+                    subtitle: 'Stipendio, regalo...',
+                    icon: Icons.arrow_upward,
+                    color: Colors.green,
+                    isIncome: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickAddButton({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required bool isIncome,
+  }) {
+    return InkWell(
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AddTxPage(initialIsIncome: isIncome),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 24),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: color,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
