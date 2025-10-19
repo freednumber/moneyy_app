@@ -153,7 +153,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
 
   Widget _buildModernDock() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isSmallScreen = MediaQuery.of(context).size.width < 600;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    final isVerySmallScreen = screenWidth < 360; // iPhone SE, schermi stretti
     
     return Container(
       margin: EdgeInsets.only(
@@ -169,18 +171,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
             height: isSmallScreen ? 64 : 72,
             decoration: BoxDecoration(
               color: isDark 
-                ? Colors.grey[900]!.withOpacity(0.8)
-                : Colors.white.withOpacity(0.9),
+                ? Colors.grey[900]!.withOpacity(0.85)
+                : Colors.white.withOpacity(0.95),
               borderRadius: BorderRadius.circular(isSmallScreen ? 24 : 28),
               border: Border.all(
                 color: isDark
-                  ? Colors.white.withOpacity(0.1)
-                  : Colors.black.withOpacity(0.05),
+                  ? Colors.white.withOpacity(0.12)
+                  : Colors.black.withOpacity(0.08),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
-                  blurRadius: 20,
+                  color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
+                  blurRadius: 24,
                   spreadRadius: 0,
                   offset: const Offset(0, 8),
                 ),
@@ -194,30 +196,35 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                   label: 'Home',
                   index: 0,
                   isSmall: isSmallScreen,
+                  isVerySmall: isVerySmallScreen,
                 ),
                 _buildNavItem(
                   icon: Icons.flag_rounded,
                   label: 'Obiettivi',
                   index: 1,
                   isSmall: isSmallScreen,
+                  isVerySmall: isVerySmallScreen,
                 ),
                 _buildNavItem(
                   icon: Icons.bar_chart_rounded,
                   label: 'Report',
                   index: 2,
                   isSmall: isSmallScreen,
+                  isVerySmall: isVerySmallScreen,
                 ),
                 _buildNavItem(
                   icon: Icons.repeat_rounded,
-                  label: 'Ricorrenti',
+                  label: isVerySmallScreen ? 'Ricorr.' : 'Ricorrenti', // Abbreviato su schermi stretti
                   index: 3,
                   isSmall: isSmallScreen,
+                  isVerySmall: isVerySmallScreen,
                 ),
                 _buildNavItem(
                   icon: Icons.settings_rounded,
-                  label: 'Impostazioni',
+                  label: isVerySmallScreen ? 'Config.' : 'Impostazioni', // Abbreviato su schermi stretti
                   index: 4,
                   isSmall: isSmallScreen,
+                  isVerySmall: isVerySmallScreen,
                 ),
               ],
             ),
@@ -232,82 +239,123 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     required String label,
     required int index,
     required bool isSmall,
+    required bool isVerySmall,
   }) {
     final isSelected = _currentIndex == index;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return GestureDetector(
-      onTap: () => _onNavigate(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        width: isSmall ? 50 : 60,
-        height: isSmall ? 50 : 60,
-        decoration: BoxDecoration(
-          color: isSelected
-            ? const Color(0xFF6366F1).withOpacity(0.15)
-            : Colors.transparent,
-          borderRadius: BorderRadius.circular(isSmall ? 16 : 20),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedScale(
-              scale: isSelected ? 1.1 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                icon,
-                size: isSmall ? 22 : 26,
-                color: isSelected
-                  ? const Color(0xFF6366F1)
-                  : isDark
-                    ? Colors.grey[400]
-                    : Colors.grey[600],
-              ),
-            ),
-            if (!isSmall) ...[
-              const SizedBox(height: 4),
-              AnimatedOpacity(
-                opacity: isSelected ? 1.0 : 0.7,
+    // Label originali per tooltip
+    final originalLabels = ['Home', 'Obiettivi', 'Report', 'Ricorrenti', 'Impostazioni'];
+    
+    return Tooltip(
+      message: originalLabels[index],
+      waitDuration: const Duration(milliseconds: 500),
+      child: GestureDetector(
+        onTap: () => _onNavigate(index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          width: isSmall 
+            ? (isVerySmallScreen ? 48 : 54) // Più largo per label complete
+            : 68,
+          height: isSmall ? 50 : 60,
+          decoration: BoxDecoration(
+            color: isSelected
+              ? const Color(0xFF6366F1).withOpacity(0.15)
+              : Colors.transparent,
+            borderRadius: BorderRadius.circular(isSmall ? 16 : 20),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedScale(
+                scale: isSelected ? 1.1 : 1.0,
                 duration: const Duration(milliseconds: 200),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected
-                      ? const Color(0xFF6366F1)
-                      : isDark
-                        ? Colors.grey[400]
-                        : Colors.grey[600],
+                child: Icon(
+                  icon,
+                  size: isSmall ? 22 : 26,
+                  color: isSelected
+                    ? const Color(0xFF6366F1)
+                    : isDark
+                      ? Colors.grey[300] // Più chiaro in dark mode
+                      : Colors.grey[600],
+                ),
+              ),
+              if (!isSmall) ...[
+                const SizedBox(height: 4),
+                AnimatedOpacity(
+                  opacity: isSelected ? 1.0 : 0.8,
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.fade,
+                    style: TextStyle(
+                      fontSize: 11, // Leggermente più grande
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      letterSpacing: 0.2,
+                      color: isSelected
+                        ? const Color(0xFF6366F1)
+                        : isDark
+                          ? Colors.grey[300] // Più leggibile in dark
+                          : Colors.grey[600],
+                    ),
                   ),
                 ),
-              ),
-            ] else if (isSelected) ...[
-              const SizedBox(height: 2),
-              Container(
-                width: 4,
-                height: 4,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF6366F1),
-                  shape: BoxShape.circle,
+              ] else if (isSelected) ...[
+                const SizedBox(height: 2),
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF6366F1),
+                    shape: BoxShape.circle,
+                  ),
                 ),
-              ),
+              ],
+              // Label mobile compatta su una riga
+              if (isSmall && !isVerySmallScreen) ...[
+                const SizedBox(height: 2),
+                AnimatedOpacity(
+                  opacity: isSelected ? 0.9 : 0.7,
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.clip,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.1,
+                      color: isSelected
+                        ? const Color(0xFF6366F1)
+                        : isDark
+                          ? Colors.grey[350]
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 
   void _showQuickAddMenu(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     showModalBottomSheet(
       context: context,
+      backgroundColor: isDark ? Colors.grey[900] : Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -315,16 +363,20 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: isDark ? Colors.grey[600] : Colors.grey[300],
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Aggiungi Transazione',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
@@ -335,9 +387,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                     icon: Icons.arrow_downward,
                     color: Colors.red,
                     isIncome: false,
+                    isDark: isDark,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 Expanded(
                   child: _buildQuickAddButton(
                     context: context,
@@ -346,11 +399,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                     icon: Icons.arrow_upward,
                     color: Colors.green,
                     isIncome: true,
+                    isDark: isDark,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -364,6 +418,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     required IconData icon,
     required Color color,
     required bool isIncome,
+    required bool isDark,
   }) {
     return InkWell(
       onTap: () {
@@ -377,30 +432,48 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: isDark 
+            ? color.withOpacity(0.15)
+            : color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(
+            color: isDark
+              ? color.withOpacity(0.4)
+              : color.withOpacity(0.3),
+          ),
         ),
         child: Column(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  colors: [color, color.withOpacity(0.8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: Icon(icon, color: Colors.white, size: 24),
+              child: Icon(icon, color: Colors.white, size: 26),
             ),
             const SizedBox(height: 12),
             Text(
               title,
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: color,
-                fontSize: 14,
+                color: isDark ? Colors.white : color,
+                fontSize: 15,
+                letterSpacing: 0.2,
               ),
             ),
             const SizedBox(height: 4),
@@ -408,9 +481,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               subtitle,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
               ),
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
