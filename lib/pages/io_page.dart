@@ -395,6 +395,10 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
       _fileName = fileName;
       _fileBytes = fileBytes;
       _fileExtension = extension;
+      // FIX PRINCIPALE: Converti i bytes in stringa CSV per analisi diretta
+      if (extension == 'csv' || extension == 'txt') {
+        _csvContent = utf8.decode(fileBytes, allowMalformed: true);
+      }
     });
     
     HapticFeedback.mediumImpact();
@@ -436,7 +440,11 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
   }
 
   List<Map<String, String>> _generateCSVPreview() {
-    final csvContent = String.fromCharCodes(_fileBytes!);
+    // FIX: Usa _csvContent che ora è impostato correttamente dal drag&drop
+    final csvContent = _csvContent.isNotEmpty 
+        ? _csvContent 
+        : utf8.decode(_fileBytes!, allowMalformed: true);
+    
     final lines = csvContent.split('\n');
     final previewData = <Map<String, String>>[];
     final startIndex = lines[0].toLowerCase().contains('data') ? 1 : 0;
@@ -513,7 +521,7 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
   List<Map<String, String>> _generateMMBackupPreview() {
     final previewData = <Map<String, String>>[];
     try {
-      final jsonContent = String.fromCharCodes(_fileBytes!);
+      final jsonContent = utf8.decode(_fileBytes!, allowMalformed: true);
       final data = json.decode(jsonContent) as Map<String, dynamic>;
       final transactions = data['transactions'] as List<dynamic>? ?? [];
       
@@ -553,6 +561,10 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
           _fileName = file.name;
           _fileBytes = file.bytes;
           _fileExtension = file.extension?.toLowerCase() ?? '';
+          // FIX: Anche per FilePicker, converti in CSV string se necessario
+          if ((_fileExtension == 'csv' || _fileExtension == 'txt') && file.bytes != null) {
+            _csvContent = utf8.decode(file.bytes!, allowMalformed: true);
+          }
         });
         
         HapticFeedback.lightImpact();
@@ -585,10 +597,13 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
       if (_fileExtension == 'xlsx') {
         _unrecognizedCategories = model.getUnrecognizedCategoriesFromExcel(_fileBytes!);
       } else if (_fileExtension == 'mmbackup' || _fileExtension == 'json') {
-        final jsonContent = String.fromCharCodes(_fileBytes!);
+        final jsonContent = utf8.decode(_fileBytes!, allowMalformed: true);
         _unrecognizedCategories = model.getUnrecognizedCategoriesFromMMBackup(jsonContent);
       } else if (_fileExtension == 'csv' || _fileExtension == 'txt') {
-        final csvContent = String.fromCharCodes(_fileBytes!);
+        // FIX: Usa lo stesso contenuto CSV dell'incolla manuale
+        final csvContent = _csvContent.isNotEmpty 
+            ? _csvContent 
+            : utf8.decode(_fileBytes!, allowMalformed: true);
         _unrecognizedCategories = model.getUnrecognizedCategories(csvContent.replaceAll(';', ','));
       } else {
         throw Exception('Formato file non supportato: $_fileExtension');
@@ -618,17 +633,24 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
         await model.importFromExcel(_fileBytes!, {});
         _showResultSnack(imported: null, skipped: null);
       } else if (_fileExtension == 'mmbackup' || _fileExtension == 'json') {
-        final jsonContent = String.fromCharCodes(_fileBytes!);
+        final jsonContent = utf8.decode(_fileBytes!, allowMalformed: true);
         await model.importFromMMBackup(jsonContent, {});
         _showResultSnack(imported: null, skipped: null);
       } else if (_fileExtension == 'csv' || _fileExtension == 'txt') {
-        final csvContent = String.fromCharCodes(_fileBytes!);
+        // FIX: USA LO STESSO PARSER DELL'INCOLLA MANUALE
+        final csvContent = _csvContent.isNotEmpty 
+            ? _csvContent 
+            : utf8.decode(_fileBytes!, allowMalformed: true);
         final res = await model.importFromCSV(csvContent.replaceAll(';', ','), {});
         _showResultSnack(imported: res['imported'], skipped: res['skipped']);
       }
       _closePreview();
       _resetFileSelection();
-    } catch (_) {}
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Errore import: $e'), backgroundColor: Colors.red)
+      );
+    }
   }
 
   void _showCSVImportDialog(BuildContext context, MoneyModel model) {
@@ -862,11 +884,14 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
         await model.importFromExcel(_fileBytes!, _categoryMapping);
         _showResultSnack(imported: null, skipped: null);
       } else if (_fileExtension == 'mmbackup' || _fileExtension == 'json') {
-        final jsonContent = String.fromCharCodes(_fileBytes!);
+        final jsonContent = utf8.decode(_fileBytes!, allowMalformed: true);
         await model.importFromMMBackup(jsonContent, _categoryMapping);
         _showResultSnack(imported: null, skipped: null);
       } else if (_fileExtension == 'csv' || _fileExtension == 'txt') {
-        final csvContent = String.fromCharCodes(_fileBytes!);
+        // FIX: USA LO STESSO PARSER ANCHE QUI
+        final csvContent = _csvContent.isNotEmpty 
+            ? _csvContent 
+            : utf8.decode(_fileBytes!, allowMalformed: true);
         final res = await model.importFromCSV(csvContent.replaceAll(';', ','), _categoryMapping);
         _showResultSnack(imported: res['imported'], skipped: res['skipped']);
       }
@@ -1039,6 +1064,7 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
       _fileName = '';
       _fileBytes = null;
       _fileExtension = '';
+      _csvContent = ''; // FIX: Reset anche il contenuto CSV
     });
   }
 
