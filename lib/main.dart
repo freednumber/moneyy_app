@@ -127,6 +127,200 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     );
   }
 
+  // ------------------ DOCK ------------------
+  Widget _buildModernDock() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    final isVerySmallScreen = screenWidth < 360;
+    
+    return Container(
+      margin: EdgeInsets.only(
+        left: isSmallScreen ? 12 : 24,
+        right: isSmallScreen ? 12 : 24,
+        bottom: MediaQuery.of(context).padding.bottom + (isSmallScreen ? 8 : 16),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(isSmallScreen ? 24 : 28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            height: isSmallScreen ? 64 : 72,
+            decoration: BoxDecoration(
+              color: isDark 
+                ? Colors.grey[900]!.withOpacity(0.85)
+                : Colors.white.withOpacity(0.95),
+              borderRadius: BorderRadius.circular(isSmallScreen ? 24 : 28),
+              border: Border.all(
+                color: isDark
+                  ? Colors.white.withOpacity(0.12)
+                  : Colors.black.withOpacity(0.08),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
+                  blurRadius: 24,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildNavItem(
+                  icon: Icons.home_rounded,
+                  label: 'Home',
+                  index: 0,
+                  isSmall: isSmallScreen,
+                  isVerySmall: isVerySmallScreen,
+                ),
+                _buildNavItem(
+                  icon: Icons.flag_rounded,
+                  label: 'Obiettivi',
+                  index: 1,
+                  isSmall: isSmallScreen,
+                  isVerySmall: isVerySmallScreen,
+                ),
+                _buildNavItem(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Report',
+                  index: 2,
+                  isSmall: isSmallScreen,
+                  isVerySmall: isVerySmallScreen,
+                ),
+                _buildNavItem(
+                  icon: Icons.repeat_rounded,
+                  label: isVerySmallScreen ? 'Ricorr.' : 'Ricorrenti',
+                  index: 3,
+                  isSmall: isSmallScreen,
+                  isVerySmall: isVerySmallScreen,
+                ),
+                _buildNavItem(
+                  icon: Icons.settings_rounded,
+                  label: isVerySmallScreen ? 'Config.' : 'Impostazioni',
+                  index: 4,
+                  isSmall: isSmallScreen,
+                  isVerySmall: isVerySmallScreen,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required int index,
+    required bool isSmall,
+    required bool isVerySmall,
+  }) {
+    final isSelected = _currentIndex == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final originalLabels = ['Home', 'Obiettivi', 'Report', 'Ricorrenti', 'Impostazioni'];
+    
+    return Tooltip(
+      message: originalLabels[index],
+      waitDuration: const Duration(milliseconds: 500),
+      child: GestureDetector(
+        onTap: () => _onNavigate(index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          width: isSmall 
+            ? (isVerySmall ? 48 : 54)
+            : 68,
+          height: isSmall ? 50 : 60,
+          decoration: BoxDecoration(
+            color: isSelected
+              ? const Color(0xFF6366F1).withOpacity(0.15)
+              : Colors.transparent,
+            borderRadius: BorderRadius.circular(isSmall ? 16 : 20),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedScale(
+                scale: isSelected ? 1.1 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  icon,
+                  size: isSmall ? 22 : 26,
+                  color: isSelected
+                    ? const Color(0xFF6366F1)
+                    : isDark
+                      ? Colors.grey[300]
+                      : Colors.grey[600],
+                ),
+              ),
+              if (!isSmall) ...[
+                const SizedBox(height: 4),
+                AnimatedOpacity(
+                  opacity: isSelected ? 1.0 : 0.8,
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.fade,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      letterSpacing: 0.2,
+                      color: isSelected
+                        ? const Color(0xFF6366F1)
+                        : isDark
+                          ? Colors.grey[300]
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ] else if (isSelected) ...[
+                const SizedBox(height: 2),
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF6366F1),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+              if (isSmall && !isVerySmall) ...[
+                const SizedBox(height: 2),
+                AnimatedOpacity(
+                  opacity: isSelected ? 0.9 : 0.7,
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.clip,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.1,
+                      color: isSelected
+                        ? const Color(0xFF6366F1)
+                        : isDark
+                          ? Colors.grey[350]
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------ FAB Contestuale ------------------
   Widget _buildContextFab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -148,10 +342,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         tooltip: 'Nuovo Obiettivo',
         onTap: () {
           final state = goalsKey.currentState;
-          if (state is dynamic && state.mounted) {
-            final model = Provider.of<MoneyModel>(context, listen: false);
-            // chiama in modo riflessivo il metodo se esiste
-            try { state._showAddGoalDialog(model); } catch (_) {}
+          if (state != null && state.mounted) {
+            try {
+              // ignore: invalid_use_of_protected_member
+              // @ts-ignore
+              (state as dynamic)._showAddGoalDialog(Provider.of<MoneyModel>(context, listen: false));
+            } catch (_) {}
           }
         },
         isDark: isDark,
@@ -163,8 +359,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         tooltip: 'Nuova Ricorrente',
         onTap: () {
           final state = recurringKey.currentState;
-          if (state is dynamic && state.mounted) {
-            try { state._showAddRecurringDialog(context); } catch (_) {}
+          if (state != null && state.mounted) {
+            try {
+              // ignore: invalid_use_of_protected_member
+              (state as dynamic)._showAddRecurringDialog(context);
+            } catch (_) {}
           }
         },
         isDark: isDark,
@@ -210,5 +409,113 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     );
   }
 
-  // ... resto invariato: _buildModernDock(), _buildNavItem(), _showQuickAddMenu(), _buildQuickAddButton()
+  // ------------------ Banner Aggiunta Veloce ------------------
+  void _showQuickAddMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          left: 16,
+          right: 16,
+          top: 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('Aggiungi Transazione', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildQuickAddButton(
+                    context: context,
+                    title: 'Nuova Uscita',
+                    subtitle: 'Spesa, bolletta...',
+                    icon: Icons.arrow_downward,
+                    color: Colors.red,
+                    isIncome: false,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildQuickAddButton(
+                    context: context,
+                    title: 'Nuova Entrata',
+                    subtitle: 'Stipendio, regalo...',
+                    icon: Icons.arrow_upward,
+                    color: Colors.green,
+                    isIncome: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickAddButton({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required bool isIncome,
+  }) {
+    return InkWell(
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AddTxPage(initialIsIncome: isIncome),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 24),
+            ),
+            const SizedBox(height: 12),
+            Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: color, fontSize: 14)),
+            const SizedBox(height: 4),
+            Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600]), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
 }
