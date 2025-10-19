@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models.dart';
 import '../providers.dart';
@@ -18,34 +19,46 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
   Widget build(BuildContext context) {
     super.build(context);
     final model = context.watch<MoneyModel>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark 
+        ? const Color(0xFF0F172A)
+        : Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Transazioni Ricorrenti'),
+        title: Text(
+          'Transazioni Ricorrenti',
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         automaticallyImplyLeading: false,
         elevation: 0,
         centerTitle: true,
+        backgroundColor: isDark 
+          ? const Color(0xFF1E293B)
+          : Colors.white,
       ),
       body: model.recurringTransactions.isEmpty
-          ? _buildEmptyState()
+          ? _buildEmptyState(isDark)
           : ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
               itemCount: model.recurringTransactions.length,
               itemBuilder: (context, index) {
                 final recurring = model.recurringTransactions[index];
-                return _buildRecurringCard(recurring, model);
+                return _buildRecurringCard(recurring, model, isDark);
               },
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddRecurringDialog(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Nuova Ricorrente'),
-        backgroundColor: const Color(0xFF6366F1),
-      ),
     );
   }
 
-  Widget _buildEmptyState() {
+  // METODO PUBBLICO per essere chiamato dal FAB globale
+  void showAddRecurringDialog(BuildContext context) {
+    _showAddRecurringDialog(context);
+  }
+
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -60,35 +73,29 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
             child: const Icon(Icons.repeat, size: 60, color: Color(0xFF6366F1)),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Nessuna transazione ricorrente',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Aggiungi spese ricorrenti come bollette e abbonamenti',
-            style: TextStyle(color: Colors.grey[600]),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () => _showAddRecurringDialog(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Aggiungi Prima Ricorrente'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6366F1),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            style: TextStyle(
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRecurringCard(Recurring recurring, MoneyModel model) {
+  Widget _buildRecurringCard(Recurring recurring, MoneyModel model, bool isDark) {
     final style = model.getTransactionStyle(recurring.category);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dismissible(
       key: Key(recurring.id.toString()),
@@ -107,15 +114,34 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
         return await showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Elimina Ricorrente'),
-            content: const Text('Sei sicuro di voler eliminare questa transazione ricorrente?'),
+            backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+            title: Text(
+              'Elimina Ricorrente',
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            content: Text(
+              'Sei sicuro di voler eliminare questa transazione ricorrente?',
+              style: TextStyle(
+                color: isDark ? Colors.grey[300] : Colors.black87,
+              ),
+            ),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(
+                  'Annulla',
+                  style: TextStyle(
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
+              ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('Elimina'),
+                child: const Text('Elimina', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -123,6 +149,7 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
       },
       onDismissed: (direction) {
         model.deleteRecurring(recurring.id!);
+        HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Transazione ricorrente eliminata'),
@@ -133,10 +160,18 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
+        color: isDark 
+          ? Colors.grey[900]!.withOpacity(0.8)
+          : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: isDark ? 8 : 2,
+        shadowColor: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _showEditRecurringDialog(context, recurring, model),
+          onTap: () {
+            HapticFeedback.lightImpact();
+            _showEditRecurringDialog(context, recurring, model);
+          },
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -145,8 +180,19 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [style.color, style.color.withOpacity(0.7)]),
+                    gradient: LinearGradient(
+                      colors: [style.color, style.color.withOpacity(0.7)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: style.color.withOpacity(0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: Icon(style.icon, color: Colors.white, size: 24),
                 ),
@@ -161,27 +207,42 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                           fontWeight: FontWeight.w600,
                           fontSize: 15,
                           color: isDark ? Colors.white : Colors.black87,
+                          letterSpacing: 0.1,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(Icons.calendar_today, size: 12, color: isDark ? Colors.white60 : Colors.grey[500]),
+                          Icon(
+                            Icons.calendar_today,
+                            size: 12,
+                            color: isDark ? Colors.grey[400] : Colors.grey[500],
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'Giorno ${recurring.dayOfMonth} del mese',
-                            style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey[600]),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          Icon(Icons.access_time, size: 12, color: isDark ? Colors.white60 : Colors.grey[500]),
+                          Icon(
+                            Icons.access_time,
+                            size: 12,
+                            color: isDark ? Colors.grey[400] : Colors.grey[500],
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'alle ${recurring.time.format(context)}',
-                            style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey[600]),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            ),
                           ),
                         ],
                       ),
@@ -189,7 +250,10 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                         const SizedBox(height: 2),
                         Text(
                           recurring.note!,
-                          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.grey[500] : Colors.grey[500],
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -202,17 +266,20 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                   children: [
                     Text(
                       '- ${model.format(recurring.amount)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFFEF4444),
+                        color: isDark ? const Color(0xFFFF6B6B) : const Color(0xFFEF4444),
                         fontSize: 16,
+                        letterSpacing: 0.2,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: style.color.withOpacity(0.15),
+                        color: isDark
+                          ? style.color.withOpacity(0.2)
+                          : style.color.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -220,14 +287,18 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: style.color,
+                          color: isDark ? Colors.white : style.color,
                         ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(width: 8),
-                Icon(Icons.edit_outlined, size: 18, color: Colors.grey.shade400),
+                Icon(
+                  Icons.edit_outlined,
+                  size: 18,
+                  color: isDark ? Colors.grey[400] : Colors.grey.shade400,
+                ),
               ],
             ),
           ),
@@ -244,17 +315,25 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
     PaymentMethod selectedPayment = PaymentMethod.carta;
     int selectedDay = 1;
     TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
-    bool isLoading = false;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    HapticFeedback.mediumImpact(); // Feedback al tap
 
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Row(
+          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+          title: Row(
             children: [
-              Icon(Icons.add_circle, color: Color(0xFF10B981)),
-              SizedBox(width: 8),
-              Text('Nuova Ricorrente'),
+              const Icon(Icons.add_circle, color: Color(0xFF10B981)),
+              const SizedBox(width: 8),
+              Text(
+                'Nuova Ricorrente',
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
             ],
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -262,7 +341,6 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // CATEGORIA con icone
                 DropdownButtonFormField<String>(
                   value: selectedCategory,
                   decoration: InputDecoration(
@@ -274,8 +352,17 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                         )
                       : const Icon(Icons.category),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
-                  hint: const Text('Seleziona categoria'),
+                  hint: Text(
+                    'Seleziona categoria',
+                    style: TextStyle(
+                      color: isDark ? Colors.grey[500] : Colors.grey[400],
+                    ),
+                  ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
                   items: model.expenseCats.map((cat) {
                     final style = model.getTransactionStyle(cat);
                     return DropdownMenuItem(
@@ -284,7 +371,12 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                         children: [
                           Icon(style.icon, color: style.color, size: 20),
                           const SizedBox(width: 12),
-                          Text(cat),
+                          Text(
+                            cat,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -293,38 +385,53 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                 ),
                 const SizedBox(height: 16),
                 
-                // IMPORTO
                 TextField(
                   controller: amountCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Importo (€)',
                     prefixIcon: const Icon(Icons.euro),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     hintText: '0.00',
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
+                    hintStyle: TextStyle(
+                      color: isDark ? Colors.grey[500] : Colors.grey[400],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 
-                // GIORNO DEL MESE
                 DropdownButtonFormField<int>(
                   value: selectedDay,
                   decoration: InputDecoration(
                     labelText: 'Giorno del mese',
                     prefixIcon: const Icon(Icons.calendar_today),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
                   items: List.generate(28, (i) => i + 1).map((day) {
                     return DropdownMenuItem(
                       value: day,
-                      child: Text('Giorno $day'),
+                      child: Text(
+                        'Giorno $day',
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
                     );
                   }).toList(),
                   onChanged: (val) => setState(() => selectedDay = val!),
                 ),
                 const SizedBox(height: 16),
                 
-                // ORARIO
                 InkWell(
                   onTap: () async {
                     final time = await showTimePicker(
@@ -348,21 +455,30 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
+                      border: Border.all(
+                        color: isDark ? Colors.grey[600]! : Colors.grey,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.access_time),
+                        Icon(
+                          Icons.access_time,
+                          color: isDark ? Colors.grey[400] : Colors.grey[700],
+                        ),
                         const SizedBox(width: 12),
-                        Text('Orario: ${selectedTime.format(context)}'),
+                        Text(
+                          'Orario: ${selectedTime.format(context)}',
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 
-                // METODO PAGAMENTO  
                 DropdownButtonFormField<PaymentMethod>(
                   value: selectedPayment,
                   decoration: InputDecoration(
@@ -372,7 +488,11 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                       selectedPayment == PaymentMethod.carta ? Icons.credit_card : Icons.account_balance,
                     ),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
                   items: PaymentMethod.values.map((method) {
                     return DropdownMenuItem(
                       value: method,
@@ -382,10 +502,15 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                             method == PaymentMethod.contanti ? Icons.money :
                             method == PaymentMethod.carta ? Icons.credit_card : Icons.account_balance,
                             size: 20,
-                            color: Colors.grey[600],
+                            color: isDark ? Colors.grey[400] : Colors.grey[600],
                           ),
                           const SizedBox(width: 12),
-                          Text(method.name.toUpperCase()),
+                          Text(
+                            method.name.toUpperCase(),
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -394,14 +519,22 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                 ),
                 const SizedBox(height: 16),
                 
-                // NOTE
                 TextField(
                   controller: noteCtrl,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Nota (opzionale)',
                     prefixIcon: const Icon(Icons.note),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     hintText: 'Es: Bolletta luce, Netflix...',
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
+                    hintStyle: TextStyle(
+                      color: isDark ? Colors.grey[500] : Colors.grey[400],
+                    ),
                   ),
                   maxLines: 2,
                 ),
@@ -411,11 +544,15 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annulla'),
+              child: Text(
+                'Annulla',
+                style: TextStyle(
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                ),
+              ),
             ),
             ElevatedButton.icon(
               onPressed: () async {
-                // VALIDAZIONE ESPLICITA
                 if (selectedCategory == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -447,10 +584,10 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                     note: noteCtrl.text.isEmpty ? null : noteCtrl.text.trim(),
                   );
                   
-                  // SALVATAGGIO CON FEEDBACK
                   await model.addRecurring(recurring);
                   
                   Navigator.pop(dialogContext);
+                  HapticFeedback.heavyImpact(); // Feedback al salvataggio
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('✅ Ricorrente "$selectedCategory" salvata'),
@@ -487,16 +624,23 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
     PaymentMethod selectedPayment = recurring.payment;
     int selectedDay = recurring.dayOfMonth;
     TimeOfDay selectedTime = recurring.time;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Row(
+          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+          title: Row(
             children: [
-              Icon(Icons.edit, color: Color(0xFF6366F1)),
-              SizedBox(width: 8),
-              Text('Modifica Ricorrente'),
+              const Icon(Icons.edit, color: Color(0xFF6366F1)),
+              const SizedBox(width: 8),
+              Text(
+                'Modifica Ricorrente',
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
             ],
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -504,7 +648,6 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // CATEGORIA con icone
                 DropdownButtonFormField<String>(
                   value: selectedCategory,
                   decoration: InputDecoration(
@@ -514,7 +657,11 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                       color: model.getTransactionStyle(selectedCategory).color,
                     ),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
                   items: model.expenseCats.map((cat) {
                     final style = model.getTransactionStyle(cat);
                     return DropdownMenuItem(
@@ -523,7 +670,12 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                         children: [
                           Icon(style.icon, color: style.color, size: 20),
                           const SizedBox(width: 12),
-                          Text(cat),
+                          Text(
+                            cat,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -532,34 +684,49 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                 ),
                 const SizedBox(height: 16),
                 
-                // IMPORTO
                 TextField(
                   controller: amountCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Importo (€)',
                     prefixIcon: const Icon(Icons.euro),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 
-                // GIORNO
                 DropdownButtonFormField<int>(
                   value: selectedDay,
                   decoration: InputDecoration(
                     labelText: 'Giorno del mese',
                     prefixIcon: const Icon(Icons.calendar_today),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
                   items: List.generate(28, (i) => i + 1).map((day) {
-                    return DropdownMenuItem(value: day, child: Text('Giorno $day'));
+                    return DropdownMenuItem(
+                      value: day,
+                      child: Text(
+                        'Giorno $day',
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    );
                   }).toList(),
                   onChanged: (val) => setState(() => selectedDay = val!),
                 ),
                 const SizedBox(height: 16),
                 
-                // ORARIO
                 InkWell(
                   onTap: () async {
                     final time = await showTimePicker(
@@ -583,21 +750,30 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
+                      border: Border.all(
+                        color: isDark ? Colors.grey[600]! : Colors.grey,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.access_time),
+                        Icon(
+                          Icons.access_time,
+                          color: isDark ? Colors.grey[400] : Colors.grey[700],
+                        ),
                         const SizedBox(width: 12),
-                        Text('Orario: ${selectedTime.format(context)}'),
+                        Text(
+                          'Orario: ${selectedTime.format(context)}',
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 
-                // METODO PAGAMENTO
                 DropdownButtonFormField<PaymentMethod>(
                   value: selectedPayment,
                   decoration: InputDecoration(
@@ -607,7 +783,11 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                       selectedPayment == PaymentMethod.carta ? Icons.credit_card : Icons.account_balance,
                     ),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
                   items: PaymentMethod.values.map((method) {
                     return DropdownMenuItem(
                       value: method,
@@ -617,10 +797,15 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                             method == PaymentMethod.contanti ? Icons.money :
                             method == PaymentMethod.carta ? Icons.credit_card : Icons.account_balance,
                             size: 20,
-                            color: Colors.grey[600],
+                            color: isDark ? Colors.grey[400] : Colors.grey[600],
                           ),
                           const SizedBox(width: 12),
-                          Text(method.name.toUpperCase()),
+                          Text(
+                            method.name.toUpperCase(),
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -629,13 +814,22 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                 ),
                 const SizedBox(height: 16),
                 
-                // NOTE
                 TextField(
                   controller: noteCtrl,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Nota (opzionale)',
                     prefixIcon: const Icon(Icons.note),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    hintText: 'Es: Bolletta luce, Netflix...',
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
+                    hintStyle: TextStyle(
+                      color: isDark ? Colors.grey[500] : Colors.grey[400],
+                    ),
                   ),
                   maxLines: 2,
                 ),
@@ -645,11 +839,25 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annulla'),
+              child: Text(
+                'Annulla',
+                style: TextStyle(
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                ),
+              ),
             ),
             ElevatedButton.icon(
               onPressed: () async {
-                // VALIDAZIONE ESPLICITA
+                if (selectedCategory == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('❌ Seleziona una categoria'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                
                 final amount = double.tryParse(amountCtrl.text);
                 if (amount == null || amount <= 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -662,24 +870,22 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                 }
                 
                 try {
-                  final updated = Recurring(
-                    id: recurring.id,
-                    category: selectedCategory,
+                  final newRecurring = Recurring(
+                    category: selectedCategory!,
                     amount: amount,
                     dayOfMonth: selectedDay,
                     time: selectedTime,
                     payment: selectedPayment,
                     note: noteCtrl.text.isEmpty ? null : noteCtrl.text.trim(),
-                    lastProcessed: recurring.lastProcessed,
                   );
                   
-                  // SALVATAGGIO CON FEEDBACK
-                  await model.updateRecurring(updated);
+                  await model.addRecurring(newRecurring);
                   
                   Navigator.pop(dialogContext);
+                  HapticFeedback.heavyImpact();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('✅ Ricorrente "$selectedCategory" aggiornata'),
+                      content: Text('✅ Ricorrente "$selectedCategory" salvata'),
                       backgroundColor: Colors.green,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -687,7 +893,7 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('❌ Errore nell\'aggiornamento: $e'),
+                      content: Text('❌ Errore nel salvataggio: $e'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -696,7 +902,7 @@ class _RecurringPageState extends State<RecurringPage> with AutomaticKeepAliveCl
               icon: const Icon(Icons.save),
               label: const Text('Salva'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6366F1),
+                backgroundColor: const Color(0xFF10B981),
                 foregroundColor: Colors.white,
               ),
             ),
