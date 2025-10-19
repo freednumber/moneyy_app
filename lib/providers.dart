@@ -14,10 +14,10 @@ class MoneyModel extends ChangeNotifier {
   bool loading = true;
   String currency = '€';
 
-  // Categorie AGGIORNATE con Ricariche separate e Svago al posto di Ristoranti
+  // Categorie: Investimenti AGGIUNTO anche nelle uscite
   final List<String> expenseCats = [
     'Spesa', 'Trasporti', 'Svago', 'Shopping', 'Bollette', 'Ricariche',
-    'Casa', 'Salute', 'Sport', 'Regali', 'Viaggi', 'Altro'
+    'Casa', 'Salute', 'Sport', 'Regali', 'Viaggi', 'Investimenti', 'Altro'
   ];
   
   final List<String> incomeCats = [
@@ -191,10 +191,10 @@ class MoneyModel extends ChangeNotifier {
       'Sport': CategoryStyle(Icons.fitness_center, const Color(0xFF84CC16)),
       'Regali': CategoryStyle(Icons.card_giftcard, const Color(0xFFF97316)),
       'Viaggi': CategoryStyle(Icons.flight, const Color(0xFF14B8A6)),
+      'Investimenti': CategoryStyle(Icons.trending_up, const Color(0xFF8B5CF6)), // Ora anche nelle uscite
       'Altro': CategoryStyle(Icons.more_horiz, const Color(0xFF6B7280)),
       'Stipendio': CategoryStyle(Icons.work, const Color(0xFF10B981)),
       'Freelance': CategoryStyle(Icons.laptop_mac, const Color(0xFF6366F1)),
-      'Investimenti': CategoryStyle(Icons.trending_up, const Color(0xFF8B5CF6)),
       'Regalo': CategoryStyle(Icons.card_giftcard, const Color(0xFFF59E0B)),
       'Rimborso': CategoryStyle(Icons.undo, const Color(0xFF22C55E)), // Icona undo per Rimborso
       'COMPUTER': CategoryStyle(Icons.computer, const Color(0xFF3B82F6)),
