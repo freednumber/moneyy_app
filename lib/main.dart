@@ -68,9 +68,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   late AnimationController _navController;
   late AnimationController _fabController;
 
-  // GlobalKey per accedere allo State delle pagine
-  final GlobalKey<_GoalsPageState> goalsKey = GlobalKey<_GoalsPageState>();
-  final GlobalKey<_RecurringPageState> recurringKey = GlobalKey<_RecurringPageState>();
+  // GlobalKey senza tipo privato: usiamo GlobalKey<State<StatefulWidget>>
+  final GlobalKey goalsKey = GlobalKey();
+  final GlobalKey recurringKey = GlobalKey();
 
   @override
   void initState() {
@@ -346,8 +346,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
           HapticFeedback.mediumImpact();
           final state = goalsKey.currentState;
           if (state != null && state.mounted) {
+            final dynamic dyn = state;
             final model = Provider.of<MoneyModel>(context, listen: false);
-            state.showAddGoalDialog(model);
+            try { dyn.showAddGoalDialog(model); } catch (_) {}
           }
         },
         isDark: isDark,
@@ -361,7 +362,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
           HapticFeedback.mediumImpact();
           final state = recurringKey.currentState;
           if (state != null && state.mounted) {
-            state.showAddRecurringDialog(context);
+            final dynamic dyn = state;
+            try { dyn.showAddRecurringDialog(context); } catch (_) {}
           }
         },
         isDark: isDark,
@@ -394,7 +396,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.5 : 0.25), // Shadow più marcata
+                  color: Colors.black.withOpacity(isDark ? 0.5 : 0.25),
                   blurRadius: 16,
                   spreadRadius: 2,
                   offset: const Offset(0, 8),
