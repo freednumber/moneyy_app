@@ -167,7 +167,7 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
                 child: Row(children: [
                   const Icon(Icons.info, color: Colors.amber, size: 16),
                   const SizedBox(width: 8),
-                  Expanded(child: Text('File molto grande ($totalItems elementi). L\'importazione potrebbe richiedere tempo.', style: const TextStyle(fontSize: 12, color: Colors.amber))),
+                  const Expanded(child: Text('File molto grande. L\'importazione potrebbe richiedere tempo.', style: TextStyle(fontSize: 12, color: Colors.amber))),
                 ]),
               ),
             const SizedBox(height: 12),
@@ -251,16 +251,7 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
   }
 
   void _closePreview() {
-    _previewAnimationController.reverse().then((_) {
-      setState(() {
-        _showPreview = false;
-        _previewData.clear();
-        _fileName = '';
-        _fileBytes = null;
-        _fileExtension = '';
-        _previewLimit = 100;
-      });
-    });
+    _previewAnimationController.reverse().then((_) => setState(() { _showPreview = false; _previewData.clear(); _fileName = ''; _fileBytes = null; _fileExtension = ''; _previewLimit = 100; }));
   }
 
   // ====== DRAG & DROP ZONE ======
@@ -342,11 +333,12 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
     final lines = csvContent.split('\n');
     final previewData = <Map<String, String>>[];
     final startIndex = lines[0].toLowerCase().contains('data') ? 1 : 0;
-    // INCREMENTATO: da 100 a limite massimo import
     for (int i = startIndex; i < lines.length && previewData.length < _maxImportItems; i++) {
       final line = lines[i].trim(); if (line.isEmpty) continue;
       try {
-        final f = _parseCSVFields(line);
+        // Supporta sia ',' che ';' come separatore
+        final normalized = line.replaceAll(';', ',');
+        final f = _parseCSVFields(normalized);
         if (f.length >= 3) {
           previewData.add({'data': f[0], 'categoria': f.length > 1 ? f[1] : 'N/A', 'importo': f.length > 2 ? f[2] : '0.00', 'nota': f.length > 3 ? f[3] : '', 'tipo': f.length > 4 ? f[4] : 'Uscita'});
         }
@@ -367,11 +359,10 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
           final h = header[i]?.value?.toString().toLowerCase() ?? '';
           if (h.contains('data')) dateCol = i;
           if (h.contains('categoria')) categoryCol = i;
-          if (h.contains('importo') && h.contains('predefinita')) amountCol = i;
-          if (h.contains('commento')) noteCol = i;
+          if (h.contains('importo')) amountCol = i; // rimosso vincolo "predefinita"
+          if (h.contains('commento') || h.contains('nota')) noteCol = i;
         }
         if (dateCol == null || categoryCol == null || amountCol == null) continue;
-        // INCREMENTATO: da 100 a limite massimo import
         for (int r = 1; r < sheet.rows.length && previewData.length < _maxImportItems; r++) {
           final row = sheet.rows[r];
           try {
@@ -395,7 +386,6 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
       final jsonContent = String.fromCharCodes(_fileBytes!);
       final data = json.decode(jsonContent) as Map<String, dynamic>;
       final transactions = data['transactions'] as List<dynamic>? ?? [];
-      // INCREMENTATO: da take(100) a limite massimo
       for (final txData in transactions.take(_maxImportItems)) {
         try {
           final amount = txData['amount']?.toString() ?? '0';
@@ -426,10 +416,7 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
   }
 
   Future<void> _analyzeFile(MoneyModel model) async {
-    if (_fileBytes == null || _fileName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nessun file selezionato'), backgroundColor: Colors.orange));
-      return;
-    }
+    if (_fileBytes == null || _fileName.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nessun file selezionato'), backgroundColor: Colors.orange)); return; }
     setState(() => _isAnalyzing = true);
     try {
       if (_fileExtension == 'xlsx') {
@@ -439,37 +426,16 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
         _unrecognizedCategories = model.getUnrecognizedCategoriesFromMMBackup(jsonContent);
       } else if (_fileExtension == 'csv' || _fileExtension == 'txt') {
         final csvContent = String.fromCharCodes(_fileBytes!);
-        _unrecognizedCategories = model.getUnrecognizedCategories(csvContent);
+        _unrecognizedCategories = model.getUnrecognizedCategories(csvContent.replaceAll(';', ','));
       } else {
         throw Exception('Formato file non supportato: $_fileExtension');
       }
-      if (_unrecognizedCategories.isNotEmpty) {
-        _closePreview();
-        setState(() { _showMappingStep = true; _isAnalyzing = false; });
-      } else {
-        await _performDirectImport(model);
-        setState(() => _isAnalyzing = false);
-      }
-    } catch (e) {
-      setState(() => _isAnalyzing = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore nell\'analisi del file: $e'), backgroundColor: Colors.red));
-    }
+      if (_unrecognizedCategories.isNotEmpty) { _closePreview(); setState(() { _showMappingStep = true; _isAnalyzing = false; }); }
+      else { await _performDirectImport(model); setState(() => _isAnalyzing = false); }
+    } catch (e) { setState(() => _isAnalyzing = false); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore nell\'analisi del file: $e'), backgroundColor: Colors.red)); }
   }
 
-  Future<void> _performDirectImport(MoneyModel model) async {
-    try {
-      if (_fileExtension == 'xlsx') {
-        await model.importFromExcel(_fileBytes!, {});
-      } else if (_fileExtension == 'mmbackup' || _fileExtension == 'json') {
-        final jsonContent = String.fromCharCodes(_fileBytes!);
-        await model.importFromMMBackup(jsonContent, {});
-      } else if (_fileExtension == 'csv' || _fileExtension == 'txt') {
-        final csvContent = String.fromCharCodes(_fileBytes!);
-        await model.importFromCSV(csvContent, {});
-      }
-      _showImportSuccess(); _closePreview(); _resetFileSelection();
-    } catch (_) {}
-  }
+  Future<void> _performDirectImport(MoneyModel model) async { try { if (_fileExtension == 'xlsx') { await model.importFromExcel(_fileBytes!, {}); } else if (_fileExtension == 'mmbackup' || _fileExtension == 'json') { final jsonContent = String.fromCharCodes(_fileBytes!); await model.importFromMMBackup(jsonContent, {}); } else if (_fileExtension == 'csv' || _fileExtension == 'txt') { final csvContent = String.fromCharCodes(_fileBytes!); await model.importFromCSV(csvContent.replaceAll(';', ','), {}); } _showImportSuccess(realCount: null); _closePreview(); _resetFileSelection(); } catch (_) {} }
 
   void _showCSVImportDialog(BuildContext context, MoneyModel model) {
     final csvController = TextEditingController();
@@ -492,16 +458,11 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
     if (csvContent.trim().isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Il contenuto CSV non può essere vuoto'), backgroundColor: Colors.red)); return; }
     setState(() { _isAnalyzing = true; _csvContent = csvContent; });
     try {
-      _unrecognizedCategories = model.getUnrecognizedCategories(csvContent);
+      _unrecognizedCategories = model.getUnrecognizedCategories(csvContent.replaceAll(';', ','));
       Navigator.pop(dialogContext);
-      if (_unrecognizedCategories.isNotEmpty) {
-        setState(() { _showMappingStep = true; _isAnalyzing = false; });
-      } else {
-        await model.importFromCSV(csvContent, {}); _showImportSuccess(); setState(() => _isAnalyzing = false);
-      }
-    } catch (e) {
-      setState(() => _isAnalyzing = false); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore nell\'analisi del CSV: $e'), backgroundColor: Colors.red));
-    }
+      if (_unrecognizedCategories.isNotEmpty) { setState(() { _showMappingStep = true; _isAnalyzing = false; }); }
+      else { await model.importFromCSV(csvContent.replaceAll(';', ','), {}); _showImportSuccess(realCount: null); setState(() => _isAnalyzing = false); }
+    } catch (e) { setState(() => _isAnalyzing = false); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore nell\'analisi del CSV: $e'), backgroundColor: Colors.red)); }
   }
 
   Widget _buildCategoryMappingStep(MoneyModel model) {
@@ -541,18 +502,16 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
         await model.importFromMMBackup(jsonContent, _categoryMapping);
       } else if (_fileExtension == 'csv' || _fileExtension == 'txt') {
         final csvContent = String.fromCharCodes(_fileBytes!);
-        await model.importFromCSV(csvContent, _categoryMapping);
+        await model.importFromCSV(csvContent.replaceAll(';', ','), _categoryMapping);
       }
-      _showImportSuccess(); _closePreview();
+      _showImportSuccess(realCount: null); _closePreview();
       setState(() { _showMappingStep = false; _isAnalyzing = false; _categoryMapping.clear(); _unrecognizedCategories.clear(); });
-    } catch (e) {
-      setState(() => _isAnalyzing = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore durante l\'importazione: $e'), backgroundColor: Colors.red));
-    }
+    } catch (e) { setState(() => _isAnalyzing = false); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore durante l\'importazione: $e'), backgroundColor: Colors.red)); }
   }
 
-  void _showImportSuccess() {
-    showDialog(context: context, builder: (context) => AlertDialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('Importazione Completata')]), content: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.file_download_done, color: Colors.green, size: 48), const SizedBox(height: 16), Text('${_previewData.length} transazioni importate con successo!', style: const TextStyle(fontSize: 16), textAlign: TextAlign.center), const SizedBox(height: 8), const Text('Le transazioni sono state aggiunte al database', style: TextStyle(color: Colors.grey), textAlign: TextAlign.center)]), actions: [ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Chiudi'))]));
+  void _showImportSuccess({int? realCount}) {
+    final count = realCount ?? _previewData.length;
+    showDialog(context: context, builder: (context) => AlertDialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('Importazione Completata')]), content: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.file_download_done, color: Colors.green, size: 48), const SizedBox(height: 16), Text('$count transazioni importate con successo!', style: const TextStyle(fontSize: 16), textAlign: TextAlign.center), const SizedBox(height: 8), const Text('Le transazioni sono state aggiunte al database', style: TextStyle(color: Colors.grey), textAlign: TextAlign.center)]), actions: [ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Chiudi'))]));
   }
 
   // ====== EXPORT/CLIPBOARD ======
@@ -577,69 +536,13 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-          ...children,
-          const SizedBox(height: 8),
-        ],
-      ),
+      child: Column(children: [Padding(padding: const EdgeInsets.all(16), child: Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: Icon(icon, color: color, size: 20)), const SizedBox(width: 12), Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))])), ...children, const SizedBox(height: 8)]),
     );
   }
 
-  Widget _buildStatsCard(MoneyModel model) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.analytics, color: Color(0xFF8B5CF6)),
-                SizedBox(width: 8),
-                Text('Statistiche Database', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildStatItem('Transazioni', model.transactions.length.toString(), Icons.receipt),
-                _buildStatItem('Obiettivi', model.goals.length.toString(), Icons.flag),
-                _buildStatItem('Ricorrenti', model.recurringTransactions.length.toString(), Icons.repeat),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildStatsCard(MoneyModel model) { return Card(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Row(children: [Icon(Icons.analytics, color: Color(0xFF8B5CF6)), SizedBox(width: 8), Text('Statistiche Database', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))]), const SizedBox(height: 16), Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [ _buildStatItem('Transazioni', model.transactions.length.toString(), Icons.receipt), _buildStatItem('Obiettivi', model.goals.length.toString(), Icons.flag), _buildStatItem('Ricorrenti', model.recurringTransactions.length.toString(), Icons.repeat), ])]))); }
 
-  Widget _buildStatItem(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: const Color(0xFF8B5CF6), size: 24),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6))),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      ],
-    );
-  }
+  Widget _buildStatItem(String label, String value, IconData icon) { return Column(children: [Icon(icon, color: const Color(0xFF8B5CF6), size: 24), const SizedBox(height: 4), Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6))), Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey))]); }
 
   // ====== UTILS ======
   void _resetFileSelection() { setState(() { _fileName = ''; _fileBytes = null; _fileExtension = ''; }); }
