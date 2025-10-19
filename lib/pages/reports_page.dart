@@ -23,7 +23,6 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
   ChartMode chartMode = ChartMode.overview;
   DateTime selectedDate = DateTime.now();
 
-  // ✅ FIX: Navigazione bloccata al passato
   void _navigatePrevious() {
     setState(() {
       switch (selectedPeriod) {
@@ -43,7 +42,6 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     });
   }
 
-  // ✅ FIX: Non può andare oltre oggi
   void _navigateNext() {
     setState(() {
       DateTime newDate;
@@ -74,7 +72,6 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     });
   }
 
-  // ✅ FIX: DatePicker non può selezionare futuro
   Future<void> _pickPeriod() async {
     switch (selectedPeriod) {
       case PeriodType.giorno:
@@ -119,21 +116,32 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
   Widget build(BuildContext context) {
     super.build(context);
     final model = Provider.of<MoneyModel>(context);
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     if (model.loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final filteredTransactions = _getFilteredTransactions(model);
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: isDarkMode 
+        ? const Color(0xFF0F172A)
+        : Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Report Finanziario'),
+        title: Text(
+          'Report Finanziario',
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         automaticallyImplyLeading: false,
         elevation: 0,
         centerTitle: true,
+        backgroundColor: isDarkMode 
+          ? const Color(0xFF1E293B)
+          : Colors.white,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -155,7 +163,10 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left),
+            icon: Icon(
+              Icons.chevron_left,
+              color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+            ),
             onPressed: _navigatePrevious,
             iconSize: 28,
           ),
@@ -166,10 +177,12 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withOpacity(0.1),
+                color: isDarkMode
+                  ? const Color(0xFF10B981).withOpacity(0.15)
+                  : const Color(0xFF10B981).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: const Color(0xFF10B981).withOpacity(0.3),
+                  color: const Color(0xFF10B981).withOpacity(0.4),
                 ),
               ),
               child: Row(
@@ -177,21 +190,28 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                 children: [
                   Text(
                     _getSelectedPeriodText(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF10B981),
+                      color: isDarkMode ? const Color(0xFF34D399) : const Color(0xFF10B981),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Icon(Icons.calendar_today, size: 16, color: Color(0xFF10B981)),
+                  Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: isDarkMode ? const Color(0xFF34D399) : const Color(0xFF10B981),
+                  ),
                 ],
               ),
             ),
           ),
           const SizedBox(width: 16),
           IconButton(
-            icon: const Icon(Icons.chevron_right),
+            icon: Icon(
+              Icons.chevron_right,
+              color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+            ),
             onPressed: _navigateNext,
             iconSize: 28,
           ),
@@ -201,17 +221,27 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
   }
 
   Widget _buildPeriodSelector(bool isDarkMode) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+    
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: isDarkMode 
+          ? Colors.grey[900]!.withOpacity(0.8)
+          : Colors.white,
         borderRadius: BorderRadius.circular(25),
+        border: Border.all(
+          color: isDarkMode
+            ? Colors.white.withOpacity(0.1)
+            : Colors.black.withOpacity(0.05),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(isDarkMode ? 0.4 : 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -227,18 +257,33 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                 });
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                padding: EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: isSmallScreen ? 2 : 8,
+                ),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF4CAF50) : Colors.transparent,
+                  gradient: isSelected
+                    ? const LinearGradient(
+                        colors: [Color(0xFF10B981), Color(0xFF059669)],
+                      )
+                    : null,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   _getPeriodName(period),
                   textAlign: TextAlign.center,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.clip,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyMedium?.color,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    fontSize: 13,
+                    color: isSelected 
+                      ? Colors.white
+                      : isDarkMode 
+                        ? Colors.grey[300]
+                        : Colors.grey[700],
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    fontSize: isSmallScreen ? 11 : 13,
+                    letterSpacing: isSmallScreen ? -0.2 : 0.2,
                   ),
                 ),
               ),
@@ -256,15 +301,22 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: isDarkMode 
+          ? Colors.grey[900]!.withOpacity(0.8)
+          : Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDarkMode
+            ? Colors.white.withOpacity(0.1)
+            : Colors.black.withOpacity(0.05),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(isDarkMode ? 0.4 : 0.1),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -300,28 +352,56 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
             ),
             const SizedBox(height: 24),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildTotalCard('Entrate', totalIncome, Colors.green.shade600, model, Icons.arrow_upward),
-                _buildTotalCard('Uscite', totalExpense, Colors.red.shade600, model, Icons.arrow_downward),
+                Expanded(
+                  child: _buildTotalCard('Entrate', totalIncome, Colors.green.shade600, model, Icons.arrow_upward, isDarkMode),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildTotalCard('Uscite', totalExpense, Colors.red.shade600, model, Icons.arrow_downward, isDarkMode),
+                ),
               ],
             ),
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(16),
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: netBalance >= 0
                       ? [const Color(0xFF10B981), const Color(0xFF059669)]
                       : [const Color(0xFFEF4444), const Color(0xFFDC2626)],
                 ),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: (netBalance >= 0 ? Colors.green : Colors.red).withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Saldo Netto', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                  Text(model.format(netBalance.abs()), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Saldo Netto',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  Text(
+                    model.format(netBalance.abs()),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -332,9 +412,20 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.pie_chart_outline, size: 64, color: Colors.grey.shade400),
+                    Icon(
+                      Icons.pie_chart_outline,
+                      size: 64,
+                      color: isDarkMode ? Colors.grey[600] : Colors.grey.shade400,
+                    ),
                     const SizedBox(height: 16),
-                    Text('Nessuna transazione nel periodo', style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6), fontSize: 16)),
+                    Text(
+                      'Nessuna transazione nel periodo',
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -345,21 +436,54 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     );
   }
 
-  Widget _buildTotalCard(String label, double amount, Color color, MoneyModel model, IconData icon) {
+  Widget _buildTotalCard(String label, double amount, Color color, MoneyModel model, IconData icon, bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: isDark
+          ? color.withOpacity(0.15)
+          : color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark
+            ? color.withOpacity(0.4)
+            : color.withOpacity(0.3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(isDark ? 0.2 : 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 8),
-          Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
-          const SizedBox(height: 4),
-          Text(model.format(amount), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+          Icon(
+            icon,
+            color: isDark ? color.withOpacity(0.9) : color,
+            size: 28,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? Colors.grey[300] : Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            model.format(amount),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : color,
+              letterSpacing: 0.3,
+            ),
+          ),
         ],
       ),
     );
@@ -368,13 +492,36 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
   Widget _buildTransactionsList(List<MoneyTx> transactions, MoneyModel model, bool isDarkMode) {
     if (transactions.isEmpty) {
       return Container(
+        margin: const EdgeInsets.all(16),
         padding: const EdgeInsets.all(40),
+        decoration: BoxDecoration(
+          color: isDarkMode 
+            ? Colors.grey[900]!.withOpacity(0.6)
+            : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDarkMode
+              ? Colors.white.withOpacity(0.1)
+              : Colors.grey.withOpacity(0.2),
+          ),
+        ),
         child: Center(
           child: Column(
             children: [
-              Icon(Icons.receipt_long_rounded, size: 64, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.4)),
+              Icon(
+                Icons.receipt_long_rounded,
+                size: 64,
+                color: isDarkMode ? Colors.grey[600] : Colors.grey[400],
+              ),
               const SizedBox(height: 16),
-              Text('Nessuna transazione trovata', style: TextStyle(fontSize: 16, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6))),
+              Text(
+                'Nessuna transazione trovata',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -384,23 +531,48 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        color: isDarkMode 
+          ? Colors.grey[900]!.withOpacity(0.8)
+          : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDarkMode
+            ? Colors.white.withOpacity(0.1)
+            : Colors.grey.withOpacity(0.2),
+        ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(isDarkMode ? 0.3 : 0.1), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withOpacity(isDarkMode ? 0.4 : 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Transazioni (${transactions.length})', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'Transazioni (${transactions.length})',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.white : Colors.black87,
+                    letterSpacing: 0.2,
+                  ),
+                ),
                 if (transactions.isNotEmpty)
-                  Text('Swipe ← per eliminare', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  Text(
+                    'Swipe ← elimina',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -411,7 +583,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
             itemBuilder: (context, index) {
               final tx = transactions[index];
               final style = model.getTransactionStyle(tx.category);
-              final isRecurring = tx.note?.startsWith('🔁') ?? false;
+              final isRecurring = tx.note?.startsWith('🔄') ?? false;
 
               return Dismissible(
                 key: Key('${tx.id}_${tx.date.millisecondsSinceEpoch}'),
@@ -420,12 +592,14 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                   margin: EdgeInsets.only(
                     left: 16,
                     right: 16,
-                    top: index == 0 ? 0 : 8,
-                    bottom: index == transactions.length - 1 ? 16 : 8,
+                    top: index == 0 ? 0 : 4,
+                    bottom: index == transactions.length - 1 ? 16 : 4,
                   ),
                   padding: const EdgeInsets.only(right: 20),
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   alignment: Alignment.centerRight,
@@ -436,15 +610,34 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                   return await showDialog(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('Elimina Transazione'),
-                      content: const Text('Sei sicuro di voler eliminare questa transazione?'),
+                      backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+                      title: Text(
+                        'Elimina Transazione',
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      content: Text(
+                        'Sei sicuro di voler eliminare questa transazione?',
+                        style: TextStyle(
+                          color: isDarkMode ? Colors.grey[300] : Colors.black87,
+                        ),
+                      ),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annulla')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: Text(
+                            'Annulla',
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                            ),
+                          ),
+                        ),
                         ElevatedButton(
                           onPressed: () => Navigator.pop(ctx, true),
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                          child: const Text('Elimina'),
+                          child: const Text('Elimina', style: TextStyle(color: Colors.white)),
                         ),
                       ],
                     ),
@@ -465,17 +658,21 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                   margin: EdgeInsets.only(
                     left: 16,
                     right: 16,
-                    top: index == 0 ? 0 : 8,
-                    bottom: index == transactions.length - 1 ? 16 : 8,
+                    top: index == 0 ? 0 : 4,
+                    bottom: index == transactions.length - 1 ? 16 : 4,
                   ),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isDarkMode ? Theme.of(context).scaffoldBackgroundColor.withOpacity(0.5) : Colors.white,
+                    color: isDarkMode 
+                      ? Colors.grey[850]!.withOpacity(0.5)
+                      : Colors.grey[50],
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isRecurring
-                          ? const Color(0xFF6366F1).withOpacity(0.5)
-                          : Theme.of(context).dividerColor.withOpacity(0.3),
+                          ? const Color(0xFF6366F1).withOpacity(isDarkMode ? 0.4 : 0.3)
+                          : isDarkMode
+                            ? Colors.white.withOpacity(0.08)
+                            : Colors.grey.withOpacity(0.2),
                     ),
                   ),
                   child: Row(
@@ -485,7 +682,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                           margin: const EdgeInsets.only(right: 12),
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.1),
+                            color: const Color(0xFF6366F1).withOpacity(0.15),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.repeat, color: Color(0xFF6366F1), size: 16),
@@ -494,21 +691,44 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: style.color.withOpacity(0.15),
+                          gradient: LinearGradient(
+                            colors: [style.color, style.color.withOpacity(0.8)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: style.color.withOpacity(0.3),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                        child: Icon(style.icon, color: style.color, size: 24),
+                        child: Icon(style.icon, color: Colors.white, size: 24),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(tx.category, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                            Text(
+                              tx.category,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                                color: isDarkMode ? Colors.white : Colors.black87,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Text(
                               tx.note ?? DateFormat('d MMMM yyyy', 'it_IT').format(tx.date),
-                              style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6), fontSize: 13),
+                              style: TextStyle(
+                                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                fontSize: 13,
+                                letterSpacing: 0.1,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -521,15 +741,21 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                           Text(
                             '${tx.isIncome ? '+' : '-'} ${model.format(tx.amount)}',
                             style: TextStyle(
-                              color: tx.isIncome ? Colors.green.shade700 : Colors.red.shade700,
+                              color: tx.isIncome 
+                                ? (isDarkMode ? const Color(0xFF34D399) : Colors.green.shade700)
+                                : (isDarkMode ? const Color(0xFFFF6B6B) : Colors.red.shade700),
                               fontWeight: FontWeight.w700,
                               fontSize: 16,
+                              letterSpacing: 0.2,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 4),
                           Text(
                             DateFormat('HH:mm', 'it_IT').format(tx.date),
-                            style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5), fontSize: 11),
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.grey[500] : Colors.grey[500],
+                              fontSize: 11,
+                            ),
                           ),
                         ],
                       ),
@@ -568,7 +794,6 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     }
   }
 
-  // ✅ INCLUDI RICORRENTI
   List<MoneyTx> _getFilteredTransactions(MoneyModel model) {
     DateTime start, end;
     
