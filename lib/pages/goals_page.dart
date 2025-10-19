@@ -80,12 +80,11 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                       const SizedBox(height: 16),
                       ...model.completedGoals.map((goal) => _buildGoalCard(goal, model, true, isDark)),
                     ],
-                    if (model.goals.isEmpty) _buildEmptyState(isDark),
+                    if (model.goals.isEmpty) _buildEmptyState(isDark, model),
                   ],
                 ),
               ),
             ),
-      // FAB SPECIFICO PER OBIETTIVI
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           HapticFeedback.lightImpact();
@@ -345,7 +344,7 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
     );
   }
 
-  Widget _buildEmptyState(bool isDark) {
+  Widget _buildEmptyState(bool isDark, MoneyModel model) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -415,7 +414,6 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) {
-          // Validazione categoria
           if (!model.goalCategories.contains(selectedCategory)) {
             selectedCategory = model.goalCategories.first;
           }
