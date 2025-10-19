@@ -26,6 +26,9 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     
     return Scaffold(
       extendBodyBehindAppBar: true,
+      backgroundColor: isDark 
+        ? const Color(0xFF0F172A)
+        : Colors.grey[50],
       appBar: AppBar(
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -136,17 +139,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          _showAddTransactionDialog();
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Nuova'),
-        backgroundColor: const Color(0xFF6366F1),
-        foregroundColor: Colors.white,
-        elevation: 8,
-      ),
+      // RIMOSSO IL FAB CHE SI NASCONDEVA DIETRO IL DOCK
     );
   }
 
@@ -907,16 +900,23 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     String selectedCategory = tx.category;
     bool isIncome = tx.isIncome;
     PaymentMethod selectedPayment = tx.payment;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Row(
+          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+          title: Row(
             children: [
-              Icon(Icons.edit, color: Color(0xFF6366F1)),
-              SizedBox(width: 8),
-              Text('Modifica Transazione'),
+              const Icon(Icons.edit, color: Color(0xFF6366F1)),
+              const SizedBox(width: 8),
+              Text(
+                'Modifica Transazione',
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
             ],
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -943,9 +943,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: selectedCategory,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Categoria',
-                    prefixIcon: Icon(Icons.category),
+                    prefixIcon: const Icon(Icons.category),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
                   items: (isIncome ? model.incomeCats : model.expenseCats).map((cat) {
                     final style = model.getTransactionStyle(cat);
@@ -955,7 +958,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                         children: [
                           Icon(style.icon, color: style.color, size: 20),
                           const SizedBox(width: 8),
-                          Text(cat),
+                          Text(
+                            cat,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -966,9 +974,15 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 TextField(
                   controller: amountCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                  decoration: InputDecoration(
                     labelText: 'Importo (€)',
-                    prefixIcon: Icon(Icons.euro),
+                    prefixIcon: const Icon(Icons.euro),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -989,14 +1003,22 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 ),
                 DropdownButtonFormField<PaymentMethod>(
                   value: selectedPayment,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Metodo Pagamento',
-                    prefixIcon: Icon(Icons.payment),
+                    prefixIcon: const Icon(Icons.payment),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
                   items: PaymentMethod.values.map((method) {
                     return DropdownMenuItem(
                       value: method,
-                      child: Text(method.name.toUpperCase()),
+                      child: Text(
+                        method.name.toUpperCase(),
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
                     );
                   }).toList(),
                   onChanged: (value) => setState(() => selectedPayment = value!),
@@ -1004,9 +1026,15 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 const SizedBox(height: 16),
                 TextField(
                   controller: noteCtrl,
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                  decoration: InputDecoration(
                     labelText: 'Nota (opzionale)',
-                    prefixIcon: Icon(Icons.note),
+                    prefixIcon: const Icon(Icons.note),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
                   maxLines: 2,
                 ),
@@ -1016,7 +1044,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Annulla'),
+              child: Text(
+                'Annulla',
+                style: TextStyle(
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                ),
+              ),
             ),
             ElevatedButton.icon(
               onPressed: () async {
@@ -1047,97 +1080,13 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
               },
               icon: const Icon(Icons.save),
               label: const Text('Salva'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAddTransactionDialog() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(
-              Icons.add_circle,
-              color: Theme.of(context).primaryColor,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Nuova Transazione',
-              style: TextStyle(
-                color: isDark ? Colors.white : Colors.black87,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
               ),
             ),
           ],
         ),
-        content: Text(
-          'Che tipo di transazione vuoi aggiungere?',
-          style: TextStyle(
-            color: isDark ? Colors.grey[300] : Colors.black87,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Annulla',
-              style: TextStyle(
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
-              ),
-            ),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddTxPage(initialIsIncome: false),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                icon: const Icon(Icons.remove_circle, size: 20),
-                label: const Text('Uscita', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddTxPage(initialIsIncome: true),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                icon: const Icon(Icons.add_circle, size: 20),
-                label: const Text('Entrata', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -1165,6 +1114,9 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
             TextField(
               controller: amountCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+              ),
               decoration: InputDecoration(
                 labelText: 'Importo',
                 prefixIcon: const Icon(Icons.euro),
@@ -1177,6 +1129,9 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
             const SizedBox(height: 12),
             TextField(
               controller: noteCtrl,
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+              ),
               decoration: InputDecoration(
                 labelText: 'Nota (Opzionale)',
                 prefixIcon: const Icon(Icons.note),
