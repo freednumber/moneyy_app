@@ -32,8 +32,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  # ✅ IMPORTAZIONE FILE AVANZATA
-  file_picker: ^5.5.0
+  # ✅ IMPORTAZIONE FILE AVANZATA (aggiornato per desktop)
+  file_picker: ^8.0.0
   excel: ^2.1.0
   path_provider: ^2.1.1
   # ✅ DRAG & DROP SUPPORT
