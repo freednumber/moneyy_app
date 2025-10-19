@@ -127,8 +127,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   Widget _buildContextFab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Mostra il FAB solo su Home (aggiunta veloce), Obiettivi e Ricorrenti
     if (_currentIndex == 0) {
+      // Home: Aggiunta transazioni
       return _buildSquareFab(
         color: const Color(0xFF6366F1),
         icon: Icons.add,
@@ -140,29 +140,31 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         isDark: isDark,
       );
     } else if (_currentIndex == 1) {
+      // Obiettivi: Apri direttamente il dialog di nuovo obiettivo sulla pagina attuale
       return _buildSquareFab(
         color: const Color(0xFF6366F1),
         icon: Icons.flag,
         tooltip: 'Nuovo Obiettivo',
         onTap: () {
-          // Notifica la pagina obiettivi via ScaffoldMessenger (o usa un GlobalKey se preferisci)
-          // Per semplicità apriamo direttamente un dialog minimale che delega alla pagina tramite Navigator
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const GoalsPage()),
-          );
+          final state = context.findAncestorStateOfType<_GoalsPageState>();
+          if (state != null) {
+            final model = Provider.of<MoneyModel>(context, listen: false);
+            state._showAddGoalDialog(model);
+          }
         },
         isDark: isDark,
       );
     } else if (_currentIndex == 3) {
+      // Ricorrenti: Apri direttamente il dialog di nuova ricorrente sulla pagina attuale
       return _buildSquareFab(
         color: const Color(0xFF6366F1),
         icon: Icons.add,
         tooltip: 'Nuova Ricorrente',
         onTap: () {
-          // Apri direttamente il dialog già presente nella RecurringPage tramite route
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const RecurringPage()),
-          );
+          final state = context.findAncestorStateOfType<_RecurringPageState>();
+          if (state != null) {
+            state._showAddRecurringDialog(context);
+          }
         },
         isDark: isDark,
       );
@@ -191,7 +193,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
             height: 56,
             decoration: BoxDecoration(
               color: color,
-              borderRadius: BorderRadius.circular(16), // quadrato con angoli
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(isDark ? 0.4 : 0.2),
@@ -402,11 +404,19 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   void _showQuickAddMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          left: 16,
+          right: 16,
+          top: 16,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -418,12 +428,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Aggiungi Transazione',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            const Text('Aggiungi Transazione', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -449,7 +456,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -466,7 +473,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   }) {
     return InkWell(
       onTap: () {
-        Navigator.pop(context);
+        Navigator.pop(context); // Chiudi banner
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -494,23 +501,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               child: Icon(icon, color: Colors.white, size: 24),
             ),
             const SizedBox(height: 12),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: color,
-                fontSize: 14,
-              ),
-            ),
+            Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: color, fontSize: 14)),
             const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
+            Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600]), textAlign: TextAlign.center),
           ],
         ),
       ),
