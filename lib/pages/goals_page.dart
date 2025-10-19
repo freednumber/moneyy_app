@@ -19,64 +19,90 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
   Widget build(BuildContext context) {
     super.build(context);
     final model = context.watch<MoneyModel>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark 
+        ? const Color(0xFF0F172A)
+        : Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Obiettivi'),
+        title: Text(
+          'Obiettivi',
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         automaticallyImplyLeading: false,
         elevation: 0,
         centerTitle: true,
+        backgroundColor: isDark 
+          ? const Color(0xFF1E293B)
+          : Colors.white,
       ),
       body: model.loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
           : RefreshIndicator(
               onRefresh: () async {
                 HapticFeedback.mediumImpact();
                 await model.loadInitial();
               },
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (model.activeGoals.isNotEmpty) ...[
-                      const Text(
+                      Text(
                         'In Corso',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                          letterSpacing: 0.2,
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      ...model.activeGoals.map((goal) => _buildGoalCard(goal, model, false)),
+                      ...model.activeGoals.map((goal) => _buildGoalCard(goal, model, false, isDark)),
                       const SizedBox(height: 24),
                     ],
                     if (model.completedGoals.isNotEmpty) ...[
-                      const Text(
+                      Text(
                         'Completati',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                          letterSpacing: 0.2,
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      ...model.completedGoals.map((goal) => _buildGoalCard(goal, model, true)),
+                      ...model.completedGoals.map((goal) => _buildGoalCard(goal, model, true, isDark)),
                     ],
-                    if (model.goals.isEmpty) _buildEmptyState(),
+                    if (model.goals.isEmpty) _buildEmptyState(isDark),
                   ],
                 ),
               ),
             ),
+      // FAB SPECIFICO PER OBIETTIVI
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           HapticFeedback.lightImpact();
           _showAddGoalDialog(model);
         },
-        icon: const Icon(Icons.flag),
+        icon: const Icon(Icons.flag, size: 24),
         label: const Text('Nuovo Obiettivo'),
-        elevation: 6,
+        backgroundColor: const Color(0xFF6366F1),
+        foregroundColor: Colors.white,
+        elevation: 8,
+        extendedPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       ),
     );
   }
 
-  Widget _buildGoalCard(Goal goal, MoneyModel model, bool isCompleted) {
+  Widget _buildGoalCard(Goal goal, MoneyModel model, bool isCompleted, bool isDark) {
     final style = model.getGoalStyle(goal.title);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Dismissible(
       key: Key('goal_${goal.id}'),
@@ -95,18 +121,34 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
         return await showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Elimina Obiettivo'),
-            content: Text('Sei sicuro di voler eliminare l\'obiettivo "${goal.title}"?'),
+            backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+            title: Text(
+              'Elimina Obiettivo',
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            content: Text(
+              'Sei sicuro di voler eliminare l\'obiettivo "${goal.title}"?',
+              style: TextStyle(
+                color: isDark ? Colors.grey[300] : Colors.black87,
+              ),
+            ),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Annulla'),
+                child: Text(
+                  'Annulla',
+                  style: TextStyle(
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('Elimina'),
+                child: const Text('Elimina', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -125,11 +167,16 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
+        color: isDark 
+          ? Colors.grey[900]!.withOpacity(0.8)
+          : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 2,
+        elevation: isDark ? 8 : 2,
+        shadowColor: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: () {
+            HapticFeedback.lightImpact();
             if (isCompleted) {
               if (goal.isPurchased) {
                 _showUnpurchaseDialog(goal, model);
@@ -152,12 +199,14 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                       height: 56,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [style.color, style.color.withOpacity(0.7)],
+                          colors: [style.color, style.color.withOpacity(0.8)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: style.color.withOpacity(0.3),
+                            color: style.color.withOpacity(0.4),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -176,6 +225,7 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: isDark ? Colors.white : Colors.black87,
+                              letterSpacing: 0.2,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -183,7 +233,8 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                             '${model.format(goal.saved)} / ${model.format(goal.target)}',
                             style: TextStyle(
                               fontSize: 14,
-                              color: isDark ? Colors.white70 : Colors.grey[600],
+                              color: isDark ? Colors.grey[300] : Colors.grey[600],
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
@@ -210,16 +261,27 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.2),
+                            color: isDark
+                              ? Colors.grey.withOpacity(0.3)
+                              : Colors.grey.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                            border: Border.all(
+                              color: Colors.grey.withOpacity(0.4),
+                            ),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.check_circle, color: Colors.grey, size: 16),
-                              SizedBox(width: 4),
-                              Text('Saldato', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              const Icon(Icons.check_circle, color: Colors.grey, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Saldato',
+                                style: TextStyle(
+                                  color: isDark ? Colors.grey[400] : Colors.grey,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -229,7 +291,7 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                       IconButton(
                         onPressed: () => _showEditGoalDialog(goal, model),
                         icon: const Icon(Icons.edit),
-                        color: style.color,
+                        color: isDark ? Colors.grey[300] : style.color,
                         tooltip: 'Modifica obiettivo',
                       ),
                     ],
@@ -240,27 +302,38 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                   borderRadius: BorderRadius.circular(8),
                   child: LinearProgressIndicator(
                     value: goal.progress / 100,
-                    minHeight: 8,
-                    backgroundColor: isDark ? Colors.white12 : Colors.grey[200],
+                    minHeight: 10,
+                    backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[200],
                     valueColor: AlwaysStoppedAnimation<Color>(style.color),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '${goal.progress.toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: style.color,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: style.color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${goal.progress.toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : style.color,
+                        ),
                       ),
                     ),
                     if (!goal.isPurchased)
                       Text(
                         'Mancano ${model.format(goal.target - goal.saved)}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                   ],
                 ),
@@ -272,24 +345,60 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.flag, size: 80, color: Colors.grey[300]),
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: const Color(0xFF6366F1).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(60),
+              ),
+              child: const Icon(
+                Icons.flag,
+                size: 60,
+                color: Color(0xFF6366F1),
+              ),
+            ),
             const SizedBox(height: 24),
             Text(
               'Nessun obiettivo',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               'Crea il tuo primo obiettivo di risparmio',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? Colors.grey[400] : Colors.grey[500],
+              ),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                _showAddGoalDialog(model);
+              },
+              icon: const Icon(Icons.flag),
+              label: const Text('Crea Primo Obiettivo'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
             ),
           ],
         ),
@@ -300,28 +409,49 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
   void _showAddGoalDialog(MoneyModel model) {
     final targetController = TextEditingController();
     String selectedCategory = model.goalCategories.first;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) {
-          // ✅ FIX: Validazione categoria
+          // Validazione categoria
           if (!model.goalCategories.contains(selectedCategory)) {
             selectedCategory = model.goalCategories.first;
           }
           
           return AlertDialog(
-            title: const Text('Nuovo Obiettivo'),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+            title: Row(
+              children: [
+                const Icon(Icons.flag, color: Color(0xFF6366F1)),
+                const SizedBox(width: 8),
+                Text(
+                  'Nuovo Obiettivo',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
                   value: selectedCategory,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Categoria',
-                    prefixIcon: Icon(Icons.category),
+                    prefixIcon: Icon(
+                      model.getGoalStyle(selectedCategory).icon,
+                      color: model.getGoalStyle(selectedCategory).color,
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
                   items: model.goalCategories.map((cat) {
                     final style = model.getGoalStyle(cat);
                     return DropdownMenuItem(
@@ -329,8 +459,13 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                       child: Row(
                         children: [
                           Icon(style.icon, color: style.color, size: 20),
-                          const SizedBox(width: 8),
-                          Text(cat),
+                          const SizedBox(width: 12),
+                          Text(
+                            cat,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -345,17 +480,35 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                 TextField(
                   controller: targetController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Importo obiettivo (€)',
                     prefixIcon: const Icon(Icons.euro),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    hintText: '500.00',
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
+                    hintStyle: TextStyle(
+                      color: isDark ? Colors.grey[500] : Colors.grey[400],
+                    ),
                   ),
                 ),
               ],
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annulla')),
-              ElevatedButton(
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(
+                  'Annulla',
+                  style: TextStyle(
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
+              ),
+              ElevatedButton.icon(
                 onPressed: () async {
                   final target = double.tryParse(targetController.text);
                   if (target != null && target > 0) {
@@ -370,13 +523,26 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                     Navigator.pop(dialogContext);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Obiettivo creato!'),
+                        content: Text('✅ Obiettivo creato!'),
                         backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('❌ Inserisci un importo valido'),
+                        backgroundColor: Colors.red,
                       ),
                     );
                   }
                 },
-                child: const Text('Crea'),
+                icon: const Icon(Icons.save),
+                label: const Text('Crea'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           );
@@ -385,12 +551,11 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
     );
   }
 
-  // ✅ FIX: Dropdown con validazione categoria
   void _showEditGoalDialog(Goal goal, MoneyModel model) {
     final targetController = TextEditingController(text: goal.target.toString());
     String selectedCategory = goal.title;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    // ✅ FIX: Se la categoria non esiste, usa la prima disponibile
     if (!model.goalCategories.contains(selectedCategory)) {
       selectedCategory = model.goalCategories.first;
     }
@@ -400,17 +565,37 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: const Text('Modifica Obiettivo'),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+            title: Row(
+              children: [
+                const Icon(Icons.edit, color: Color(0xFF6366F1)),
+                const SizedBox(width: 8),
+                Text(
+                  'Modifica Obiettivo',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
                   value: selectedCategory,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Categoria',
-                    prefixIcon: Icon(Icons.category),
+                    prefixIcon: Icon(
+                      model.getGoalStyle(selectedCategory).icon,
+                      color: model.getGoalStyle(selectedCategory).color,
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
                   items: model.goalCategories.map((cat) {
                     final style = model.getGoalStyle(cat);
                     return DropdownMenuItem(
@@ -418,8 +603,13 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                       child: Row(
                         children: [
                           Icon(style.icon, color: style.color, size: 20),
-                          const SizedBox(width: 8),
-                          Text(cat),
+                          const SizedBox(width: 12),
+                          Text(
+                            cat,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -434,17 +624,25 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                 TextField(
                   controller: targetController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Importo obiettivo (€)',
                     prefixIcon: const Icon(Icons.euro),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelStyle: TextStyle(
+                      color: isDark ? Colors.grey[400] : null,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: isDark
+                      ? Colors.blue.withOpacity(0.15)
+                      : Colors.blue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -454,7 +652,11 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                       Expanded(
                         child: Text(
                           'Risparmiato: ${model.format(goal.saved)}',
-                          style: const TextStyle(fontSize: 12, color: Colors.blue),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? const Color(0xFF60A5FA) : Colors.blue,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -463,8 +665,16 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
               ],
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annulla')),
-              ElevatedButton(
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(
+                  'Annulla',
+                  style: TextStyle(
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
+              ),
+              ElevatedButton.icon(
                 onPressed: () async {
                   final target = double.tryParse(targetController.text);
                   if (target != null && target > 0) {
@@ -479,13 +689,19 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                     Navigator.pop(dialogContext);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Obiettivo aggiornato!'),
+                        content: Text('✅ Obiettivo aggiornato!'),
                         backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
                       ),
                     );
                   }
                 },
-                child: const Text('Salva'),
+                icon: const Icon(Icons.save),
+                label: const Text('Salva'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           );
@@ -496,31 +712,69 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
 
   void _showContributeDialog(Goal goal, MoneyModel model) {
     final controller = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Contribuisci a ${goal.title}'),
+        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+        title: Text(
+          'Contribuisci a ${goal.title}',
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Obiettivo: ${model.format(goal.target)}'),
-            Text('Salvato: ${model.format(goal.saved)}'),
-            Text('Mancano: ${model.format(goal.target - goal.saved)}'),
+            Text(
+              'Obiettivo: ${model.format(goal.target)}',
+              style: TextStyle(
+                color: isDark ? Colors.grey[300] : Colors.black87,
+              ),
+            ),
+            Text(
+              'Salvato: ${model.format(goal.saved)}',
+              style: TextStyle(
+                color: isDark ? Colors.grey[300] : Colors.black87,
+              ),
+            ),
+            Text(
+              'Mancano: ${model.format(goal.target - goal.saved)}',
+              style: TextStyle(
+                color: isDark ? Colors.grey[300] : Colors.black87,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              decoration: InputDecoration(
                 labelText: 'Importo da aggiungere',
-                prefixIcon: Icon(Icons.euro),
+                prefixIcon: const Icon(Icons.euro),
+                labelStyle: TextStyle(
+                  color: isDark ? Colors.grey[400] : null,
+                ),
               ),
               autofocus: true,
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annulla')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Annulla',
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+          ),
           ElevatedButton(
             onPressed: () async {
               final amount = double.tryParse(controller.text);
@@ -528,10 +782,18 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                 await model.contributeToGoal(goal.id!, amount);
                 Navigator.pop(dialogContext);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Aggiunto ${model.format(amount)} a ${goal.title}'), backgroundColor: Colors.green),
+                  SnackBar(
+                    content: Text('Aggiunto ${model.format(amount)} a ${goal.title}'),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               }
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Contribuisci'),
           ),
         ],
@@ -540,27 +802,50 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
   }
 
   void _showPurchaseDialog(Goal goal, MoneyModel model) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Salda Obiettivo'),
+        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+        title: Text(
+          'Salda Obiettivo',
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Text(
           'Confermi di voler saldare "${goal.title}"?\n\n'
           'Verrà creata una transazione di uscita di ${model.format(goal.target)}.',
+          style: TextStyle(
+            color: isDark ? Colors.grey[300] : Colors.black87,
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Annulla')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Annulla',
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+          ),
           ElevatedButton(
             onPressed: () async {
               await model.purchaseGoal(goal.id!);
               Navigator.pop(dialogContext);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('${goal.title} saldato!'), backgroundColor: Colors.green),
+                SnackBar(
+                  content: Text('${goal.title} saldato!'),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Conferma'),
+            child: const Text('Conferma', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -568,27 +853,50 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
   }
 
   void _showUnpurchaseDialog(Goal goal, MoneyModel model) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Annulla Saldo'),
+        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+        title: Text(
+          'Annulla Saldo',
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Text(
           'Vuoi annullare il saldo di "${goal.title}"?\n\n'
           'La transazione di acquisto verrà eliminata.',
+          style: TextStyle(
+            color: isDark ? Colors.grey[300] : Colors.black87,
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Chiudi')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Chiudi',
+              style: TextStyle(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+          ),
           ElevatedButton(
             onPressed: () async {
               await model.unpurchaseGoal(goal.id!);
               Navigator.pop(dialogContext);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Saldo annullato'), backgroundColor: Colors.orange),
+                const SnackBar(
+                  content: Text('Saldo annullato'),
+                  backgroundColor: Colors.orange,
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Annulla Saldo'),
+            child: const Text('Annulla Saldo', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
