@@ -5,7 +5,7 @@ import '../models.dart';
 import '../providers.dart';
 
 class AddTxPage extends StatefulWidget {
-  final bool initialIsIncome; // ✅ Parametro per impostare default
+  final bool initialIsIncome;
 
   const AddTxPage({super.key, this.initialIsIncome = false});
 
@@ -27,7 +27,7 @@ class _AddTxPageState extends State<AddTxPage> with AutomaticKeepAliveClientMixi
   @override
   void initState() {
     super.initState();
-    isIncome = widget.initialIsIncome; // ✅ Usa il parametro iniziale
+    isIncome = widget.initialIsIncome;
   }
 
   @override
@@ -59,7 +59,7 @@ class _AddTxPageState extends State<AddTxPage> with AutomaticKeepAliveClientMixi
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✅ TOGGLE ENTRATA/USCITA con testo bianco
+            // TOGGLE ENTRATA/USCITA
             Card(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: Padding(
@@ -83,13 +83,13 @@ class _AddTxPageState extends State<AddTxPage> with AutomaticKeepAliveClientMixi
                             children: [
                               Icon(
                                 Icons.arrow_downward,
-                                color: !isIncome ? Colors.white : Colors.grey, // ✅ Bianco quando selezionato
+                                color: !isIncome ? Colors.white : Colors.grey,
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 'Uscita',
                                 style: TextStyle(
-                                  color: !isIncome ? Colors.white : Colors.grey, // ✅ Bianco quando selezionato
+                                  color: !isIncome ? Colors.white : Colors.grey,
                                   fontWeight: !isIncome ? FontWeight.bold : FontWeight.normal,
                                   fontSize: 16,
                                 ),
@@ -116,13 +116,13 @@ class _AddTxPageState extends State<AddTxPage> with AutomaticKeepAliveClientMixi
                             children: [
                               Icon(
                                 Icons.arrow_upward,
-                                color: isIncome ? Colors.white : Colors.grey, // ✅ Bianco quando selezionato
+                                color: isIncome ? Colors.white : Colors.grey,
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 'Entrata',
                                 style: TextStyle(
-                                  color: isIncome ? Colors.white : Colors.grey, // ✅ Bianco quando selezionato
+                                  color: isIncome ? Colors.white : Colors.grey,
                                   fontWeight: isIncome ? FontWeight.bold : FontWeight.normal,
                                   fontSize: 16,
                                 ),
@@ -138,18 +138,46 @@ class _AddTxPageState extends State<AddTxPage> with AutomaticKeepAliveClientMixi
             ),
             const SizedBox(height: 24),
 
-            // CATEGORIA
+            // CATEGORIA CON ICONE VISIBILI
             const Text('Categoria', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: selectedCategory,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.category),
+                prefixIcon: selectedCategory != null 
+                  ? Icon(
+                      model.getTransactionStyle(selectedCategory!).icon,
+                      color: model.getTransactionStyle(selectedCategory!).color,
+                    )
+                  : const Icon(Icons.category),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
               hint: const Text('Seleziona categoria'),
               items: categories.map((cat) {
-                return DropdownMenuItem(value: cat, child: Text(cat));
+                final style = model.getTransactionStyle(cat);
+                return DropdownMenuItem(
+                  value: cat,
+                  child: Row(
+                    children: [
+                      Icon(style.icon, color: style.color, size: 20),
+                      const SizedBox(width: 12),
+                      Text(cat, style: const TextStyle(fontSize: 16)),
+                      if (isIncome)
+                        Container(
+                          margin: const EdgeInsets.only(left: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'Entrata',
+                            style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
               }).toList(),
               onChanged: (val) => setState(() => selectedCategory = val),
             ),
@@ -206,13 +234,27 @@ class _AddTxPageState extends State<AddTxPage> with AutomaticKeepAliveClientMixi
             DropdownButtonFormField<PaymentMethod>(
               value: selectedPayment,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.payment),
+                prefixIcon: Icon(
+                  selectedPayment == PaymentMethod.contanti ? Icons.money :
+                  selectedPayment == PaymentMethod.carta ? Icons.credit_card : Icons.account_balance,
+                ),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
               items: PaymentMethod.values.map((method) {
                 return DropdownMenuItem(
                   value: method,
-                  child: Text(method.name.toUpperCase()),
+                  child: Row(
+                    children: [
+                      Icon(
+                        method == PaymentMethod.contanti ? Icons.money :
+                        method == PaymentMethod.carta ? Icons.credit_card : Icons.account_balance,
+                        size: 20,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 12),
+                      Text(method.name.toUpperCase(), style: const TextStyle(fontSize: 16)),
+                    ],
+                  ),
                 );
               }).toList(),
               onChanged: (val) => setState(() => selectedPayment = val!),
@@ -284,7 +326,7 @@ class _AddTxPageState extends State<AddTxPage> with AutomaticKeepAliveClientMixi
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isIncome ? Colors.green : Colors.red,
-                  foregroundColor: Colors.white, // ✅ Testo sempre bianco
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: const Text('Salva Transazione', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
