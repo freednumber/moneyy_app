@@ -14,14 +14,14 @@ class MoneyModel extends ChangeNotifier {
   bool loading = true;
   String currency = '€';
 
-  // Categorie
+  // Categorie AGGIORNATE con Ricariche separate e Svago al posto di Ristoranti
   final List<String> expenseCats = [
-    'Spesa', 'Trasporti', 'Ristoranti', 'Shopping', 'Bollette',
+    'Spesa', 'Trasporti', 'Svago', 'Shopping', 'Bollette', 'Ricariche',
     'Casa', 'Salute', 'Sport', 'Regali', 'Viaggi', 'Altro'
   ];
   
   final List<String> incomeCats = [
-    'Stipendio', 'Freelance', 'Investimenti', 'Regalo', 'Altro'
+    'Stipendio', 'Freelance', 'Investimenti', 'Regalo', 'Rimborso', 'Altro'
   ];
   
   final List<String> goalCategories = [
@@ -182,9 +182,10 @@ class MoneyModel extends ChangeNotifier {
     final Map<String, CategoryStyle> styles = {
       'Spesa': CategoryStyle(Icons.shopping_cart, const Color(0xFF10B981)),
       'Trasporti': CategoryStyle(Icons.directions_car, const Color(0xFF3B82F6)),
-      'Ristoranti': CategoryStyle(Icons.restaurant, const Color(0xFFF59E0B)),
+      'Svago': CategoryStyle(Icons.restaurant, const Color(0xFFF59E0B)), // Ex-Ristoranti → Svago con stessa icona
       'Shopping': CategoryStyle(Icons.shopping_bag, const Color(0xFFEC4899)),
       'Bollette': CategoryStyle(Icons.receipt_long, const Color(0xFFEF4444)),
+      'Ricariche': CategoryStyle(Icons.smartphone, const Color(0xFF6366F1)), // Nuova categoria separata
       'Casa': CategoryStyle(Icons.home, const Color(0xFF8B5CF6)),
       'Salute': CategoryStyle(Icons.medical_services, const Color(0xFF06B6D4)),
       'Sport': CategoryStyle(Icons.fitness_center, const Color(0xFF84CC16)),
@@ -195,6 +196,7 @@ class MoneyModel extends ChangeNotifier {
       'Freelance': CategoryStyle(Icons.laptop_mac, const Color(0xFF6366F1)),
       'Investimenti': CategoryStyle(Icons.trending_up, const Color(0xFF8B5CF6)),
       'Regalo': CategoryStyle(Icons.card_giftcard, const Color(0xFFF59E0B)),
+      'Rimborso': CategoryStyle(Icons.undo, const Color(0xFF22C55E)), // Icona undo per Rimborso
       'COMPUTER': CategoryStyle(Icons.computer, const Color(0xFF3B82F6)),
       'SMARTPHONE': CategoryStyle(Icons.smartphone, const Color(0xFF8B5CF6)),
       'VIAGGIO': CategoryStyle(Icons.flight, const Color(0xFF10B981)),
@@ -202,13 +204,13 @@ class MoneyModel extends ChangeNotifier {
       'CASA': CategoryStyle(Icons.home, const Color(0xFFF59E0B)),
       'INVESTIMENTI': CategoryStyle(Icons.trending_up, const Color(0xFF14B8A6)),
       'ALTRO': CategoryStyle(Icons.flag, const Color(0xFF6B7280)),
-      // Mappature comuni
+      // Mappature comuni per import
       'Alimentari': CategoryStyle(Icons.shopping_cart, const Color(0xFF10B981)),
       'Auto': CategoryStyle(Icons.directions_car, const Color(0xFF3B82F6)),
-      'Svago': CategoryStyle(Icons.sports_esports, const Color(0xFFF59E0B)),
+      'Ristoranti': CategoryStyle(Icons.restaurant, const Color(0xFFF59E0B)), // Per retrocompatibilità import
       'Attività fisica': CategoryStyle(Icons.fitness_center, const Color(0xFF84CC16)),
       'PAC': CategoryStyle(Icons.trending_up, const Color(0xFF8B5CF6)),
-      'Ricarica': CategoryStyle(Icons.phone, const Color(0xFF6366F1)),
+      'Ricarica': CategoryStyle(Icons.smartphone, const Color(0xFF6366F1)),
       'Caffè': CategoryStyle(Icons.local_cafe, const Color(0xFFF59E0B)),
       'Abbigliamento': CategoryStyle(Icons.shopping_bag, const Color(0xFFEC4899)),
     };
@@ -348,12 +350,10 @@ class MoneyModel extends ChangeNotifier {
 
   // Import CSV tollerante con contatore scarti
   Future<Map<String,int>> importFromCSV(String csvContent, Map<String, String> categoryMapping) async {
-    // Normalizza separatore e fine riga
     final normalized = csvContent.replaceAll(';', ',').replaceAll('\r\n', '\n').replaceAll('\r', '\n');
     final lines = normalized.split('\n');
     if (lines.isEmpty) return {'imported': 0, 'skipped': 0};
 
-    // Salta eventuali righe "titolo" extra prima dell'header
     int headerIndex = 0;
     while (headerIndex < lines.length && !lines[headerIndex].toLowerCase().contains('data')) {
       headerIndex++;
@@ -384,7 +384,7 @@ class MoneyModel extends ChangeNotifier {
   MoneyTx? _parseCSVLineTolerant(String line, Map<String,String> categoryMapping) {
     final s = line.replaceAll(';', ',');
     final fields = _parseCSVFields(s);
-    if (fields.length < 3) return null;
+    if (fields.length < 3) return null; 
 
     while (fields.length < 5) { fields.add(''); }
 
@@ -409,7 +409,7 @@ class MoneyModel extends ChangeNotifier {
       if (amountParsed == null) return null;
       double amount = amountParsed.abs();
 
-      final typeField = fields[4].toLowerCase();
+      final typeField = (fields.length > 4 ? fields[4] : '').toLowerCase();
       final isIncome = typeField.contains('entrata') || typeField.contains('income') || typeField.contains('+');
 
       return MoneyTx(
@@ -444,7 +444,6 @@ class MoneyModel extends ChangeNotifier {
     return fields;
   }
 
-  // Importa da file Excel
   Future<void> importFromExcel(Uint8List fileBytes, Map<String, String> categoryMapping) async {
     try {
       final excel = Excel.decodeBytes(fileBytes);
@@ -458,10 +457,8 @@ class MoneyModel extends ChangeNotifier {
         bool isIncomeSheet = tableName.toLowerCase().contains('entrate');
         bool isTransferSheet = tableName.toLowerCase().contains('bonifici');
         
-        debugPrint('📄 Elaborando foglio: $tableName');
-        
         if (isExpenseSheet || isIncomeSheet) {
-          totalImported += await _processStandardSheet(sheet, !isExpenseSheet, categoryMapping);
+          totalImported += await _processStandardSheet(sheet, isIncomeSheet, categoryMapping);
         } else if (isTransferSheet) {
           totalImported += await _processTransferSheet(sheet, categoryMapping);
         }
@@ -491,7 +488,7 @@ class MoneyModel extends ChangeNotifier {
       if (header.contains('data')) dateCol = i;
       if (header.contains('categoria')) categoryCol = i;
       if (header.contains('importo')) amountCol = i;
-      if (header.contains('commento')) noteCol = i;
+      if (header.contains('commento') || header.contains('nota')) noteCol = i;
     }
     
     if (dateCol == null || categoryCol == null || amountCol == null) {
@@ -545,29 +542,23 @@ class MoneyModel extends ChangeNotifier {
 
   Future<int> _processTransferSheet(Sheet sheet, Map<String, String> categoryMapping) async {
     int imported = 0;
-    
     if (sheet.rows.isEmpty) return 0;
-    
     final headerRow = sheet.rows.first;
     int? dateCol, outCol, inCol, outAmountCol, inAmountCol, noteCol;
-    
     for (int i = 0; i < headerRow.length; i++) {
       final cell = headerRow[i];
       if (cell?.value == null) continue;
-      
       final header = cell!.value.toString().toLowerCase();
       if (header.contains('data')) dateCol = i;
       if (header.contains('uscita') && !header.contains('importo')) outCol = i;
       if (header.contains('entrata') && !header.contains('importo')) inCol = i;
       if (header.contains('importo') && header.contains('uscita')) outAmountCol = i;
       if (header.contains('importo') && header.contains('entrata')) inAmountCol = i;
-      if (header.contains('commento')) noteCol = i;
+      if (header.contains('commento') || header.contains('nota')) noteCol = i;
     }
-    
     for (int i = 1; i < sheet.rows.length; i++) {
       final row = sheet.rows[i];
       if (row.isEmpty) continue;
-      
       try {
         final dateCell = dateCol != null && dateCol < row.length ? row[dateCol]?.value : null;
         final outCell = outCol != null && outCol < row.length ? row[outCol]?.value : null;
@@ -575,11 +566,8 @@ class MoneyModel extends ChangeNotifier {
         final outAmountCell = outAmountCol != null && outAmountCol < row.length ? row[outAmountCol]?.value : null;
         final inAmountCell = inAmountCol != null && inAmountCol < row.length ? row[inAmountCol]?.value : null;
         final noteCell = noteCol != null && noteCol < row.length ? row[noteCol]?.value : null;
-        
         if (dateCell == null) continue;
-        
         DateTime date = DateTime.parse(dateCell.toString().split(' ')[0]);
-        
         if (outCell != null && outAmountCell != null) {
           final rawCategory = outCell.toString().trim();
           final category = categoryMapping[rawCategory] ?? _mapCommonCategory(rawCategory);
@@ -594,7 +582,6 @@ class MoneyModel extends ChangeNotifier {
           await _repo.insertTx(tx);
           imported++;
         }
-        
         if (inCell != null && inAmountCell != null) {
           final rawCategory = inCell.toString().trim();
           final category = categoryMapping[rawCategory] ?? _mapCommonCategory(rawCategory);
@@ -613,7 +600,6 @@ class MoneyModel extends ChangeNotifier {
         debugPrint('Errore parsing bonifico riga $i: $e');
       }
     }
-    
     return imported;
   }
 
@@ -621,29 +607,31 @@ class MoneyModel extends ChangeNotifier {
     final mappings = {
       'Alimentari': 'Spesa',
       'Auto': 'Trasporti',
-      'Svago': 'Ristoranti',
+      'Svago': 'Svago', // Mappato direttamente
+      'Ristoranti': 'Svago', // Ristoranti → Svago
       'Attività fisica': 'Sport',
       'PAC': 'Investimenti',
-      'Ricarica': 'Bollette',
-      'Telefono': 'Bollette',
+      'Ricarica': 'Ricariche', // Ricarica → Ricariche (categoria separata)
+      'Telefono': 'Ricariche', // Telefono → Ricariche
       'Internet': 'Bollette',
       'Luce': 'Bollette',
       'Gas': 'Bollette',
       'Acqua': 'Bollette',
-      'Caffè': 'Ristoranti',
+      'Caffè': 'Svago',
       'Abbigliamento': 'Shopping',
+      // ENTRATE comuni
+      'Rimborso': 'Rimborso',
+      'Regalo': 'Regalo',
+      'Stipendio': 'Stipendio',
     };
     return mappings[rawCategory] ?? rawCategory;
   }
 
-  // Importa da MMBackup
   Future<void> importFromMMBackup(String jsonContent, Map<String, String> categoryMapping) async {
     try {
       final data = json.decode(jsonContent) as Map<String, dynamic>;
       int imported = 0;
-      
       final transactions = data['transactions'] as List<dynamic>? ?? [];
-      
       for (final txData in transactions) {
         try {
           final tx = _parseMMBackupTransaction(txData, categoryMapping);
@@ -655,7 +643,6 @@ class MoneyModel extends ChangeNotifier {
           debugPrint('Errore parsing transazione MMBackup: $e');
         }
       }
-      
       await loadInitial();
       debugPrint('✅ Importate $imported transazioni da MMBackup');
     } catch (e) {
@@ -668,14 +655,11 @@ class MoneyModel extends ChangeNotifier {
     try {
       final amount = double.parse(txData['amount']?.toString() ?? '0');
       if (amount == 0) return null;
-      
       final rawCategory = txData['category']?.toString() ?? 'Altro';
       final category = categoryMapping[rawCategory] ?? _mapCommonCategory(rawCategory);
-      
       final date = DateTime.fromMillisecondsSinceEpoch(txData['date'] ?? 0);
       final note = txData['note']?.toString();
       final isIncome = (txData['type']?.toString() ?? '').toLowerCase() == 'income';
-      
       return MoneyTx(
         isIncome: isIncome,
         category: category,
@@ -692,34 +676,26 @@ class MoneyModel extends ChangeNotifier {
 
   Set<String> getUnrecognizedCategoriesFromExcel(Uint8List fileBytes) {
     final unrecognized = <String>{};
-    
     try {
       final excel = Excel.decodeBytes(fileBytes);
-      
       for (var tableName in excel.tables.keys) {
         final sheet = excel.tables[tableName];
         if (sheet == null || sheet.rows.isEmpty) continue;
-        
         final headerRow = sheet.rows.first;
         int? categoryCol;
-        
         for (int i = 0; i < headerRow.length; i++) {
           final cell = headerRow[i];
           if (cell?.value == null) continue;
-          
           final header = cell!.value.toString().toLowerCase();
           if (header.contains('categoria')) {
             categoryCol = i;
             break;
           }
         }
-        
         if (categoryCol == null) continue;
-        
         for (int i = 1; i < sheet.rows.length; i++) {
           final row = sheet.rows[i];
           if (row.length <= categoryCol) continue;
-          
           final categoryCell = row[categoryCol]?.value?.toString()?.trim();
           if (categoryCell != null && categoryCell.isNotEmpty) {
             final mappedCategory = _mapCommonCategory(categoryCell);
@@ -733,17 +709,14 @@ class MoneyModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('Errore analisi categorie Excel: $e');
     }
-    
     return unrecognized;
   }
 
   Set<String> getUnrecognizedCategoriesFromMMBackup(String jsonContent) {
     final unrecognized = <String>{};
-    
     try {
       final data = json.decode(jsonContent) as Map<String, dynamic>;
       final transactions = data['transactions'] as List<dynamic>? ?? [];
-      
       for (final txData in transactions) {
         final rawCategory = txData['category']?.toString()?.trim();
         if (rawCategory != null && rawCategory.isNotEmpty) {
@@ -757,7 +730,6 @@ class MoneyModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('Errore analisi categorie MMBackup: $e');
     }
-    
     return unrecognized;
   }
 
@@ -766,11 +738,9 @@ class MoneyModel extends ChangeNotifier {
     final normalized = csvContent.replaceAll(';', ',');
     final lines = normalized.split('\n');
     final startIndex = lines[0].toLowerCase().contains('data') ? 1 : 0;
-    
     for (int i = startIndex; i < lines.length; i++) {
       final line = lines[i].trim();
       if (line.isEmpty) continue;
-      
       final fields = _parseCSVFields(line);
       if (fields.length >= 2) {
         final rawCategory = fields[1].trim();
@@ -783,7 +753,6 @@ class MoneyModel extends ChangeNotifier {
         }
       }
     }
-    
     return unrecognized;
   }
 }
