@@ -67,6 +67,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   MoneyModel? _model;
   late AnimationController _navController;
   late AnimationController _fabController;
+  late AnimationController _sliderController;
+  late Animation<double> _sliderAnimation;
 
   // GlobalKey senza tipo privato: usiamo GlobalKey<State<StatefulWidget>>
   final GlobalKey goalsKey = GlobalKey();
@@ -83,6 +85,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
+    _sliderController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _sliderAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(
+      parent: _sliderController,
+      curve: Curves.easeInOut,
+    ));
     _initModel();
   }
 
@@ -90,6 +103,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   void dispose() {
     _navController.dispose();
     _fabController.dispose();
+    _sliderController.dispose();
     super.dispose();
   }
 
@@ -99,6 +113,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   }
 
   void _onNavigate(int index, [bool? isIncome]) {
+    if (index != _currentIndex) {
+      _sliderController.reset();
+      _sliderController.forward();
+    }
     setState(() => _currentIndex = index);
   }
 
@@ -117,12 +135,29 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         children: [
           // Aggiungi padding bottom per evitare sovrapposizioni con il dock fisso
           Padding(
-            padding: const EdgeInsets.only(bottom: 80),
-            child: IndexedStack(index: _currentIndex, children: pages),
+            padding: const EdgeInsets.only(bottom: 90),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeInOut,
+              switchOutCurve: Curves.easeInOut,
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(1.0, 0.0),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey<int>(_currentIndex),
+                child: pages[_currentIndex],
+              ),
+            ),
           ),
           Positioned(
             right: 20,
-            bottom: 90,
+            bottom: 100,
             child: _buildContextFab(),
           ),
           // Dock fisso posizionato in basso
@@ -137,9 +172,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     );
   }
 
-  // ------------------ DOCK FISSO ------------------
+  // ------------------ DOCK RETTANGOLARE CON SLIDER ------------------
   Widget _buildModernDock() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final itemWidth = (screenWidth - 48) / 5; // 5 items, margins 24 per lato
     
     return Container(
       margin: EdgeInsets.only(
@@ -148,52 +185,81 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         bottom: MediaQuery.of(context).padding.bottom + 16,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(16), // Più rettangolare
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
-            height: 72,
+            height: 70,
             decoration: BoxDecoration(
               color: isDark 
-                ? Colors.grey[900]!.withOpacity(0.85)
+                ? Colors.grey[900]!.withOpacity(0.9)
                 : Colors.white.withOpacity(0.95),
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: isDark
-                  ? Colors.white.withOpacity(0.12)
-                  : Colors.black.withOpacity(0.08),
+                  ? Colors.white.withOpacity(0.15)
+                  : Colors.black.withOpacity(0.1),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
-                  blurRadius: 24,
+                  color: Colors.black.withOpacity(isDark ? 0.5 : 0.15),
+                  blurRadius: 20,
                   spreadRadius: 0,
-                  offset: const Offset(0, 8),
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            child: Stack(
               children: [
-                _buildNavItem(
-                  icon: Icons.home_rounded,
-                  index: 0,
+                // Slider animato
+                AnimatedBuilder(
+                  animation: _sliderAnimation,
+                  builder: (context, child) {
+                    return AnimatedPositioned(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      left: _currentIndex * itemWidth + 8,
+                      top: 8,
+                      child: Container(
+                        width: itemWidth - 16,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF6366F1).withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                _buildNavItem(
-                  icon: Icons.flag_rounded,
-                  index: 1,
-                ),
-                _buildNavItem(
-                  icon: Icons.bar_chart_rounded,
-                  index: 2,
-                ),
-                _buildNavItem(
-                  icon: Icons.repeat_rounded,
-                  index: 3,
-                ),
-                _buildNavItem(
-                  icon: Icons.settings_rounded,
-                  index: 4,
+                // Icone di navigazione
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildNavItem(
+                      icon: Icons.home_rounded,
+                      index: 0,
+                    ),
+                    _buildNavItem(
+                      icon: Icons.flag_rounded,
+                      index: 1,
+                    ),
+                    _buildNavItem(
+                      icon: Icons.bar_chart_rounded,
+                      index: 2,
+                    ),
+                    _buildNavItem(
+                      icon: Icons.repeat_rounded,
+                      index: 3,
+                    ),
+                    _buildNavItem(
+                      icon: Icons.settings_rounded,
+                      index: 4,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -212,53 +278,48 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     
     final tooltipLabels = ['Home', 'Obiettivi', 'Report', 'Ricorrenti', 'Impostazioni'];
     
-    return Tooltip(
-      message: tooltipLabels[index],
-      waitDuration: const Duration(milliseconds: 500),
-      child: GestureDetector(
-        onTap: () => _onNavigate(index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: isSelected
-              ? const Color(0xFF6366F1).withOpacity(0.15)
-              : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedScale(
-                scale: isSelected ? 1.2 : 1.0,
-                duration: const Duration(milliseconds: 200),
-                child: Icon(
-                  icon,
-                  size: 28,
-                  color: isSelected
-                    ? const Color(0xFF6366F1)
-                    : isDark
-                      ? Colors.grey[300]
-                      : Colors.grey[600],
+    return Expanded(
+      child: Tooltip(
+        message: tooltipLabels[index],
+        waitDuration: const Duration(milliseconds: 500),
+        child: GestureDetector(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            _onNavigate(index);
+          },
+          child: Container(
+            height: 70,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedScale(
+                  scale: isSelected ? 1.1 : 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    icon,
+                    size: 26,
+                    color: isSelected
+                      ? const Color(0xFF6366F1)
+                      : isDark
+                        ? Colors.grey[400]
+                        : Colors.grey[600],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              // Indicatore di selezione con pallino
-              AnimatedOpacity(
-                opacity: isSelected ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 200),
-                child: Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF6366F1),
+                const SizedBox(height: 4),
+                // Indicatore con animazione
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: isSelected ? 6 : 4,
+                  height: isSelected ? 6 : 4,
+                  decoration: BoxDecoration(
+                    color: isSelected 
+                      ? const Color(0xFF6366F1)
+                      : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
