@@ -23,6 +23,21 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
   ChartMode chartMode = ChartMode.overview;
   DateTime selectedDate = DateTime.now();
 
+  // slider per i tab periodo (giorno, settimana, mese, anno)
+  late ValueNotifier<PeriodType> _periodNotifier;
+
+  @override
+  void initState() {
+    super.initState();
+    _periodNotifier = ValueNotifier<PeriodType>(selectedPeriod);
+  }
+
+  @override
+  void dispose() {
+    _periodNotifier.dispose();
+    super.dispose();
+  }
+
   void _navigatePrevious() {
     setState(() {
       switch (selectedPeriod) {
@@ -156,6 +171,87 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     );
   }
 
+  Widget _buildPeriodSelector(bool isDarkMode) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+    final horizontal = 16.0;
+    final itemWidth = (screenWidth - horizontal * 2) / 4;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: SizedBox(
+        height: 54,
+        child: Stack(
+          children: [
+            // pillola slider come nel dock
+            ValueListenableBuilder<PeriodType>(
+              valueListenable: _periodNotifier,
+              builder: (context, period, _) {
+                final idx = PeriodType.values.indexOf(period);
+                return AnimatedPositioned(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeInOut,
+                  left: idx * itemWidth + (itemWidth - 82) / 2,
+                  top: 4,
+                  child: Container(
+                    width: 82,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.28)),
+                    ),
+                  ),
+                );
+              },
+            ),
+            Row(
+              children: PeriodType.values.map((period) {
+                final isSelected = selectedPeriod == period;
+                return Expanded(
+                  child: InkResponse(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        selectedPeriod = period;
+                        selectedDate = DateTime.now();
+                        _periodNotifier.value = period;
+                      });
+                    },
+                    radius: 28,
+                    splashColor: const Color(0xFF6366F1).withOpacity(0.1),
+                    highlightColor: Colors.transparent,
+                    containedInkWell: true,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                        child: Text(
+                          _getPeriodName(period),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isSelected
+                              ? const Color(0xFF6366F1)
+                              : isDarkMode
+                                ? Colors.grey[300]
+                                : Colors.grey[700],
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontSize: isSmallScreen ? 12 : 13,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildPeriodNavigator(bool isDarkMode) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -216,80 +312,6 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
             iconSize: 28,
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPeriodSelector(bool isDarkMode) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 400;
-    
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: isDarkMode 
-          ? Colors.grey[900]!.withOpacity(0.8)
-          : Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(
-          color: isDarkMode
-            ? Colors.white.withOpacity(0.1)
-            : Colors.black.withOpacity(0.05),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDarkMode ? 0.4 : 0.1),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: PeriodType.values.map((period) {
-          final isSelected = selectedPeriod == period;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  selectedPeriod = period;
-                  selectedDate = DateTime.now();
-                });
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: isSmallScreen ? 2 : 8,
-                ),
-                decoration: BoxDecoration(
-                  gradient: isSelected
-                    ? const LinearGradient(
-                        colors: [Color(0xFF10B981), Color(0xFF059669)],
-                      )
-                    : null,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _getPeriodName(period),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.clip,
-                  style: TextStyle(
-                    color: isSelected 
-                      ? Colors.white
-                      : isDarkMode 
-                        ? Colors.grey[300]
-                        : Colors.grey[700],
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    fontSize: isSmallScreen ? 11 : 13,
-                    letterSpacing: isSmallScreen ? -0.2 : 0.2,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
       ),
     );
   }
