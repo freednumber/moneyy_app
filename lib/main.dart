@@ -71,7 +71,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   final GlobalKey goalsKey = GlobalKey();
   final GlobalKey recurringKey = GlobalKey();
 
-  // slider dock
+  // slider dock (stile precedente: track larga sotto l'item)
   late ValueNotifier<int> _dockIndex;
 
   @override
@@ -116,9 +116,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
       body: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.only(bottom: 86),
+            padding: const EdgeInsets.only(bottom: 90),
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 280),
+              duration: const Duration(milliseconds: 300),
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               transitionBuilder: (child, animation) => SlideTransition(
@@ -128,15 +128,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               child: KeyedSubtree(key: ValueKey(_currentIndex), child: pages[_currentIndex]),
             ),
           ),
-          Positioned(right: 20, bottom: 96, child: _buildContextFab()),
-          Positioned(left: 0, right: 0, bottom: 0, child: _buildCompactDock()),
+          Positioned(right: 20, bottom: 100, child: _buildContextFab()),
+          Positioned(left: 0, right: 0, bottom: 0, child: _buildOldStyleDock()),
         ],
       ),
     );
   }
 
-  // ------------------ DOCK COMPATTO (senza rettangolo esterno) ------------------
-  Widget _buildCompactDock() {
+  // ------------------ DOCK (stile precedente con track sotto) ------------------
+  Widget _buildOldStyleDock() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final paddingBottom = MediaQuery.of(context).padding.bottom;
     final width = MediaQuery.of(context).size.width;
@@ -148,82 +148,87 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
       top: false,
       child: Padding(
         padding: EdgeInsets.fromLTRB(horizontal, 8, horizontal, paddingBottom > 0 ? 8 : 16),
-        child: SizedBox(
-          height: 62,
-          child: DecoratedBox(
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-            child: Stack(
-              children: [
-                // pillola slider dietro le icone (solo all'interno del dock, senza box esterno)
-                ValueListenableBuilder<int>(
-                  valueListenable: _dockIndex,
-                  builder: (context, idx, _) {
-                    return AnimatedPositioned(
-                      duration: const Duration(milliseconds: 260),
-                      curve: Curves.easeInOut,
-                      left: horizontal + idx * itemWidth + (itemWidth - 44) / 2,
-                      top: 9,
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withOpacity(0.16),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.28)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF6366F1).withOpacity(isDark ? 0.28 : 0.18),
-                              blurRadius: 14,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
+        child: Container(
+          height: 70,
+          decoration: BoxDecoration(
+            color: isDark 
+              ? Colors.grey[900]!.withOpacity(0.9)
+              : Colors.white.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark
+                ? Colors.white.withOpacity(0.15)
+                : Colors.black.withOpacity(0.1),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.5 : 0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // track animata larga sotto l'item selezionato (stile precedente)
+              ValueListenableBuilder<int>(
+                valueListenable: _dockIndex,
+                builder: (context, idx, _) {
+                  return AnimatedPositioned(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    left: 8 + idx * itemWidth,
+                    top: 8,
+                    child: Container(
+                      width: itemWidth - 16,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF6366F1).withOpacity(0.3),
+                          width: 1.5,
                         ),
                       ),
-                    );
-                  },
-                ),
-                // barra di icone
-                Row(
-                  children: List.generate(itemCount, (index) {
-                    final icons = const [
-                      Icons.home_rounded,
-                      Icons.flag_rounded,
-                      Icons.bar_chart_rounded,
-                      Icons.repeat_rounded,
-                      Icons.settings_rounded,
-                    ];
-                    final isSelected = _currentIndex == index;
-                    return Expanded(
-                      child: Semantics(
-                        selected: isSelected,
-                        button: true,
-                        label: ['Home','Obiettivi','Report','Ricorrenti','Impostazioni'][index],
-                        child: InkResponse(
-                          onTap: () => _onNavigate(index),
-                          radius: 32,
-                          splashColor: const Color(0xFF6366F1).withOpacity(0.12),
-                          highlightColor: Colors.transparent,
-                          containedInkWell: true,
-                          child: Center(
-                            child: AnimatedScale(
-                              duration: const Duration(milliseconds: 180),
-                              scale: isSelected ? 1.14 : 1.0,
-                              child: Icon(
-                                icons[index],
-                                size: 24,
-                                color: isSelected
-                                  ? const Color(0xFF6366F1)
-                                  : isDark ? Colors.grey[400] : Colors.grey[700],
-                              ),
-                            ),
+                    ),
+                  );
+                },
+              ),
+              Row(
+                children: List.generate(itemCount, (index) {
+                  final icons = const [
+                    Icons.home_rounded,
+                    Icons.flag_rounded,
+                    Icons.bar_chart_rounded,
+                    Icons.repeat_rounded,
+                    Icons.settings_rounded,
+                  ];
+                  final isSelected = _currentIndex == index;
+                  return Expanded(
+                    child: InkResponse(
+                      onTap: () => _onNavigate(index),
+                      radius: 32,
+                      splashColor: const Color(0xFF6366F1).withOpacity(0.12),
+                      highlightColor: Colors.transparent,
+                      containedInkWell: true,
+                      child: Center(
+                        child: AnimatedScale(
+                          duration: const Duration(milliseconds: 200),
+                          scale: isSelected ? 1.15 : 1.0,
+                          child: Icon(
+                            icons[index],
+                            size: 26,
+                            color: isSelected
+                              ? const Color(0xFF6366F1)
+                              : isDark ? Colors.grey[400] : Colors.grey[600],
                           ),
                         ),
                       ),
-                    );
-                  }),
-                ),
-              ],
-            ),
+                    ),
+                  );
+                }),
+              ),
+            ],
           ),
         ),
       ),
