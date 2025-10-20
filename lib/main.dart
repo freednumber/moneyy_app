@@ -115,43 +115,49 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     return Scaffold(
       body: Stack(
         children: [
-          IndexedStack(index: _currentIndex, children: pages),
+          // Aggiungi padding bottom per evitare sovrapposizioni con il dock fisso
+          Padding(
+            padding: const EdgeInsets.only(bottom: 80),
+            child: IndexedStack(index: _currentIndex, children: pages),
+          ),
           Positioned(
             right: 20,
             bottom: 90,
             child: _buildContextFab(),
           ),
+          // Dock fisso posizionato in basso
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildModernDock(),
+          ),
         ],
       ),
-      extendBody: true,
-      bottomNavigationBar: _buildModernDock(),
     );
   }
 
-  // ------------------ DOCK ------------------
+  // ------------------ DOCK FISSO ------------------
   Widget _buildModernDock() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 600;
-    final isVerySmallScreen = screenWidth < 360;
     
     return Container(
       margin: EdgeInsets.only(
-        left: isSmallScreen ? 12 : 24,
-        right: isSmallScreen ? 12 : 24,
-        bottom: MediaQuery.of(context).padding.bottom + (isSmallScreen ? 8 : 16),
+        left: 24,
+        right: 24,
+        bottom: MediaQuery.of(context).padding.bottom + 16,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(isSmallScreen ? 24 : 28),
+        borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
-            height: isSmallScreen ? 64 : 72,
+            height: 72,
             decoration: BoxDecoration(
               color: isDark 
                 ? Colors.grey[900]!.withOpacity(0.85)
                 : Colors.white.withOpacity(0.95),
-              borderRadius: BorderRadius.circular(isSmallScreen ? 24 : 28),
+              borderRadius: BorderRadius.circular(28),
               border: Border.all(
                 color: isDark
                   ? Colors.white.withOpacity(0.12)
@@ -171,38 +177,23 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               children: [
                 _buildNavItem(
                   icon: Icons.home_rounded,
-                  label: 'Home',
                   index: 0,
-                  isSmall: isSmallScreen,
-                  isVerySmall: isVerySmallScreen,
                 ),
                 _buildNavItem(
                   icon: Icons.flag_rounded,
-                  label: 'Obiettivi',
                   index: 1,
-                  isSmall: isSmallScreen,
-                  isVerySmall: isVerySmallScreen,
                 ),
                 _buildNavItem(
                   icon: Icons.bar_chart_rounded,
-                  label: 'Report',
                   index: 2,
-                  isSmall: isSmallScreen,
-                  isVerySmall: isVerySmallScreen,
                 ),
                 _buildNavItem(
                   icon: Icons.repeat_rounded,
-                  label: isVerySmallScreen ? 'Ricorr.' : 'Ricorrenti',
                   index: 3,
-                  isSmall: isSmallScreen,
-                  isVerySmall: isVerySmallScreen,
                 ),
                 _buildNavItem(
                   icon: Icons.settings_rounded,
-                  label: isVerySmallScreen ? 'Config.' : 'Impostazioni',
                   index: 4,
-                  isSmall: isSmallScreen,
-                  isVerySmall: isVerySmallScreen,
                 ),
               ],
             ),
@@ -214,43 +205,38 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
 
   Widget _buildNavItem({
     required IconData icon,
-    required String label,
     required int index,
-    required bool isSmall,
-    required bool isVerySmall,
   }) {
     final isSelected = _currentIndex == index;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    final originalLabels = ['Home', 'Obiettivi', 'Report', 'Ricorrenti', 'Impostazioni'];
+    final tooltipLabels = ['Home', 'Obiettivi', 'Report', 'Ricorrenti', 'Impostazioni'];
     
     return Tooltip(
-      message: originalLabels[index],
+      message: tooltipLabels[index],
       waitDuration: const Duration(milliseconds: 500),
       child: GestureDetector(
         onTap: () => _onNavigate(index),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
-          width: isSmall 
-            ? (isVerySmall ? 48 : 54)
-            : 68,
-          height: isSmall ? 50 : 60,
+          width: 60,
+          height: 60,
           decoration: BoxDecoration(
             color: isSelected
               ? const Color(0xFF6366F1).withOpacity(0.15)
               : Colors.transparent,
-            borderRadius: BorderRadius.circular(isSmall ? 16 : 20),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               AnimatedScale(
-                scale: isSelected ? 1.1 : 1.0,
+                scale: isSelected ? 1.2 : 1.0,
                 duration: const Duration(milliseconds: 200),
                 child: Icon(
                   icon,
-                  size: isSmall ? 22 : 26,
+                  size: 28,
                   color: isSelected
                     ? const Color(0xFF6366F1)
                     : isDark
@@ -258,62 +244,20 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                       : Colors.grey[600],
                 ),
               ),
-              if (!isSmall) ...[
-                const SizedBox(height: 4),
-                AnimatedOpacity(
-                  opacity: isSelected ? 1.0 : 0.8,
-                  duration: const Duration(milliseconds: 200),
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.fade,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      letterSpacing: 0.2,
-                      color: isSelected
-                        ? const Color(0xFF6366F1)
-                        : isDark
-                          ? Colors.grey[300]
-                          : Colors.grey[600],
-                    ),
-                  ),
-                ),
-              ] else if (isSelected) ...[
-                const SizedBox(height: 2),
-                Container(
-                  width: 4,
-                  height: 4,
+              const SizedBox(height: 4),
+              // Indicatore di selezione con pallino
+              AnimatedOpacity(
+                opacity: isSelected ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  width: 6,
+                  height: 6,
                   decoration: const BoxDecoration(
                     color: Color(0xFF6366F1),
                     shape: BoxShape.circle,
                   ),
                 ),
-              ],
-              if (isSmall && !isVerySmall) ...[
-                const SizedBox(height: 2),
-                AnimatedOpacity(
-                  opacity: isSelected ? 0.9 : 0.7,
-                  duration: const Duration(milliseconds: 200),
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.clip,
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.1,
-                      color: isSelected
-                        ? const Color(0xFF6366F1)
-                        : isDark
-                          ? Colors.grey[350]
-                          : Colors.grey[600],
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
         ),
