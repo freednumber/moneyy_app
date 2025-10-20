@@ -188,137 +188,118 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         borderRadius: BorderRadius.circular(16), // Più rettangolare
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            height: 70,
-            decoration: BoxDecoration(
-              color: isDark 
-                ? Colors.grey[900]!.withOpacity(0.9)
-                : Colors.white.withOpacity(0.95),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isDark
-                  ? Colors.white.withOpacity(0.15)
-                  : Colors.black.withOpacity(0.1),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.5 : 0.15),
-                  blurRadius: 20,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 6),
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              height: 70,
+              decoration: BoxDecoration(
+                color: isDark 
+                  ? Colors.grey[900]!.withOpacity(0.9)
+                  : Colors.white.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark
+                    ? Colors.white.withOpacity(0.15)
+                    : Colors.black.withOpacity(0.1),
                 ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Slider animato
-                AnimatedBuilder(
-                  animation: _sliderAnimation,
-                  builder: (context, child) {
-                    return AnimatedPositioned(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                      left: _currentIndex * itemWidth + 8,
-                      top: 8,
-                      child: Container(
-                        width: itemWidth - 16,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFF6366F1).withOpacity(0.3),
-                            width: 1.5,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.5 : 0.15),
+                    blurRadius: 20,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Slider animato
+                  AnimatedBuilder(
+                    animation: _sliderAnimation,
+                    builder: (context, child) {
+                      return AnimatedPositioned(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        left: _currentIndex * itemWidth + 8,
+                        top: 8,
+                        child: Container(
+                          width: itemWidth - 16,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6366F1).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFF6366F1).withOpacity(0.3),
+                              width: 1.5,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-                // Icone di navigazione
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildNavItem(
-                      icon: Icons.home_rounded,
-                      index: 0,
-                    ),
-                    _buildNavItem(
-                      icon: Icons.flag_rounded,
-                      index: 1,
-                    ),
-                    _buildNavItem(
-                      icon: Icons.bar_chart_rounded,
-                      index: 2,
-                    ),
-                    _buildNavItem(
-                      icon: Icons.repeat_rounded,
-                      index: 3,
-                    ),
-                    _buildNavItem(
-                      icon: Icons.settings_rounded,
-                      index: 4,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+                      );
+                    },
+                  ),
+                  // Icone di navigazione: tutto il bottone cliccabile
+                  Row(
+                    children: List.generate(5, (index) {
+                      final icons = [
+                        Icons.home_rounded,
+                        Icons.flag_rounded,
+                        Icons.bar_chart_rounded,
+                        Icons.repeat_rounded,
+                        Icons.settings_rounded,
+                      ];
+                      final tooltipLabels = ['Home', 'Obiettivi', 'Report', 'Ricorrenti', 'Impostazioni'];
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required int index,
-  }) {
-    final isSelected = _currentIndex == index;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    final tooltipLabels = ['Home', 'Obiettivi', 'Report', 'Ricorrenti', 'Impostazioni'];
-    
-    return Expanded(
-      child: Tooltip(
-        message: tooltipLabels[index],
-        waitDuration: const Duration(milliseconds: 500),
-        child: GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            _onNavigate(index);
-          },
-          child: Container(
-            height: 70,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedScale(
-                  scale: isSelected ? 1.1 : 1.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(
-                    icon,
-                    size: 26,
-                    color: isSelected
-                      ? const Color(0xFF6366F1)
-                      : isDark
-                        ? Colors.grey[400]
-                        : Colors.grey[600],
+                      return Expanded(
+                        child: Tooltip(
+                          message: tooltipLabels[index],
+                          waitDuration: const Duration(milliseconds: 500),
+                          child: InkWell(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              _onNavigate(index);
+                            },
+                            splashColor: const Color(0xFF6366F1).withOpacity(0.12),
+                            highlightColor: Colors.transparent,
+                            child: SizedBox(
+                              height: 70,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  AnimatedScale(
+                                    scale: _currentIndex == index ? 1.1 : 1.0,
+                                    duration: const Duration(milliseconds: 200),
+                                    child: Icon(
+                                      icons[index],
+                                      size: 26,
+                                      color: _currentIndex == index
+                                        ? const Color(0xFF6366F1)
+                                        : isDark
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    width: _currentIndex == index ? 6 : 4,
+                                    height: _currentIndex == index ? 6 : 4,
+                                    decoration: BoxDecoration(
+                                      color: _currentIndex == index 
+                                        ? const Color(0xFF6366F1)
+                                        : Colors.transparent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
                   ),
-                ),
-                const SizedBox(height: 4),
-                // Indicatore con animazione
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: isSelected ? 6 : 4,
-                  height: isSelected ? 6 : 4,
-                  decoration: BoxDecoration(
-                    color: isSelected 
-                      ? const Color(0xFF6366F1)
-                      : Colors.transparent,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
