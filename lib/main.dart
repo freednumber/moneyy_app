@@ -65,45 +65,27 @@ class MainNavigationPage extends StatefulWidget {
 class _MainNavigationPageState extends State<MainNavigationPage> with TickerProviderStateMixin {
   int _currentIndex = 0;
   MoneyModel? _model;
-  late AnimationController _navController;
   late AnimationController _fabController;
-  late AnimationController _sliderController;
-  late Animation<double> _sliderAnimation;
 
   // GlobalKey senza tipo privato: usiamo GlobalKey<State<StatefulWidget>>
   final GlobalKey goalsKey = GlobalKey();
   final GlobalKey recurringKey = GlobalKey();
 
+  // slider dock
+  late ValueNotifier<int> _dockIndex;
+
   @override
   void initState() {
     super.initState();
-    _navController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _fabController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-    );
-    _sliderController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _sliderAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(
-      parent: _sliderController,
-      curve: Curves.easeInOut,
-    ));
+    _fabController = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
+    _dockIndex = ValueNotifier<int>(_currentIndex);
     _initModel();
   }
 
   @override
   void dispose() {
-    _navController.dispose();
     _fabController.dispose();
-    _sliderController.dispose();
+    _dockIndex.dispose();
     super.dispose();
   }
 
@@ -114,8 +96,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
 
   void _onNavigate(int index, [bool? isIncome]) {
     if (index != _currentIndex) {
-      _sliderController.reset();
-      _sliderController.forward();
+      HapticFeedback.selectionClick();
+      _dockIndex.value = index;
     }
     setState(() => _currentIndex = index);
   }
@@ -133,173 +115,114 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     return Scaffold(
       body: Stack(
         children: [
-          // Aggiungi padding bottom per evitare sovrapposizioni con il dock fisso
           Padding(
-            padding: const EdgeInsets.only(bottom: 90),
+            padding: const EdgeInsets.only(bottom: 86),
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
+              duration: const Duration(milliseconds: 280),
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                return SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(1.0, 0.0),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
-                );
-              },
-              child: KeyedSubtree(
-                key: ValueKey<int>(_currentIndex),
-                child: pages[_currentIndex],
+              transitionBuilder: (child, animation) => SlideTransition(
+                position: Tween<Offset>(begin: const Offset(0.06, 0), end: Offset.zero).animate(animation),
+                child: FadeTransition(opacity: animation, child: child),
               ),
+              child: KeyedSubtree(key: ValueKey(_currentIndex), child: pages[_currentIndex]),
             ),
           ),
-          Positioned(
-            right: 20,
-            bottom: 100,
-            child: _buildContextFab(),
-          ),
-          // Dock fisso posizionato in basso
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildModernDock(),
-          ),
+          Positioned(right: 20, bottom: 96, child: _buildContextFab()),
+          Positioned(left: 0, right: 0, bottom: 0, child: _buildCompactDock()),
         ],
       ),
     );
   }
 
-  // ------------------ DOCK RETTANGOLARE CON SLIDER ------------------
-  Widget _buildModernDock() {
+  // ------------------ DOCK COMPATTO (senza rettangolo esterno) ------------------
+  Widget _buildCompactDock() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final itemWidth = (screenWidth - 48) / 5; // 5 items, margins 24 per lato
-    
-    return Container(
-      margin: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        bottom: MediaQuery.of(context).padding.bottom + 16,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16), // Più rettangolare
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              height: 70,
-              decoration: BoxDecoration(
-                color: isDark 
-                  ? Colors.grey[900]!.withOpacity(0.9)
-                  : Colors.white.withOpacity(0.95),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isDark
-                    ? Colors.white.withOpacity(0.15)
-                    : Colors.black.withOpacity(0.1),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.5 : 0.15),
-                    blurRadius: 20,
-                    spreadRadius: 0,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  // Slider animato
-                  AnimatedBuilder(
-                    animation: _sliderAnimation,
-                    builder: (context, child) {
-                      return AnimatedPositioned(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        left: _currentIndex * itemWidth + 8,
-                        top: 8,
-                        child: Container(
-                          width: itemWidth - 16,
-                          height: 54,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: const Color(0xFF6366F1).withOpacity(0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  // Icone di navigazione: tutto il bottone cliccabile
-                  Row(
-                    children: List.generate(5, (index) {
-                      final icons = [
-                        Icons.home_rounded,
-                        Icons.flag_rounded,
-                        Icons.bar_chart_rounded,
-                        Icons.repeat_rounded,
-                        Icons.settings_rounded,
-                      ];
-                      final tooltipLabels = ['Home', 'Obiettivi', 'Report', 'Ricorrenti', 'Impostazioni'];
+    final paddingBottom = MediaQuery.of(context).padding.bottom;
+    final width = MediaQuery.of(context).size.width;
+    final horizontal = 16.0;
+    final itemCount = 5;
+    final itemWidth = (width - (horizontal * 2)) / itemCount;
 
-                      return Expanded(
-                        child: Tooltip(
-                          message: tooltipLabels[index],
-                          waitDuration: const Duration(milliseconds: 500),
-                          child: InkWell(
-                            onTap: () {
-                              HapticFeedback.selectionClick();
-                              _onNavigate(index);
-                            },
-                            splashColor: const Color(0xFF6366F1).withOpacity(0.12),
-                            highlightColor: Colors.transparent,
-                            child: SizedBox(
-                              height: 70,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  AnimatedScale(
-                                    scale: _currentIndex == index ? 1.1 : 1.0,
-                                    duration: const Duration(milliseconds: 200),
-                                    child: Icon(
-                                      icons[index],
-                                      size: 26,
-                                      color: _currentIndex == index
-                                        ? const Color(0xFF6366F1)
-                                        : isDark
-                                          ? Colors.grey[400]
-                                          : Colors.grey[600],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
-                                    width: _currentIndex == index ? 6 : 4,
-                                    height: _currentIndex == index ? 6 : 4,
-                                    decoration: BoxDecoration(
-                                      color: _currentIndex == index 
-                                        ? const Color(0xFF6366F1)
-                                        : Colors.transparent,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ],
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(horizontal, 8, horizontal, paddingBottom > 0 ? 8 : 16),
+        child: SizedBox(
+          height: 62,
+          child: DecoratedBox(
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+            child: Stack(
+              children: [
+                // pillola slider dietro le icone (solo all'interno del dock, senza box esterno)
+                ValueListenableBuilder<int>(
+                  valueListenable: _dockIndex,
+                  builder: (context, idx, _) {
+                    return AnimatedPositioned(
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeInOut,
+                      left: horizontal + idx * itemWidth + (itemWidth - 44) / 2,
+                      top: 9,
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1).withOpacity(0.16),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.28)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF6366F1).withOpacity(isDark ? 0.28 : 0.18),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                // barra di icone
+                Row(
+                  children: List.generate(itemCount, (index) {
+                    final icons = const [
+                      Icons.home_rounded,
+                      Icons.flag_rounded,
+                      Icons.bar_chart_rounded,
+                      Icons.repeat_rounded,
+                      Icons.settings_rounded,
+                    ];
+                    final isSelected = _currentIndex == index;
+                    return Expanded(
+                      child: Semantics(
+                        selected: isSelected,
+                        button: true,
+                        label: ['Home','Obiettivi','Report','Ricorrenti','Impostazioni'][index],
+                        child: InkResponse(
+                          onTap: () => _onNavigate(index),
+                          radius: 32,
+                          splashColor: const Color(0xFF6366F1).withOpacity(0.12),
+                          highlightColor: Colors.transparent,
+                          containedInkWell: true,
+                          child: Center(
+                            child: AnimatedScale(
+                              duration: const Duration(milliseconds: 180),
+                              scale: isSelected ? 1.14 : 1.0,
+                              child: Icon(
+                                icons[index],
+                                size: 24,
+                                color: isSelected
+                                  ? const Color(0xFF6366F1)
+                                  : isDark ? Colors.grey[400] : Colors.grey[700],
                               ),
                             ),
                           ),
                         ),
-                      );
-                    }),
-                  ),
-                ],
-              ),
+                      ),
+                    );
+                  }),
+                ),
+              ],
             ),
           ),
         ),
@@ -318,7 +241,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         tooltip: 'Aggiungi Transazione',
         onTap: () {
           HapticFeedback.mediumImpact();
-          _fabController.forward().then((_) => _fabController.reverse());
           _showQuickAddMenu(context);
         },
         isDark: isDark,
@@ -365,37 +287,32 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     required String tooltip,
     required bool isDark,
   }) {
-    return ScaleTransition(
-      scale: Tween<double>(begin: 0.95, end: 1.0).animate(
-        CurvedAnimation(parent: _fabController, curve: Curves.easeOutBack),
-      ),
-      child: Tooltip(
-        message: tooltip,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.5 : 0.25),
-                  blurRadius: 16,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: color.withOpacity(isDark ? 0.3 : 0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: Colors.white, size: 28),
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.5 : 0.25),
+                blurRadius: 16,
+                spreadRadius: 2,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: color.withOpacity(isDark ? 0.3 : 0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
+          child: Icon(icon, color: Colors.white, size: 28),
         ),
       ),
     );
