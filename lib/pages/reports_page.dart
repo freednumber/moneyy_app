@@ -24,7 +24,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
   ChartMode chartMode = ChartMode.overview;
   DateTime selectedDate = DateTime.now();
 
-  // slider per i tab periodo (giorno, settimana, mese, anno)
+  // slider stile dock: track larga dietro il period selezionato
   late ValueNotifier<PeriodType> _periodNotifier;
 
   @override
@@ -174,33 +174,53 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
 
   Widget _buildPeriodSelector(bool isDarkMode) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 400;
     final horizontal = 16.0;
     final itemWidth = (screenWidth - horizontal * 2) / 4;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: SizedBox(
-        height: 54,
+      child: Container(
+        height: 58,
+        decoration: BoxDecoration(
+          color: isDarkMode 
+            ? Colors.grey[900]!.withOpacity(0.9)
+            : Colors.white.withOpacity(0.95),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDarkMode
+              ? Colors.white.withOpacity(0.12)
+              : Colors.black.withOpacity(0.08),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDarkMode ? 0.4 : 0.12),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
         child: Stack(
           children: [
-            // pillola slider come nel dock
+            // track animata larga come il dock ripristinato
             ValueListenableBuilder<PeriodType>(
               valueListenable: _periodNotifier,
               builder: (context, period, _) {
                 final idx = PeriodType.values.indexOf(period);
                 return AnimatedPositioned(
-                  duration: const Duration(milliseconds: 260),
+                  duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
-                  left: idx * itemWidth + (itemWidth - 82) / 2,
+                  left: 8 + idx * itemWidth,
                   top: 4,
                   child: Container(
-                    width: 82,
-                    height: 46,
+                    width: itemWidth - 16,
+                    height: 50,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withOpacity(0.14),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.28)),
+                      color: const Color(0xFF6366F1).withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF6366F1).withOpacity(0.3),
+                        width: 1.2,
+                      ),
                     ),
                   ),
                 );
@@ -225,7 +245,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                     containedInkWell: true,
                     child: Center(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                         child: Text(
                           _getPeriodName(period),
                           maxLines: 1,
@@ -237,7 +257,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                                 ? Colors.grey[300]
                                 : Colors.grey[700],
                             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            fontSize: isSmallScreen ? 12 : 13,
+                            fontSize: 13,
                             letterSpacing: 0.2,
                           ),
                         ),
