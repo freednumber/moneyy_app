@@ -108,6 +108,20 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
   // Velocità animazioni uniformata a 300ms
   static const _sliderDuration = Duration(milliseconds: 300);
 
+  // Day picker semplice (calendario) per selezionare un singolo giorno
+  Future<void> _showDayPicker() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      locale: const Locale('it', 'IT'),
+    );
+    if (picked != null) {
+      setState(() => selectedDate = picked);
+    }
+  }
+
   Future<void> _showYearPicker() async {
     await showDialog(
       context: context,
@@ -141,58 +155,50 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setStateBS) {
-            final months = List<DateTime>.generate(24, (i) => DateTime(cursor.year, cursor.month - i, 1));
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+        final months = List<DateTime>.generate(36, (i) => DateTime(cursor.year, cursor.month - i, 1));
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Seleziona mese', style: TextStyle(fontWeight: FontWeight.w700)),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: months.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final m = months[index];
-                        final label = DateFormat('MMMM yyyy', 'it_IT').format(m);
-                        return ListTile(
-                          title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() => selectedDate = m);
-                            Navigator.pop(ctx);
-                          },
-                        );
-                      },
-                    ),
-                  ),
+                  const Text('Seleziona mese', style: TextStyle(fontWeight: FontWeight.w700)),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                 ],
               ),
-            );
-          },
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: months.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final m = months[index];
+                    final label = DateFormat('MMMM yyyy', 'it_IT').format(m);
+                    return ListTile(
+                      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => selectedDate = m);
+                        Navigator.pop(ctx);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 
   Future<void> _showWeekPicker() async {
-    final now = DateTime.now();
     DateTime startOfWeek(DateTime d) => d.subtract(Duration(days: d.weekday - 1));
-    final start = startOfWeek(now);
-    final weeks = List<DateTime>.generate(26, (i) => start.subtract(Duration(days: 7 * i)));
+    final start = startOfWeek(DateTime.now());
+    final weeks = List<DateTime>.generate(52, (i) => start.subtract(Duration(days: 7 * i)));
 
     await showModalBottomSheet(
       context: context,
@@ -211,10 +217,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Seleziona settimana', style: TextStyle(fontWeight: FontWeight.w700)),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                 ],
               ),
               const SizedBox(height: 8),
