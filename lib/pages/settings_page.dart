@@ -216,204 +216,12 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           
-          // FOOTER SVILUPPATO DA - PIÙ VISIBILE IN DARK
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDark
-                  ? [
-                      Colors.grey[800]!.withOpacity(0.95), // Sfondo più chiaro in dark
-                      Colors.grey[700]!.withOpacity(0.85),
-                    ]
-                  : [
-                      Colors.grey[100]!,
-                      Colors.grey[50]!,
-                    ],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDark
-                  ? Colors.white.withOpacity(0.25) // Bordo più forte
-                  : Colors.grey.withOpacity(0.2),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.5 : 0.08),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDark
-                            ? [const Color(0xFF34D399), const Color(0xFF10B981)] // Verde lime in dark
-                            : [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (isDark ? const Color(0xFF34D399) : const Color(0xFF6366F1)).withOpacity(0.4),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.code,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Sviluppato da',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? Colors.grey[200] : Colors.grey[600], // Più chiaro in dark
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // APP NAME E TEAM
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isDark
-                            ? [const Color(0xFF34D399), const Color(0xFF10B981)] // Verde lime per logo
-                            : [const Color(0xFF10B981), const Color(0xFF059669)],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF10B981).withOpacity(0.4),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.euro,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'MoneyY',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87, // Bianco puro in dark
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      '•',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: isDark ? Colors.grey[200] : Colors.grey[500], // Più chiaro in dark
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Tema',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: isDark ? Colors.grey[200] : Colors.grey[600], // Più chiaro in dark
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // FREEDNUMBER CON STILE PIÙ VISIBILE
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isDark
-                        ? [const Color(0xFF6366F1).withOpacity(0.3), const Color(0xFF8B5CF6).withOpacity(0.3)] // Più opaco in dark
-                        : [const Color(0xFF6366F1).withOpacity(0.1), const Color(0xFF8B5CF6).withOpacity(0.1)],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFF6366F1).withOpacity(isDark ? 0.6 : 0.3), // Bordo più forte in dark
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.person,
-                        size: 18,
-                        color: isDark ? Colors.white : const Color(0xFF6366F1), // Bianco in dark
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'freednumber',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF6366F1), // Bianco in dark
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // CUORE E VERSIONE
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Fatto con',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.grey[200] : Colors.grey[500], // Più chiaro in dark
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      Icons.favorite,
-                      color: Colors.red,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'per la gestione finanziaria',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.grey[200] : Colors.grey[500], // Più chiaro in dark
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          // Spazio per footer fisso
+          SizedBox(height: 8),
         ],
       ),
+      // Footer "Sviluppato da" spostato in basso come bottomNavigationBar fisso
+      bottomNavigationBar: _FooterCredit(isDark: isDark),
     );
   }
 
@@ -609,6 +417,56 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FooterCredit extends StatelessWidget {
+  final bool isDark;
+  const _FooterCredit({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0B1220) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.18) : Colors.black.withOpacity(0.08),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.4 : 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.code, size: 18, color: Color(0xFF6366F1)),
+            const SizedBox(width: 8),
+            Text(
+              'Sviluppato da ',
+              style: TextStyle(
+                color: isDark ? Colors.grey[300] : Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              'freednumber',
+              style: TextStyle(
+                color: isDark ? Colors.white : const Color(0xFF6366F1),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
