@@ -91,41 +91,158 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
   Future<void> _pickPeriod() async {
     switch (selectedPeriod) {
       case PeriodType.giorno:
+        await _showDayPicker();
+        break;
       case PeriodType.settimana:
+        await _showWeekPicker();
+        break;
       case PeriodType.mese:
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: selectedDate,
-          firstDate: DateTime(2020),
-          lastDate: DateTime.now(),
-          locale: const Locale('it', 'IT'),
-        );
-        if (picked != null) {
-          setState(() => selectedDate = picked);
-        }
+        await _showMonthPicker();
         break;
       case PeriodType.anno:
-        await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Seleziona Anno'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: YearPicker(
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now(),
-                selectedDate: selectedDate,
-                onChanged: (date) {
-                  setState(() => selectedDate = DateTime(date.year, 1, 1));
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ),
-        );
+        await _showYearPicker();
         break;
     }
+  }
+
+  // Velocità animazioni uniformata a 300ms
+  static const _sliderDuration = Duration(milliseconds: 300);
+
+  Future<void> _showYearPicker() async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Seleziona Anno'),
+        content: SizedBox(
+          width: 300,
+          height: 300,
+          child: YearPicker(
+            firstDate: DateTime(2020),
+            lastDate: DateTime.now(),
+            selectedDate: selectedDate,
+            onChanged: (date) {
+              setState(() => selectedDate = DateTime(date.year, 1, 1));
+              Navigator.pop(context);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showMonthPicker() async {
+    final now = DateTime.now();
+    DateTime cursor = DateTime(now.year, now.month, 1);
+    await showModalBottomSheet(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setStateBS) {
+            final months = List<DateTime>.generate(24, (i) => DateTime(cursor.year, cursor.month - i, 1));
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Seleziona mese', style: TextStyle(fontWeight: FontWeight.w700)),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: months.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final m = months[index];
+                        final label = DateFormat('MMMM yyyy', 'it_IT').format(m);
+                        return ListTile(
+                          title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => selectedDate = m);
+                            Navigator.pop(ctx);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showWeekPicker() async {
+    final now = DateTime.now();
+    DateTime startOfWeek(DateTime d) => d.subtract(Duration(days: d.weekday - 1));
+    final start = startOfWeek(now);
+    final weeks = List<DateTime>.generate(26, (i) => start.subtract(Duration(days: 7 * i)));
+
+    await showModalBottomSheet(
+      context: context,
+      useSafeArea: true,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Seleziona settimana', style: TextStyle(fontWeight: FontWeight.w700)),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: weeks.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final wStart = weeks[index];
+                    final wEnd = wStart.add(const Duration(days: 6));
+                    final label = '${DateFormat('d MMM', 'it_IT').format(wStart)} - ${DateFormat('d MMM yyyy', 'it_IT').format(wEnd)}';
+                    return ListTile(
+                      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => selectedDate = wStart);
+                        Navigator.pop(ctx);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -207,7 +324,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
               builder: (context, period, _) {
                 final idx = PeriodType.values.indexOf(period);
                 return AnimatedPositioned(
-                  duration: const Duration(milliseconds: 300),
+                  duration: _sliderDuration,
                   curve: Curves.easeInOut,
                   left: 8 + idx * itemWidth,
                   top: 4,
@@ -235,7 +352,15 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                       HapticFeedback.selectionClick();
                       setState(() {
                         selectedPeriod = period;
-                        selectedDate = DateTime.now();
+                        if (period == PeriodType.settimana) {
+                          final d = DateTime.now();
+                          selectedDate = d.subtract(Duration(days: d.weekday - 1));
+                        } else if (period == PeriodType.mese) {
+                          final d = DateTime.now();
+                          selectedDate = DateTime(d.year, d.month, 1);
+                        } else {
+                          selectedDate = DateTime.now();
+                        }
                         _periodNotifier.value = period;
                       });
                     },
@@ -829,7 +954,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
       case PeriodType.settimana:
         final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
-        return '${DateFormat('d', 'it_IT').format(startOfWeek)}-${DateFormat('d MMMM', 'it_IT').format(endOfWeek)}';
+        return '${DateFormat('d', 'it_IT').format(startOfWeek)} - ${DateFormat('d MMMM', 'it_IT').format(endOfWeek)}';
       case PeriodType.mese:
         return DateFormat('MMMM yyyy', 'it_IT').format(selectedDate);
       case PeriodType.anno:
