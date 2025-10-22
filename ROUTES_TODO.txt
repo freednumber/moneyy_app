@@ -1,2 +1,0 @@
-// ADD in MaterialApp routes map:
-// '/scan_receipt': (context) => const ScanReceiptPage(),
