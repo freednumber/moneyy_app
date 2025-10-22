@@ -135,36 +135,27 @@ class AIService {
   }
 
   DateTime? _extractDate(List<String> lines) {
-    final patterns = [
-      RegExp(r'(\d{1,2})/(\d{1,2})/(\d{4})'), // dd/mm/yyyy
-      RegExp(r'(\d{1,2})-(\d{1,2})-(\d{4})'), // dd-mm-yyyy
-      RegExp(r'(\d{4})-(\d{1,2})-(\d{1,2})'), // yyyy-mm-dd
-    ];
-    
+    // Try yyyy-mm-dd first
+    final iso = RegExp(r'(\d{4})-(\d{1,2})-(\d{1,2})');
     for (final line in lines) {
-      for (final pattern in patterns) {
-        final match = pattern.firstMatch(line);
-        if (match != null) {
-          try {
-            if (pattern.pattern.startsWith('('\\d{4}')) { // yyyy-mm-dd
-              return DateTime(
-                int.parse(match.group(1)!),
-                int.parse(match.group(2)!),
-                int.parse(match.group(3)!),
-              );
-            } else {
-              // dd/mm/yyyy or dd-mm-yyyy
-              return DateTime(
-                int.parse(match.group(3)!),
-                int.parse(match.group(2)!),
-                int.parse(match.group(1)!),
-              );
-            }
-          } catch (_) {}
-        }
+      final m = iso.firstMatch(line);
+      if (m != null) {
+        try {
+          return DateTime(int.parse(m.group(1)!), int.parse(m.group(2)!), int.parse(m.group(3)!));
+        } catch (_) {}
       }
     }
-    
+    // Then dd/mm/yyyy or dd-mm-yyyy
+    final eu1 = RegExp(r'(\d{1,2})/(\d{1,2})/(\d{4})');
+    final eu2 = RegExp(r'(\d{1,2})-(\d{1,2})-(\d{4})');
+    for (final line in lines) {
+      final m1 = eu1.firstMatch(line) ?? eu2.firstMatch(line);
+      if (m1 != null) {
+        try {
+          return DateTime(int.parse(m1.group(3)!), int.parse(m1.group(2)!), int.parse(m1.group(1)!));
+        } catch (_) {}
+      }
+    }
     return null;
   }
 
