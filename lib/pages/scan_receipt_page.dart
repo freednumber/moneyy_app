@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../providers.dart';
+import '../models.dart';
 import '../parsed_receipt.dart';
 import '../services/ai_service.dart';
 import '../services/storage_service.dart';
@@ -68,9 +69,9 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
     // Create transaction using existing addTx method
     final tx = MoneyTx(
       id: null,
-      amount: _parsed!.amount,
       isIncome: false,
       category: _parsed!.categorySuggestion ?? 'Altro',
+      amount: _parsed!.amount,
       date: _parsed!.date,
       note: '🧾 ${_parsed!.merchant} • scontrino AI',
       payment: PaymentMethod.carta,
