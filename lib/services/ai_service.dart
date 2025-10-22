@@ -68,7 +68,7 @@ class AIService {
     final lines = text.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
     
     // Extract amount
-    double amount = _extractAmount(lines, currency);
+    double amount = _extractAmount(lines);
     
     // Extract merchant (first non-numeric line, usually at top)
     String merchant = _extractMerchant(lines);
@@ -89,21 +89,22 @@ class AIService {
     );
   }
 
-  double _extractAmount(List<String> lines, String currency) {
-    final patterns = [
-      RegExp(r'total[e]?[:\s]+([0-9]+[,.]?[0-9]*)', RegExp.caseSensitive),
-      RegExp(r'totale[:\s]+([0-9]+[,.]?[0-9]*)', RegExp.caseSensitive),
-      RegExp(r'€\s*([0-9]+[,.]?[0-9]*)', RegExp.caseSensitive),
-      RegExp(r'([0-9]+[,.]?[0-9]*)\s*€', RegExp.caseSensitive),
-      RegExp(r'([0-9]+[,.]?[0-9]*)\s*eur', RegExp.caseSensitive),
+  double _extractAmount(List<String> lines) {
+    final patterns = <RegExp>[
+      RegExp(r'total[e]?[:\s]+([0-9]+[,.]?[0-9]*)', caseSensitive: false),
+      RegExp(r'totale[:\s]+([0-9]+[,.]?[0-9]*)', caseSensitive: false),
+      RegExp(r'€\s*([0-9]+[,.]?[0-9]*)', caseSensitive: false),
+      RegExp(r'([0-9]+[,.]?[0-9]*)\s*€', caseSensitive: false),
+      RegExp(r'([0-9]+[,.]?[0-9]*)\s*eur', caseSensitive: false),
     ];
     
     for (final line in lines.reversed) {
       for (final pattern in patterns) {
-        final match = pattern.firstMatch(line.toLowerCase());
+        final match = pattern.firstMatch(line);
         if (match != null) {
           final amountStr = match.group(1)!.replaceAll(',', '.');
-          return double.tryParse(amountStr) ?? 0.0;
+          final val = double.tryParse(amountStr);
+          if (val != null) return val;
         }
       }
     }
@@ -122,12 +123,12 @@ class AIService {
     final ignoreWords = {'scontrino', 'ricevuta', 'receipt', 'fiscal', 'via', 'tel', 'p.iva'};
     
     for (final line in lines.take(5)) {
-      final words = line.toLowerCase().split(' ');
-      if (words.any((w) => ignoreWords.contains(w))) continue;
+      final lower = line.toLowerCase();
+      if (ignoreWords.any((w) => lower.contains(w))) continue;
       if (line.length < 3 || line.length > 30) continue;
       if (RegExp(r'^[0-9]+').hasMatch(line)) continue;
       
-      return line.length > 20 ? '${line.substring(0, 17)}...' : line;
+      return line.length > 24 ? '${line.substring(0, 24)}...' : line;
     }
     
     return 'Negozio sconosciuto';
@@ -145,8 +146,7 @@ class AIService {
         final match = pattern.firstMatch(line);
         if (match != null) {
           try {
-            if (pattern == patterns[2]) {
-              // yyyy-mm-dd format
+            if (pattern.pattern.startsWith('('\\d{4}')) { // yyyy-mm-dd
               return DateTime(
                 int.parse(match.group(1)!),
                 int.parse(match.group(2)!),
@@ -176,11 +176,11 @@ class AIService {
     } else if (text.contains('carburante') || text.contains('benzina') || text.contains('diesel') || text.contains('eni') || text.contains('agip')) {
       return 'Trasporti';
     } else if (text.contains('ristorante') || text.contains('pizzeria') || text.contains('bar') || text.contains('trattoria')) {
-      return 'Ristoranti';
+      return 'Svago';
     } else if (text.contains('farmacia') || text.contains('medicina') || text.contains('dottore')) {
       return 'Salute';
     } else if (text.contains('abbigliamento') || text.contains('vestiti') || text.contains('scarpe')) {
-      return 'Abbigliamento';
+      return 'Shopping';
     }
     
     return 'Altro';
