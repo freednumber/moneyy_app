@@ -1,17 +1,23 @@
 import 'dart:io';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 class StorageService {
-  Future<String> saveReceiptImage(File file) async {
-    final dir = await getApplicationDocumentsDirectory();
-    final receiptsDir = Directory(p.join(dir.path, 'receipts'));
-    if (!await receiptsDir.exists()) {
-      await receiptsDir.create(recursive: true);
+  // No permanent storage - just use temp file from picker
+  // Return file:// URI for local processing
+  Future<String> getImageUri(File file) async {
+    return file.uri.toString();
+  }
+  
+  // Clean up temp file after transaction is saved
+  Future<void> cleanupTempFile(String fileUri) async {
+    try {
+      if (fileUri.startsWith('file://')) {
+        final file = File(Uri.parse(fileUri).toFilePath());
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+    } catch (e) {
+      // Ignore cleanup errors
     }
-    final filename = '${DateTime.now().millisecondsSinceEpoch}_${p.basename(file.path)}';
-    final dest = File(p.join(receiptsDir.path, filename));
-    await file.copy(dest.path);
-    return dest.uri.toString();
   }
 }
