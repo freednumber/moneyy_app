@@ -41,7 +41,6 @@ dependencies:
   
   # 📸 RECEIPT SCANNING
   image_picker: ^1.0.7
-  dart:convert
 
 dev_dependencies:
   flutter_test:
