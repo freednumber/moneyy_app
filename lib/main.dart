@@ -12,6 +12,7 @@ import 'pages/recurring_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/splash_page.dart';
 import 'pages/add_tx_page.dart';
+import 'pages/scan_receipt_page.dart';
 
 void main() {
   runApp(const MoneyYApp());
@@ -47,6 +48,7 @@ class MoneyYApp extends StatelessWidget {
             home: const SplashPage(),
             routes: {
               '/home': (context) => const MainNavigationPage(),
+              '/scan_receipt': (context) => const ScanReceiptPage(),
             },
           );
         },
@@ -170,7 +172,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
           ),
           child: Stack(
             children: [
-              // track animata larga sotto l'item selezionato (stile precedente)
               ValueListenableBuilder<int>(
                 valueListenable: _dockIndex,
                 builder: (context, idx, _) {
@@ -243,7 +244,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
       return _buildSquareFab(
         color: const Color(0xFF6366F1),
         icon: Icons.add,
-        tooltip: 'Aggiungi Transazione',
+        tooltip: 'Aggiungi',
         onTap: () {
           HapticFeedback.mediumImpact();
           _showQuickAddMenu(context);
@@ -352,8 +353,18 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Aggiungi Transazione', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
+            // Bottone Scansione Scontrino (AI) - sopra agli altri
+            _QuickAction(
+              icon: Icons.receipt_long,
+              title: 'Scansione scontrino (AI)',
+              subtitle: 'Estrai importo e negozio automaticamente',
+              color: const Color(0xFF10B981),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/scan_receipt');
+              },
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -428,6 +439,91 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
             Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: color, fontSize: 14)),
             const SizedBox(height: 4),
             Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600]), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickAction({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isDark
+              ? [color.withOpacity(0.22), color.withOpacity(0.14)]
+              : [color.withOpacity(0.12), color.withOpacity(0.06)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(isDark ? 0.45 : 0.25)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(isDark ? 0.3 : 0.2),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.receipt_long, color: Colors.white, size: 26),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, size: 24),
           ],
         ),
       ),
