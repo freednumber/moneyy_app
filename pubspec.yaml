@@ -41,8 +41,8 @@ dependencies:
   
   # 📸 RECEIPT SCANNING
   image_picker: ^1.0.7
-  # 🤖 LOCAL OCR FALLBACK
-  google_mlkit_text_recognition: ^0.13.0
+  # 🤖 LOCAL OCR FALLBACK (versione compatibile simulatore)
+  google_mlkit_text_recognition: ^0.12.0
 
 dev_dependencies:
   flutter_test:
