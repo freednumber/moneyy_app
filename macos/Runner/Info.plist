@@ -28,5 +28,13 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	
+	<!-- Camera and Photo Library Permissions for Receipt Scanning -->
+	<key>NSCameraUsageDescription</key>
+	<string>MoneyY usa la fotocamera per scansionare scontrini</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MoneyY accede alla libreria foto per selezionare scontrini</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MoneyY potrebbe usare il microfono per acquisizioni video future</string>
 </dict>
 </plist>
