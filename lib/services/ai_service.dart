@@ -3,12 +3,17 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import '../config/api_keys.dart';
 import '../parsed_receipt.dart';
 
 class AIService {
   static const String _visionEndpoint = 'https://vision.googleapis.com/v1/images:annotate';
   late final TextRecognizer _textRecognizer;
+  
+  // Use environment variable or fallback to default for development
+  static const String _apiKey = String.fromEnvironment(
+    'GOOGLE_VISION_API_KEY',
+    defaultValue: 'AIzaSyCI2MJIB_D9b90lMdVUT4GHOu7UsOIZluM', // Your key as fallback
+  );
 
   AIService() {
     _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
@@ -55,7 +60,7 @@ class AIService {
     }
 
     final response = await http.post(
-      Uri.parse('$_visionEndpoint?key=${ApiKeys.googleVisionApiKey}'),
+      Uri.parse('$_visionEndpoint?key=$_apiKey'),
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'MoneyY/1.0.0',
@@ -161,8 +166,8 @@ class AIService {
     final patterns = <RegExp>[
       RegExp(r'total[e]?[:\s]+([0-9]+[,.]?[0-9]*)', caseSensitive: false),
       RegExp(r'totale[:\s]+([0-9]+[,.]?[0-9]*)', caseSensitive: false),
-      RegExp(r'\€\s*([0-9]+[,.]?[0-9]*)', caseSensitive: false),
-      RegExp(r'([0-9]+[,.]?[0-9]*)\s*\€', caseSensitive: false),
+      RegExp(r'€\s*([0-9]+[,.]?[0-9]*)', caseSensitive: false),
+      RegExp(r'([0-9]+[,.]?[0-9]*)\s*€', caseSensitive: false),
       RegExp(r'([0-9]+[,.]?[0-9]*)\s*eur', caseSensitive: false),
     ];
     
@@ -197,7 +202,7 @@ class AIService {
       if (RegExp(r'^[0-9\s.,€-]+$').hasMatch(line)) continue; // Skip number-only lines
       
       // Clean up the merchant name
-      final cleaned = line.replaceAll(RegExp(r'[^a-zA-ZÀ-ÿ0-9\s]'), ' ').trim();
+      final cleaned = line.replaceAll(RegExp(r'[^a-zA-Z\u00c0-\u00ff0-9\s]'), ' ').trim();
       if (cleaned.length >= 3) {
         return cleaned.length > 25 ? '${cleaned.substring(0, 25)}...' : cleaned;
       }
