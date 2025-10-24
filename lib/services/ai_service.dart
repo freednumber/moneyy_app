@@ -139,7 +139,7 @@ class AIService {
   ParsedReceipt _parseReceiptText(String text, String imageUrl, String currency, {required String ocrSource, bool hasVisionError = false}) {
     final lines = text.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
     
-    // Extract amount
+    // Extract amount with improved Italian receipt parsing
     double amount = _extractAmount(lines);
     
     // Extract merchant (first non-numeric line, usually at top)
@@ -163,48 +163,106 @@ class AIService {
   }
 
   double _extractAmount(List<String> lines) {
-    final patterns = <RegExp>[
-      RegExp(r'total[e]?[:\s]+([0-9]+[,.]?[0-9]*)', caseSensitive: false),
-      RegExp(r'totale[:\s]+([0-9]+[,.]?[0-9]*)', caseSensitive: false),
-      RegExp(r'€\s*([0-9]+[,.]?[0-9]*)', caseSensitive: false),
-      RegExp(r'([0-9]+[,.]?[0-9]*)\s*€', caseSensitive: false),
-      RegExp(r'([0-9]+[,.]?[0-9]*)\s*eur', caseSensitive: false),
+    // Priority patterns for Italian receipts - most specific first
+    final priorityPatterns = <RegExp>[
+      // TOTALE EURO followed by amount
+      RegExp(r'totale\s+euro\s+([0-9]+[,.]\d{2})', caseSensitive: false),
+      // TOTALE COMPLESSIVO followed by amount  
+      RegExp(r'totale\s+complessivo\s+([0-9]+[,.]\d{2})', caseSensitive: false),
+      // Just TOTALE followed by amount
+      RegExp(r'totale\s+([0-9]+[,.]\d{2})', caseSensitive: false),
+      // TOTALE with optional colon/space followed by amount
+      RegExp(r'totale[:\s]+([0-9]+[,.]\d{2})', caseSensitive: false),
     ];
     
-    for (final line in lines.reversed) {
-      for (final pattern in patterns) {
-        final match = pattern.firstMatch(line);
+    // Secondary patterns for common formats
+    final secondaryPatterns = <RegExp>[
+      // Amount followed by EUR/€
+      RegExp(r'([0-9]+[,.]?\d{0,2})\s*(?:eur|€)', caseSensitive: false),
+      // € symbol followed by amount
+      RegExp(r'€\s*([0-9]+[,.]\d{2})', caseSensitive: false),
+    ];
+    
+    // First try priority patterns - look for specific TOTALE mentions
+    for (final line in lines) {
+      for (final pattern in priorityPatterns) {
+        final match = pattern.firstMatch(line.toLowerCase());
         if (match != null) {
           final amountStr = match.group(1)!.replaceAll(',', '.');
           final val = double.tryParse(amountStr);
-          if (val != null && val > 0) return val;
+          if (val != null && val > 0 && val < 10000) { // Reasonable receipt amounts
+            print('Found amount with priority pattern: $val from line: $line');
+            return val;
+          }
         }
       }
     }
     
-    // Fallback: find largest reasonable number in text
-    final numbers = RegExp(r'([0-9]+[,.]?[0-9]*)')
+    // If no priority pattern found, try secondary patterns
+    for (final line in lines.reversed) { // Start from bottom for totals
+      for (final pattern in secondaryPatterns) {
+        final match = pattern.firstMatch(line);
+        if (match != null) {
+          final amountStr = match.group(1)!.replaceAll(',', '.');
+          final val = double.tryParse(amountStr);
+          if (val != null && val > 0 && val < 10000) {
+            print('Found amount with secondary pattern: $val from line: $line');
+            return val;
+          }
+        }
+      }
+    }
+    
+    // Final fallback: find largest reasonable decimal number in text
+    final decimalNumbers = RegExp(r'([0-9]+[,.]\d{2})')
         .allMatches(lines.join(' '))
         .map((m) => double.tryParse(m.group(1)!.replaceAll(',', '.')) ?? 0.0)
-        .where((n) => n > 0 && n < 10000) // Reasonable receipt amounts
+        .where((n) => n > 1.0 && n < 10000) // Reasonable receipt amounts
         .toList();
     
-    return numbers.isNotEmpty ? numbers.reduce((a, b) => a > b ? a : b) : 0.0;
+    if (decimalNumbers.isNotEmpty) {
+      // Sort and take the largest reasonable amount
+      decimalNumbers.sort();
+      final largest = decimalNumbers.last;
+      print('Found amount with fallback pattern: $largest');
+      return largest;
+    }
+    
+    print('No valid amount found in receipt');
+    return 0.0;
   }
 
   String _extractMerchant(List<String> lines, String ocrSource) {
-    final ignoreWords = {'scontrino', 'ricevuta', 'receipt', 'fiscal', 'via', 'tel', 'p.iva', 'partita', 'iva', 'codice', 'cf'};
+    final ignoreWords = {
+      'scontrino', 'ricevuta', 'receipt', 'fiscal', 'fiscale',
+      'via', 'tel', 'telefono', 'p.iva', 'partita', 'iva', 
+      'codice', 'cf', 'documento', 'commerciale', 'vendita',
+      'prestazione', 'descrizione', 'totale'
+    };
     
-    for (final line in lines.take(8)) { // Check more lines for merchant
+    for (final line in lines.take(10)) { // Check first 10 lines for merchant
       final lower = line.toLowerCase();
+      
+      // Skip lines with ignore words
       if (ignoreWords.any((w) => lower.contains(w))) continue;
-      if (line.length < 3 || line.length > 35) continue;
-      if (RegExp(r'^[0-9\s.,€-]+$').hasMatch(line)) continue; // Skip number-only lines
+      
+      // Skip very short or very long lines
+      if (line.length < 3 || line.length > 40) continue;
+      
+      // Skip lines that are mostly numbers, prices, or symbols
+      if (RegExp(r'^[0-9\s.,€%-]+$').hasMatch(line)) continue;
+      
+      // Skip lines that look like addresses (contain numbers and short words)
+      if (RegExp(r'\b\d+\b.*\b\w{1,3}\b').hasMatch(line)) continue;
       
       // Clean up the merchant name
-      final cleaned = line.replaceAll(RegExp(r'[^a-zA-Z\u00c0-\u00ff0-9\s]'), ' ').trim();
+      final cleaned = line
+          .replaceAll(RegExp(r'[^a-zA-Z\u00c0-\u00ff0-9\s&]'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+          
       if (cleaned.length >= 3) {
-        return cleaned.length > 25 ? '${cleaned.substring(0, 25)}...' : cleaned;
+        return cleaned.length > 30 ? '${cleaned.substring(0, 30)}...' : cleaned;
       }
     }
     
@@ -212,31 +270,45 @@ class AIService {
   }
 
   DateTime? _extractDate(List<String> lines) {
-    // Try yyyy-mm-dd first
-    final iso = RegExp(r'(\d{4})-(\d{1,2})-(\d{1,2})');
-    for (final line in lines) {
-      final m = iso.firstMatch(line);
-      if (m != null) {
-        try {
-          return DateTime(int.parse(m.group(1)!), int.parse(m.group(2)!), int.parse(m.group(3)!));
-        } catch (_) {}
-      }
-    }
+    // Italian date patterns
+    final datePatterns = <RegExp>[
+      // dd/mm/yyyy
+      RegExp(r'(\d{1,2})/(\d{1,2})/(\d{4})'),
+      // dd-mm-yyyy  
+      RegExp(r'(\d{1,2})-(\d{1,2})-(\d{4})'),
+      // yyyy-mm-dd (ISO format)
+      RegExp(r'(\d{4})-(\d{1,2})-(\d{1,2})'),
+      // dd.mm.yyyy
+      RegExp(r'(\d{1,2})\.(\d{1,2})\.(\d{4})'),
+    ];
     
-    // Then dd/mm/yyyy or dd-mm-yyyy
-    final eu1 = RegExp(r'(\d{1,2})/(\d{1,2})/(\d{4})');
-    final eu2 = RegExp(r'(\d{1,2})-(\d{1,2})-(\d{4})');
-    for (final line in lines) {
-      final m1 = eu1.firstMatch(line) ?? eu2.firstMatch(line);
-      if (m1 != null) {
-        try {
-          final day = int.parse(m1.group(1)!);
-          final month = int.parse(m1.group(2)!);
-          final year = int.parse(m1.group(3)!);
-          if (day <= 31 && month <= 12 && year >= 2020 && year <= DateTime.now().year + 1) {
-            return DateTime(year, month, day);
+    for (final line in lines.take(15)) { // Check first 15 lines
+      for (int i = 0; i < datePatterns.length; i++) {
+        final match = datePatterns[i].firstMatch(line);
+        if (match != null) {
+          try {
+            int day, month, year;
+            
+            if (i == 2) { // yyyy-mm-dd format
+              year = int.parse(match.group(1)!);
+              month = int.parse(match.group(2)!);
+              day = int.parse(match.group(3)!);
+            } else { // dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy formats
+              day = int.parse(match.group(1)!);
+              month = int.parse(match.group(2)!);
+              year = int.parse(match.group(3)!);
+            }
+            
+            // Validate date components
+            if (day >= 1 && day <= 31 && 
+                month >= 1 && month <= 12 && 
+                year >= 2020 && year <= DateTime.now().year + 1) {
+              return DateTime(year, month, day);
+            }
+          } catch (_) {
+            continue;
           }
-        } catch (_) {}
+        }
       }
     }
     
@@ -246,20 +318,49 @@ class AIService {
   String _suggestCategory(String merchant, List<String> lines) {
     final text = '$merchant ${lines.join(' ')}'.toLowerCase();
     
-    if (text.contains('supermercato') || text.contains('market') || text.contains('conad') || text.contains('coop') || text.contains('carrefour')) {
+    // More comprehensive Italian category matching
+    if (_containsAnyOf(text, [
+      'supermercato', 'market', 'conad', 'coop', 'carrefour', 'esselunga',
+      'famila', 'auchan', 'ipercoop', 'ipermercato', 'spesa', 'alimentari'
+    ])) {
       return 'Spesa';
-    } else if (text.contains('carburante') || text.contains('benzina') || text.contains('diesel') || text.contains('eni') || text.contains('agip') || text.contains('shell')) {
+    } else if (_containsAnyOf(text, [
+      'carburante', 'benzina', 'diesel', 'eni', 'agip', 'shell', 'esso',
+      'tamoil', 'ip', 'q8', 'autolavaggio'
+    ])) {
       return 'Trasporti';
-    } else if (text.contains('ristorante') || text.contains('pizzeria') || text.contains('bar') || text.contains('trattoria') || text.contains('café') || text.contains('caffè')) {
+    } else if (_containsAnyOf(text, [
+      'ristorante', 'pizzeria', 'bar', 'trattoria', 'osteria', 'tavola',
+      'café', 'caffè', 'pub', 'birreria', 'gelateria', 'pasticceria',
+      'rosticceria', 'paninoteca', 'self service', 'mensa'
+    ])) {
       return 'Svago';
-    } else if (text.contains('farmacia') || text.contains('medicina') || text.contains('dottore') || text.contains('ospedale')) {
+    } else if (_containsAnyOf(text, [
+      'farmacia', 'medicina', 'dottore', 'medico', 'ospedale', 'clinica',
+      'dentista', 'veterinario', 'parafarmacia', 'sanitario'
+    ])) {
       return 'Salute';
-    } else if (text.contains('abbigliamento') || text.contains('vestiti') || text.contains('scarpe') || text.contains('moda')) {
+    } else if (_containsAnyOf(text, [
+      'abbigliamento', 'vestiti', 'scarpe', 'moda', 'boutique',
+      'calzature', 'intimo', 'sportivo', 'accessori'
+    ])) {
       return 'Shopping';
-    } else if (text.contains('enel') || text.contains('gas') || text.contains('acqua') || text.contains('telefon') || text.contains('internet')) {
+    } else if (_containsAnyOf(text, [
+      'enel', 'gas', 'acqua', 'telefon', 'internet', 'tim', 'vodafone',
+      'wind', 'tre', 'fastweb', 'utenza', 'bolletta'
+    ])) {
       return 'Bollette';
+    } else if (_containsAnyOf(text, [
+      'trasporto', 'autobus', 'metro', 'treno', 'taxi', 'uber',
+      'parcheggio', 'autostrada', 'pedaggio', 'biglietto'
+    ])) {
+      return 'Trasporti';
     }
     
     return 'Altro';
+  }
+
+  bool _containsAnyOf(String text, List<String> keywords) {
+    return keywords.any((keyword) => text.contains(keyword));
   }
 }
