@@ -27,15 +27,36 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
   late ReceiptService _receiptService;
   bool _showRetryVision = false;
 
+  // Editable field controllers
+  late TextEditingController _amountController;
+  late TextEditingController _merchantController;
+  DateTime _selectedDate = DateTime.now();
+  String _selectedCategory = 'Altro';
+
+  // Available categories
+  final List<String> _categories = [
+    'Spesa',
+    'Trasporti', 
+    'Svago',
+    'Salute',
+    'Shopping',
+    'Bollette',
+    'Altro'
+  ];
+
   @override
   void initState() {
     super.initState();
     _receiptService = ReceiptService(storage: StorageService(), ai: AIService());
+    _amountController = TextEditingController();
+    _merchantController = TextEditingController();
   }
 
   @override
   void dispose() {
     _receiptService.ai.dispose();
+    _amountController.dispose();
+    _merchantController.dispose();
     super.dispose();
   }
 
@@ -72,6 +93,12 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       setState(() {
         _parsed = parsed;
         _showRetryVision = parsed.hasVisionError;
+        
+        // Update editable fields with parsed data
+        _amountController.text = parsed.amount.toStringAsFixed(2);
+        _merchantController.text = parsed.merchant;
+        _selectedDate = parsed.date;
+        _selectedCategory = parsed.categorySuggestion ?? 'Altro';
       });
     } catch (e) {
       if (mounted) {
@@ -93,14 +120,18 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
     
     final model = Provider.of<MoneyModel>(context, listen: false);
     
-    // Create transaction using existing addTx method
+    // Use edited values instead of original parsed values
+    final amount = double.tryParse(_amountController.text) ?? _parsed!.amount;
+    final merchant = _merchantController.text.isEmpty ? _parsed!.merchant : _merchantController.text;
+    
+    // Create transaction using edited values
     final tx = MoneyTx(
       id: null,
       isIncome: false,
-      category: _parsed!.categorySuggestion ?? 'Altro',
-      amount: _parsed!.amount,
-      date: _parsed!.date,
-      note: '🧾 ${_parsed!.merchant} • scontrino AI',
+      category: _selectedCategory,
+      amount: amount,
+      date: _selectedDate,
+      note: '🧾 $merchant • scontrino AI',
       payment: PaymentMethod.carta,
     );
     
@@ -241,9 +272,19 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                   
                   const SizedBox(height: 20),
                   
-                  // Parsed results
+                  // Parsed results with editable fields
                   if (_parsed != null) 
-                    Expanded(child: _ParsedCard(parsed: _parsed!, isDark: isDark)),
+                    Expanded(child: _EditableReceiptCard(
+                      parsed: _parsed!,
+                      isDark: isDark,
+                      amountController: _amountController,
+                      merchantController: _merchantController,
+                      selectedDate: _selectedDate,
+                      selectedCategory: _selectedCategory,
+                      categories: _categories,
+                      onDateChanged: (date) => setState(() => _selectedDate = date),
+                      onCategoryChanged: (category) => setState(() => _selectedCategory = category),
+                    )),
                   
                   if (_parsed == null) const Spacer(),
                   
@@ -354,11 +395,28 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
   }
 }
 
-class _ParsedCard extends StatelessWidget {
+class _EditableReceiptCard extends StatelessWidget {
   final ParsedReceipt parsed;
   final bool isDark;
+  final TextEditingController amountController;
+  final TextEditingController merchantController;
+  final DateTime selectedDate;
+  final String selectedCategory;
+  final List<String> categories;
+  final Function(DateTime) onDateChanged;
+  final Function(String) onCategoryChanged;
   
-  const _ParsedCard({required this.parsed, required this.isDark});
+  const _EditableReceiptCard({
+    required this.parsed,
+    required this.isDark,
+    required this.amountController,
+    required this.merchantController,
+    required this.selectedDate,
+    required this.selectedCategory,
+    required this.categories,
+    required this.onDateChanged,
+    required this.onCategoryChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -430,10 +488,21 @@ class _ParsedCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              _buildDetailRow('Importo', '${parsed.amount.toStringAsFixed(2)} ${parsed.currency}', Icons.euro, isDark),
-              _buildDetailRow('Negozio', parsed.merchant, Icons.store, isDark),
-              _buildDetailRow('Data', '${parsed.date.day}/${parsed.date.month}/${parsed.date.year}', Icons.calendar_today, isDark),
-              _buildDetailRow('Categoria AI', parsed.categorySuggestion ?? 'Non riconosciuta', Icons.category, isDark),
+              
+              // Editable Amount
+              _buildEditableAmountRow(context),
+              const SizedBox(height: 12),
+              
+              // Editable Merchant
+              _buildEditableMerchantRow(context),
+              const SizedBox(height: 12),
+              
+              // Editable Date
+              _buildEditableDateRow(context),
+              const SizedBox(height: 12),
+              
+              // Editable Category
+              _buildEditableCategoryRow(context),
             ],
           ),
         ),
@@ -441,38 +510,340 @@ class _ParsedCard extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, IconData icon, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 18,
-            color: isDark ? Colors.grey[400] : Colors.grey[600],
+  Widget _buildEditableAmountRow(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.euro,
+          size: 18,
+          color: isDark ? Colors.grey[400] : Colors.grey[600],
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 90,
+          child: Text(
+            'Importo',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+            ),
           ),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 90,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
+        ),
+        Expanded(
+          child: InkWell(
+            onTap: () => _showAmountEditDialog(context),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${amountController.text} EUR',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.edit,
+                    size: 16,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ],
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : Colors.black87,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditableMerchantRow(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.store,
+          size: 18,
+          color: isDark ? Colors.grey[400] : Colors.grey[600],
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 90,
+          child: Text(
+            'Negozio',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+        ),
+        Expanded(
+          child: InkWell(
+            onTap: () => _showMerchantEditDialog(context),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      merchantController.text,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.edit,
+                    size: 16,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ],
               ),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditableDateRow(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.calendar_today,
+          size: 18,
+          color: isDark ? Colors.grey[400] : Colors.grey[600],
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 90,
+          child: Text(
+            'Data',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+        ),
+        Expanded(
+          child: InkWell(
+            onTap: () => _showDatePicker(context),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.edit,
+                    size: 16,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditableCategoryRow(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.category,
+          size: 18,
+          color: isDark ? Colors.grey[400] : Colors.grey[600],
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 90,
+          child: Text(
+            'Categoria',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+        ),
+        Expanded(
+          child: InkWell(
+            onTap: () => _showCategoryPicker(context),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      selectedCategory,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_drop_down,
+                    size: 20,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAmountEditDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Modifica Importo'),
+        content: TextField(
+          controller: amountController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Importo (EUR)',
+            prefixIcon: Icon(Icons.euro),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Salva'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMerchantEditDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Modifica Negozio'),
+        content: TextField(
+          controller: merchantController,
+          decoration: const InputDecoration(
+            labelText: 'Nome negozio',
+            prefixIcon: Icon(Icons.store),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Salva'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDatePicker(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null) {
+      onDateChanged(picked);
+    }
+  }
+
+  void _showCategoryPicker(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Seleziona Categoria'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: categories.length,
+            itemBuilder: (context, index) {
+              final category = categories[index];
+              return ListTile(
+                title: Text(category),
+                trailing: selectedCategory == category 
+                  ? const Icon(Icons.check, color: Color(0xFF10B981))
+                  : null,
+                onTap: () {
+                  onCategoryChanged(category);
+                  Navigator.pop(context);
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Chiudi'),
           ),
         ],
       ),
