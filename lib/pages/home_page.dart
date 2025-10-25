@@ -25,6 +25,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
     final isCompact = screenWidth < 380; // Very small screens
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -146,7 +147,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                   top: 100, 
                   left: isCompact ? 12 : 16, 
                   right: isCompact ? 12 : 16, 
-                  bottom: 120, // Extra space for dock
+                  bottom: bottomPadding + 140, // Extra space for dock + bottom safe area
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,26 +271,26 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     final mostUsed = _getMostUsedCategories(model);
     final screenWidth = MediaQuery.of(context).size.width;
     
-    // Responsive grid calculation
+    // Responsive grid calculation with better aspect ratios
     int crossAxisCount;
     double childAspectRatio;
     
     if (screenWidth > 800) {
       // Desktop/Large tablet
       crossAxisCount = 3;
-      childAspectRatio = 2.8;
+      childAspectRatio = 3.2;
     } else if (screenWidth > 600) {
       // Tablet
       crossAxisCount = 2;
-      childAspectRatio = 2.5;
+      childAspectRatio = 2.8;
     } else if (screenWidth > 380) {
       // Normal phone
       crossAxisCount = 2;
-      childAspectRatio = 2.2;
+      childAspectRatio = 2.4;
     } else {
       // Small phone
       crossAxisCount = 1;
-      childAspectRatio = 3.5;
+      childAspectRatio = 4.0;
     }
     
     return Container(
@@ -470,8 +471,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         borderRadius: BorderRadius.circular(isCompact ? 16 : 20),
         child: Container(
           padding: EdgeInsets.symmetric(
-            horizontal: isCompact ? 12 : 18, 
-            vertical: isCompact ? 12 : 16,
+            horizontal: isCompact ? 12 : 16, 
+            vertical: isCompact ? 10 : 12,
           ),
           decoration: BoxDecoration(
             color: isDark
@@ -501,33 +502,33 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    padding: EdgeInsets.all(isCompact ? 8 : 10),
+                    padding: EdgeInsets.all(isCompact ? 6 : 8),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [color, color.withOpacity(0.8)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(isCompact ? 12 : 14),
+                      borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
                       boxShadow: [
                         BoxShadow(
                           color: color.withOpacity(0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
                     child: Icon(
                       icon, 
                       color: Colors.white, 
-                      size: isCompact ? 18 : 22,
+                      size: isCompact ? 16 : 18,
                     ),
                   ),
                   Positioned(
-                    right: -4,
-                    top: -4,
+                    right: -3,
+                    top: -3,
                     child: Container(
-                      padding: EdgeInsets.all(isCompact ? 2 : 3),
+                      padding: EdgeInsets.all(isCompact ? 1.5 : 2),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: isIncome 
@@ -535,25 +536,25 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                             : [const Color(0xFFEF4444), const Color(0xFFDC2626)],
                         ),
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                        border: Border.all(color: Colors.white, width: 1.5),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.25),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
                           ),
                         ],
                       ),
                       child: Icon(
                         isIncome ? Icons.arrow_upward : Icons.arrow_downward,
                         color: Colors.white,
-                        size: isCompact ? 8 : 10,
+                        size: isCompact ? 6 : 8,
                       ),
                     ),
                   ),
                 ],
               ),
-              SizedBox(width: isCompact ? 10 : 14),
+              SizedBox(width: isCompact ? 8 : 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,7 +563,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     Text(
                       category,
                       style: TextStyle(
-                        fontSize: isCompact ? 13 : 15,
+                        fontSize: isCompact ? 12 : 14,
                         fontWeight: FontWeight.bold,
                         color: isDark ? Colors.white : color,
                         letterSpacing: 0.2,
@@ -570,11 +571,11 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: isCompact ? 2 : 3),
+                    if (!isCompact) SizedBox(height: 2),
                     Text(
                       lastUsed,
                       style: TextStyle(
-                        fontSize: isCompact ? 9 : 11,
+                        fontSize: isCompact ? 8 : 10,
                         fontWeight: FontWeight.w500,
                         color: isDark 
                           ? Colors.grey[400]
