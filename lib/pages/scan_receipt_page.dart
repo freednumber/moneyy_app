@@ -64,7 +64,6 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
 
   Future<void> _pickFromCamera() async {
     if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-      // Desktop platforms don't have cameras typically, show message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -91,7 +90,6 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
         });
       }
     } catch (e) {
-      print('Error picking from camera: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -109,20 +107,14 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       XFile? x;
       
       if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-        // Use file_picker on desktop for better UX
         final result = await FilePicker.platform.pickFiles(
           type: FileType.image,
           allowMultiple: false,
         );
-        
-        if (result != null && result.files.isNotEmpty) {
-          final filePath = result.files.first.path;
-          if (filePath != null) {
-            x = XFile(filePath);
-          }
+        if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+          x = XFile(result.files.first.path!);
         }
       } else {
-        // Use image_picker on mobile
         x = await _picker.pickImage(
           source: ImageSource.gallery, 
           imageQuality: 90,
@@ -139,7 +131,6 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
         });
       }
     } catch (e) {
-      print('Error picking from gallery/files: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -164,8 +155,6 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
         setState(() {
           _parsed = parsed;
           _showRetryVision = parsed.hasVisionError;
-          
-          // Update editable fields with parsed data
           _amountController.text = parsed.amount.toStringAsFixed(2);
           _merchantController.text = parsed.merchant;
           _selectedDate = parsed.date;
@@ -173,7 +162,6 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
         });
       }
     } catch (e) {
-      print('Error processing receipt: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -184,22 +172,15 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _saveAsTransaction() async {
     if (_parsed == null) return;
-    
     final model = Provider.of<MoneyModel>(context, listen: false);
-    
-    // Use edited values instead of original parsed values
     final amount = double.tryParse(_amountController.text) ?? _parsed!.amount;
     final merchant = _merchantController.text.isEmpty ? _parsed!.merchant : _merchantController.text;
-    
-    // Create transaction using edited values
     final tx = MoneyTx(
       id: null,
       isIncome: false,
@@ -209,16 +190,8 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       note: '🧾 $merchant • scontrino AI',
       payment: PaymentMethod.carta,
     );
-    
     await model.addTx(tx);
-    
-    // Cleanup temp image file
-    try {
-      await _receiptService.cleanupAfterSave(_parsed!.imageUrl);
-    } catch (e) {
-      print('Error cleaning up temp file: $e');
-    }
-    
+    try { await _receiptService.cleanupAfterSave(_parsed!.imageUrl); } catch (_) {}
     if (mounted) {
       HapticFeedback.lightImpact();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -245,16 +218,11 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            }
-          },
+          onPressed: () { if (Navigator.of(context).canPop()) Navigator.of(context).pop(); },
         ),
       ),
       body: Column(
         children: [
-          // Vision API Error Banner
           if (_showRetryVision && _parsed != null)
             Container(
               width: double.infinity,
@@ -290,16 +258,14 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                 ],
               ),
             ),
-            
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Camera/Gallery buttons
                   Row(
                     children: [
-                      if (!isDesktop) ..[
+                      if (!isDesktop) ...[
                         Expanded(
                           child: _buildActionButton(
                             onPressed: _pickFromCamera,
@@ -324,8 +290,6 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  
-                  // Image preview
                   if (_image != null)
                     Container(
                       height: 220,
@@ -347,10 +311,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                       clipBehavior: Clip.antiAlias,
                       child: Image.file(_image!, fit: BoxFit.cover),
                     ),
-                  
                   const SizedBox(height: 20),
-                  
-                  // AI Extract button with glass effect
                   _buildGlassActionButton(
                     onPressed: (_image != null && !_loading) ? () => _process() : null,
                     icon: Icons.auto_awesome,
@@ -359,11 +320,8 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                     isDark: isDark,
                     isLoading: _loading,
                   ),
-                  
                   const SizedBox(height: 20),
-                  
-                  // Parsed results with editable fields
-                  if (_parsed != null) 
+                  if (_parsed != null)
                     Expanded(child: _EditableReceiptCard(
                       parsed: _parsed!,
                       isDark: isDark,
@@ -375,10 +333,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                       onDateChanged: (date) => setState(() => _selectedDate = date),
                       onCategoryChanged: (category) => setState(() => _selectedCategory = category),
                     )),
-                  
                   if (_parsed == null) const Spacer(),
-                  
-                  // Save button with glass effect
                   _buildGlassActionButton(
                     onPressed: _parsed != null ? _saveAsTransaction : null,
                     icon: Icons.save,
@@ -578,20 +533,12 @@ class _EditableReceiptCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              
-              // Editable Amount
               _buildEditableAmountRow(context),
               const SizedBox(height: 12),
-              
-              // Editable Merchant
               _buildEditableMerchantRow(context),
               const SizedBox(height: 12),
-              
-              // Editable Date
               _buildEditableDateRow(context),
               const SizedBox(height: 12),
-              
-              // Editable Category
               _buildEditableCategoryRow(context),
             ],
           ),
