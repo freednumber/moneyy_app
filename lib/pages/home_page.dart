@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'dart:ui';
 import '../models.dart';
 import '../providers.dart';
+import 'scan_receipt_page.dart';
 
 class HomePage extends StatefulWidget {
   final Function(int, [bool?])? onNavigate;
@@ -18,21 +19,28 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   @override
   bool get wantKeepAlive => true;
 
+  void _openScannerReceipt() {
+    HapticFeedback.mediumImpact();
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ScanReceiptPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final padding = MediaQuery.of(context).padding;
-    final navBarHeight = 72.0; // altezza stimata dock
+    final navBarHeight = 72.0;
 
     return Scaffold(
       extendBody: true,
       backgroundColor: isDark ? const Color(0xFF0A0E1A) : const Color(0xFFF8FAFC),
-      // FAB UNICO spostato sopra al dock in modo adattivo
       floatingActionButton: _AdaptiveFab(
         bottomInset: padding.bottom,
         navBarHeight: navBarHeight,
-        onPressed: () { HapticFeedback.mediumImpact(); widget.onNavigate?.call(4); },
+        onPressed: _openScannerReceipt, // collegato allo scanner scontrini
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: const _HomeContent(),
@@ -48,7 +56,6 @@ class _AdaptiveFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // eleva il FAB di una quota pari alla navbar + safe inset + margine
     final double bottomOffset = bottomInset + navBarHeight;
     return Padding(
       padding: EdgeInsets.only(bottom: bottomOffset, right: 6),
@@ -56,7 +63,7 @@ class _AdaptiveFab extends StatelessWidget {
         onPressed: onPressed,
         backgroundColor: const Color(0xFF6366F1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
+        child: const Icon(Icons.receipt_long, color: Colors.white, size: 28), // icona scontrino
       ),
     );
   }
@@ -94,8 +101,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  // --- funzioni UI (identiche a commit precedenti con chip alti e glass) ---
-  Widget _buildLogoSection(bool isDark, bool isCompact) { /* identico */
+  Widget _buildLogoSection(bool isDark, bool isCompact) {
     return Center(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -119,7 +125,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildNetWorthCard(MoneyModel model, bool isDark, bool isCompact) { /* identico con paddings ottimizzati */
+  Widget _buildNetWorthCard(MoneyModel model, bool isDark, bool isCompact) {
     final positive = model.netWorth >= 0;
     return Center(
       child: ClipRRect(
@@ -148,7 +154,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildGlassStatsCard(MoneyModel model, bool isDark, bool isCompact) { /* identico */
+  Widget _buildGlassStatsCard(MoneyModel model, bool isDark, bool isCompact) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(isCompact ? 20 : 22),
       child: BackdropFilter(
@@ -168,7 +174,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color, IconData icon, bool isDark, bool isCompact) { /* identico */
+  Widget _buildStatItem(String label, String value, Color color, IconData icon, bool isDark, bool isCompact) {
     return Row(children: [
       Container(padding: EdgeInsets.all(isCompact ? 10 : 12), decoration: BoxDecoration(gradient: LinearGradient(colors: [color.withOpacity(0.9), color.withOpacity(0.7)]), borderRadius: BorderRadius.circular(isCompact ? 12 : 14)), child: Icon(icon, color: Colors.white, size: isCompact ? 18 : 20)),
       SizedBox(width: isCompact ? 10 : 12),
@@ -180,7 +186,7 @@ class _HomeContent extends StatelessWidget {
     ]);
   }
 
-  Widget _buildQuickAddSection(BuildContext context, MoneyModel model, bool isDark, bool isCompact) { /* chip alti + ratio basso */
+  Widget _buildQuickAddSection(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
     final mostUsed = _getMostUsedCategories(model);
     return ClipRRect(
       borderRadius: BorderRadius.circular(isCompact ? 20 : 22),
@@ -220,7 +226,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickChip(BuildContext context, String category, IconData icon, Color color, bool isIncome, String lastUsed, bool isDark, bool isCompact) { /* identico ma più alto */
+  Widget _buildQuickChip(BuildContext context, String category, IconData icon, Color color, bool isIncome, String lastUsed, bool isDark, bool isCompact) {
     return InkWell(
       onTap: () { HapticFeedback.mediumImpact(); _showQuickEntryDialog(context, category, isIncome); },
       borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
@@ -245,8 +251,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  // Recent e utils identici ai commit precedenti ...
-  Widget _buildGlassRecentTransactions(MoneyModel model, bool isDark, bool isCompact) { /* invariato */
+  Widget _buildGlassRecentTransactions(MoneyModel model, bool isDark, bool isCompact) {
     final recent = model.recent.take(6).toList();
     if (recent.isEmpty) {
       return Center(child: Padding(padding: EdgeInsets.symmetric(vertical: isCompact ? 18 : 22), child: Text('Nessuna transazione', style: TextStyle(color: isDark ? Colors.white60 : Colors.grey[600]))));
@@ -254,7 +259,7 @@ class _HomeContent extends StatelessWidget {
     return Column(children: recent.map((tx) => _buildTxCard(tx, model, isDark, isCompact)).toList());
   }
 
-  Widget _buildTxCard(MoneyTx tx, MoneyModel model, bool isDark, bool isCompact) { /* invariato */
+  Widget _buildTxCard(MoneyTx tx, MoneyModel model, bool isDark, bool isCompact) {
     final style = model.getTransactionStyle(tx.category);
     return Container(
       margin: EdgeInsets.only(bottom: isCompact ? 12 : 14),
@@ -273,7 +278,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  String _getLastUsedDate(MoneyModel model, String category) { /* invariato */
+  String _getLastUsedDate(MoneyModel model, String category) {
     final txForCategory = model.transactions.where((tx) => tx.category == category).toList();
     if (txForCategory.isEmpty) return 'Mai usato';
     final mostRecent = txForCategory.first;
@@ -285,7 +290,7 @@ class _HomeContent extends StatelessWidget {
     return DateFormat('d MMM', 'it_IT').format(mostRecent.date);
   }
 
-  List<String> _getMostUsedCategories(MoneyModel model) { /* invariato */
+  List<String> _getMostUsedCategories(MoneyModel model) {
     final now = DateTime.now();
     final lastMonth = DateTime(now.year, now.month - 1, now.day);
     final recentTxs = model.transactions.where((tx) => tx.date.isAfter(lastMonth)).toList();
@@ -298,7 +303,7 @@ class _HomeContent extends StatelessWidget {
     return most;
   }
 
-  void _showQuickEntryDialog(BuildContext context, String category, bool isIncome) { /* invariato */
+  void _showQuickEntryDialog(BuildContext context, String category, bool isIncome) {
     final amountCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
