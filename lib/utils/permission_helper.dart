@@ -4,35 +4,39 @@ import 'package:permission_handler/permission_handler.dart';
 
 class PermissionHelper {
   static Future<bool> ensureGalleryPermission(BuildContext context) async {
+    // desktop/web: consentito
+    if (!Platform.isAndroid && !Platform.isIOS) return true;
+
     if (Platform.isIOS) {
-      final status = await Permission.photos.status;
+      var status = await Permission.photos.status;
       if (status.isGranted || status.isLimited) return true;
-      final req = await Permission.photos.request();
-      if (req.isGranted || req.isLimited) return true;
-      if (req.isPermanentlyDenied) {
+      status = await Permission.photos.request();
+      if (status.isGranted || status.isLimited) return true;
+      if (status.isPermanentlyDenied) {
         await _showSettingsDialog(context, 'Galleria');
       }
       return false;
     }
-    if (Platform.isAndroid) {
-      final status = await Permission.photos.status; // READ_MEDIA_IMAGES su Android 13+
-      if (status.isGranted) return true;
-      final req = await Permission.photos.request();
-      if (req.isGranted) return true;
-      if (req.isPermanentlyDenied) {
-        await _showSettingsDialog(context, 'Galleria');
-      }
-      return false;
+
+    // Android 13+: photos -> READ_MEDIA_IMAGES
+    var aStatus = await Permission.photos.status;
+    if (aStatus.isGranted) return true;
+    aStatus = await Permission.photos.request();
+    if (aStatus.isGranted) return true;
+    if (aStatus.isPermanentlyDenied) {
+      await _showSettingsDialog(context, 'Galleria');
     }
-    return true; // desktop/web
+    return false;
   }
 
   static Future<bool> ensureCameraPermission(BuildContext context) async {
-    final status = await Permission.camera.status;
+    if (!Platform.isAndroid && !Platform.isIOS) return false; // camera non gestita qui
+
+    var status = await Permission.camera.status;
     if (status.isGranted) return true;
-    final req = await Permission.camera.request();
-    if (req.isGranted) return true;
-    if (req.isPermanentlyDenied) {
+    status = await Permission.camera.request();
+    if (status.isGranted) return true;
+    if (status.isPermanentlyDenied) {
       await _showSettingsDialog(context, 'Fotocamera');
     }
     return false;
