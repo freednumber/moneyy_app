@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../providers.dart';
 import '../models.dart';
@@ -62,15 +63,54 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
     super.dispose();
   }
 
+  // Check and request permissions
+  Future<bool> _checkPermissions() async {
+    if (kIsWeb) return true;
+    
+    if (Platform.isAndroid) {
+      final cameraStatus = await Permission.camera.status;
+      final storageStatus = await Permission.storage.status;
+      
+      if (!cameraStatus.isGranted) {
+        final cameraResult = await Permission.camera.request();
+        if (!cameraResult.isGranted) return false;
+      }
+      
+      if (!storageStatus.isGranted) {
+        final storageResult = await Permission.storage.request();
+        if (!storageResult.isGranted) return false;
+      }
+    } else if (Platform.isIOS) {
+      final cameraStatus = await Permission.camera.status;
+      final photosStatus = await Permission.photos.status;
+      
+      if (!cameraStatus.isGranted) {
+        final cameraResult = await Permission.camera.request();
+        if (!cameraResult.isGranted) return false;
+      }
+      
+      if (!photosStatus.isGranted) {
+        final photosResult = await Permission.photos.request();
+        if (!photosResult.isGranted) return false;
+      }
+    }
+    
+    return true;
+  }
+
   Future<void> _pickFromCamera() async {
     if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Fotocamera non disponibile su desktop. Usa "Scegli File".'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _showSnackBar('Fotocamera non disponibile su desktop. Usa "Scegli File".', Colors.orange);
+      }
+      return;
+    }
+
+    // Check permissions first
+    final hasPermission = await _checkPermissions();
+    if (!hasPermission) {
+      if (mounted) {
+        _showSnackBar('Permessi fotocamera necessari per continuare.', Colors.red);
       }
       return;
     }
@@ -78,10 +118,12 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
     try {
       final x = await _picker.pickImage(
         source: ImageSource.camera, 
-        imageQuality: 90,
+        imageQuality: 85,
         maxWidth: 1920,
         maxHeight: 1920,
+        preferredCameraDevice: CameraDevice.rear,
       );
+      
       if (x != null && mounted) {
         setState(() {
           _image = File(x.path);
@@ -91,13 +133,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Errore fotocamera: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _showSnackBar('Errore fotocamera: ${e.toString()}', Colors.red);
       }
     }
   }
@@ -107,17 +143,36 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       XFile? x;
       
       if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+        // Desktop: use FilePicker
         final result = await FilePicker.platform.pickFiles(
           type: FileType.image,
           allowMultiple: false,
+          allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp'],
         );
-        if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
-          x = XFile(result.files.first.path!);
+        
+        if (result != null && result.files.isNotEmpty) {
+          final file = result.files.first;
+          if (file.path != null) {
+            x = XFile(file.path!);
+          } else if (file.bytes != null) {
+            // Handle web case
+            final tempDir = await _createTempFile(file.bytes!, file.name);
+            x = XFile(tempDir.path);
+          }
         }
       } else {
+        // Mobile: check permissions first
+        final hasPermission = await _checkPermissions();
+        if (!hasPermission) {
+          if (mounted) {
+            _showSnackBar('Permessi galleria necessari per continuare.', Colors.red);
+          }
+          return;
+        }
+        
         x = await _picker.pickImage(
           source: ImageSource.gallery, 
-          imageQuality: 90,
+          imageQuality: 85,
           maxWidth: 1920,
           maxHeight: 1920,
         );
@@ -132,25 +187,46 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Errore selezione immagine: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _showSnackBar('Errore selezione immagine: ${e.toString()}', Colors.red);
       }
     }
   }
 
+  // Helper to create temp file for web
+  Future<File> _createTempFile(Uint8List bytes, String filename) async {
+    final tempDir = Directory.systemTemp;
+    final file = File('${tempDir.path}/$filename');
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
+  void _showSnackBar(String message, Color backgroundColor) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
   Future<void> _process({bool forceVision = false}) async {
     if (_image == null) return;
+    
     setState(() {
       _loading = true;
       if (forceVision) _showRetryVision = false;
     });
+    
     try {
-      final parsed = await _receiptService.processReceipt(_image!, currencyFallback: 'EUR');
+      final parsed = await _receiptService.processReceipt(
+        _image!, 
+        currencyFallback: 'EUR'
+      );
+      
       if (mounted) {
         setState(() {
           _parsed = parsed;
@@ -163,24 +239,22 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Errore estrazione: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _showSnackBar('Errore estrazione: ${e.toString()}', Colors.red);
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   Future<void> _saveAsTransaction() async {
     if (_parsed == null) return;
+    
     final model = Provider.of<MoneyModel>(context, listen: false);
     final amount = double.tryParse(_amountController.text) ?? _parsed!.amount;
     final merchant = _merchantController.text.isEmpty ? _parsed!.merchant : _merchantController.text;
+    
     final tx = MoneyTx(
       id: null,
       isIncome: false,
@@ -190,17 +264,16 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       note: '🧾 $merchant • scontrino AI',
       payment: PaymentMethod.carta,
     );
+    
     await model.addTx(tx);
-    try { await _receiptService.cleanupAfterSave(_parsed!.imageUrl); } catch (_) {}
+    
+    try { 
+      await _receiptService.cleanupAfterSave(_parsed!.imageUrl); 
+    } catch (_) {}
+    
     if (mounted) {
       HapticFeedback.lightImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Transazione creata dalla scansione AI'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showSnackBar('✅ Transazione creata dalla scansione AI', Colors.green);
       Navigator.of(context).pop();
     }
   }
@@ -209,6 +282,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.grey[50],
@@ -218,135 +292,176 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () { if (Navigator.of(context).canPop()) Navigator.of(context).pop(); },
+          onPressed: () { 
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop(); 
+            }
+          },
         ),
       ),
-      body: Column(
-        children: [
-          if (_showRetryVision && _parsed != null)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.warning_rounded, color: Colors.orange, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Vision API non disponibile. Usando OCR locale.',
-                      style: TextStyle(
-                        color: Colors.orange[800],
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
+      body: SafeArea(
+        child: Column(
+          children: [
+            if (_showRetryVision && _parsed != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_rounded, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Vision API non disponibile. Usando OCR locale.',
+                        style: TextStyle(
+                          color: Colors.orange[800],
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => _process(forceVision: true),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.orange[700],
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    TextButton(
+                      onPressed: () => _process(forceVision: true),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.orange[700],
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      ),
+                      child: const Text('Riprova Vision', style: TextStyle(fontSize: 12)),
                     ),
-                    child: const Text('Riprova Vision', style: TextStyle(fontSize: 12)),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      if (!isDesktop) ...[
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    // Action buttons
+                    Row(
+                      children: [
+                        if (!isDesktop) ...[
+                          Expanded(
+                            child: _buildActionButton(
+                              onPressed: _pickFromCamera,
+                              icon: Icons.photo_camera,
+                              label: 'Fotocamera',
+                              color: const Color(0xFF6366F1),
+                              isDark: isDark,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
                         Expanded(
                           child: _buildActionButton(
-                            onPressed: _pickFromCamera,
-                            icon: Icons.photo_camera,
-                            label: 'Fotocamera',
-                            color: const Color(0xFF6366F1),
+                            onPressed: _pickFromGallery,
+                            icon: isDesktop ? Icons.folder_open : Icons.photo_library,
+                            label: isDesktop ? 'Scegli File' : 'Galleria',
+                            color: const Color(0xFF10B981),
                             isDark: isDark,
+                            isOutlined: !isDesktop,
                           ),
                         ),
-                        const SizedBox(width: 12),
                       ],
-                      Expanded(
-                        child: _buildActionButton(
-                          onPressed: _pickFromGallery,
-                          icon: isDesktop ? Icons.folder_open : Icons.photo_library,
-                          label: isDesktop ? 'Scegli File' : 'Galleria',
-                          color: const Color(0xFF10B981),
-                          isDark: isDark,
-                          isOutlined: !isDesktop,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  if (_image != null)
-                    Container(
-                      height: 220,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: isDark ? Colors.white.withOpacity(0.2) : Colors.grey.withOpacity(0.3),
-                          width: 2,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Image.file(_image!, fit: BoxFit.cover),
                     ),
-                  const SizedBox(height: 20),
-                  _buildGlassActionButton(
-                    onPressed: (_image != null && !_loading) ? () => _process() : null,
-                    icon: Icons.auto_awesome,
-                    label: _loading ? 'Estrazione in corso...' : 'Estrai con AI',
-                    color: const Color(0xFF10B981),
-                    isDark: isDark,
-                    isLoading: _loading,
-                  ),
-                  const SizedBox(height: 20),
-                  if (_parsed != null)
-                    Expanded(child: _EditableReceiptCard(
-                      parsed: _parsed!,
+                    const SizedBox(height: 20),
+                    
+                    // Image preview
+                    if (_image != null)
+                      Container(
+                        height: screenHeight * 0.3, // Responsive height
+                        width: double.infinity,
+                        constraints: const BoxConstraints(
+                          maxHeight: 300,
+                          minHeight: 200,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: isDark ? Colors.white.withOpacity(0.2) : Colors.grey.withOpacity(0.3),
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.file(
+                          _image!, 
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[300],
+                              child: const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.error_outline, size: 48, color: Colors.red),
+                                    SizedBox(height: 8),
+                                    Text('Errore nel caricamento immagine'),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 20),
+                    
+                    // Process button
+                    _buildGlassActionButton(
+                      onPressed: (_image != null && !_loading) ? () => _process() : null,
+                      icon: Icons.auto_awesome,
+                      label: _loading ? 'Estrazione in corso...' : 'Estrai con AI',
+                      color: const Color(0xFF10B981),
                       isDark: isDark,
-                      amountController: _amountController,
-                      merchantController: _merchantController,
-                      selectedDate: _selectedDate,
-                      selectedCategory: _selectedCategory,
-                      categories: _categories,
-                      onDateChanged: (date) => setState(() => _selectedDate = date),
-                      onCategoryChanged: (category) => setState(() => _selectedCategory = category),
-                    )),
-                  if (_parsed == null) const Spacer(),
-                  _buildGlassActionButton(
-                    onPressed: _parsed != null ? _saveAsTransaction : null,
-                    icon: Icons.save,
-                    label: 'Salva come transazione',
-                    color: const Color(0xFF6366F1),
-                    isDark: isDark,
-                    isFullWidth: true,
-                  ),
-                ],
+                      isLoading: _loading,
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Results
+                    if (_parsed != null)
+                      _EditableReceiptCard(
+                        parsed: _parsed!,
+                        isDark: isDark,
+                        amountController: _amountController,
+                        merchantController: _merchantController,
+                        selectedDate: _selectedDate,
+                        selectedCategory: _selectedCategory,
+                        categories: _categories,
+                        onDateChanged: (date) => setState(() => _selectedDate = date),
+                        onCategoryChanged: (category) => setState(() => _selectedCategory = category),
+                      ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Save button
+                    _buildGlassActionButton(
+                      onPressed: _parsed != null ? _saveAsTransaction : null,
+                      icon: Icons.save,
+                      label: 'Salva come transazione',
+                      color: const Color(0xFF6366F1),
+                      isDark: isDark,
+                      isFullWidth: true,
+                    ),
+                    
+                    // Bottom spacing for safe area
+                    SizedBox(height: MediaQuery.of(context).padding.bottom + 20),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
