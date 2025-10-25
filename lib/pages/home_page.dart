@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'dart:ui';
 import '../models.dart';
+import '../providers.dart';
 
 class HomePage extends StatefulWidget {
   final Function(int, [bool?])? onNavigate;
@@ -29,7 +30,11 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Padding(
         padding: EdgeInsets.only(bottom: bottomPadding + 56, right: 4),
-        child: _buildFab(context),
+        child: FloatingActionButton(
+          onPressed: () { HapticFeedback.mediumImpact(); widget.onNavigate?.call(4); },
+          backgroundColor: const Color(0xFF6366F1),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
       ),
       body: SafeArea(
         bottom: false,
@@ -38,14 +43,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           child: _buildBody(isDark),
         ),
       ),
-    );
-  }
-
-  Widget _buildFab(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: () { HapticFeedback.mediumImpact(); widget.onNavigate?.call(4); },
-      backgroundColor: const Color(0xFF6366F1),
-      child: const Icon(Icons.add, color: Colors.white),
     );
   }
 
@@ -124,7 +121,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // ---------- Stats ----------
   Widget _buildGlassStatsCard(MoneyModel model, bool isDark, bool isCompact) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(isCompact ? 20 : 22),
@@ -157,7 +153,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     ]);
   }
 
-  // ---------- Quick Add ----------
   Widget _buildQuickAddBlock(MoneyModel model, bool isDark, bool isCompact) {
     final mostUsed = _getMostUsedCategories(model);
     return ClipRRect(
@@ -226,7 +221,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // ---------- Recent ----------
   Widget _buildGlassRecentTransactions(MoneyModel model, bool isDark, bool isCompact) {
     final recent = model.recent.take(6).toList();
     if (recent.isEmpty) {
@@ -254,7 +248,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // ---------- Utils ----------
+  // Utils
   String _getLastUsedDate(MoneyModel model, String category) {
     final txForCategory = model.transactions.where((tx) => tx.category == category).toList();
     if (txForCategory.isEmpty) return 'Mai usato';
