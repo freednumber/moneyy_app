@@ -67,7 +67,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
   Future<bool> _checkPermissions() async {
     if (kIsWeb) return true;
     
-    // Skip permission check on desktop (macOS handles it via entitlements)
+    // Skip permission check on desktop (handled via entitlements)
     if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       return true;
     }
@@ -145,41 +145,26 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
 
   Future<void> _pickFromGallery() async {
     try {
-      debugPrint('Attempting to pick from gallery/files...');
-      
       XFile? x;
       
       if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-        debugPrint('Desktop detected, using FilePicker');
-        
-        // Desktop: use FileType.image without allowedExtensions (fix macOS error)
         final result = await FilePicker.platform.pickFiles(
           type: FileType.image,
           allowMultiple: false,
-          withData: false, // Don't load file data into memory
-          withReadStream: false, // Don't create read streams
+          withData: false,
+          withReadStream: false,
         );
-        
-        debugPrint('FilePicker result: ${result?.files.length ?? 0} files');
         
         if (result != null && result.files.isNotEmpty) {
           final file = result.files.first;
-          debugPrint('Selected file: ${file.name}, path: ${file.path}');
-          
           if (file.path != null) {
             x = XFile(file.path!);
           } else if (file.bytes != null) {
-            debugPrint('Using bytes fallback');
             final tempFile = await _createTempFile(file.bytes!, file.name);
             x = XFile(tempFile.path);
           }
-        } else {
-          debugPrint('No file selected or cancelled');
         }
       } else {
-        debugPrint('Mobile detected, using ImagePicker');
-        
-        // Mobile: check permissions first
         final hasPermission = await _checkPermissions();
         if (!hasPermission) {
           if (mounted) {
@@ -197,24 +182,16 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       }
       
       if (x != null && mounted) {
-        debugPrint('Setting image: ${x.path}');
         setState(() {
           _image = File(x!.path);
           _parsed = null;
           _showRetryVision = false;
         });
-        
-        if (mounted) {
-          _showSnackBar('Immagine caricata con successo!', Colors.green);
-        }
+        _showSnackBar('Immagine caricata con successo!', Colors.green);
       } else {
-        debugPrint('No image selected');
-        if (mounted) {
-          _showSnackBar('Nessuna immagine selezionata', Colors.grey);
-        }
+        _showSnackBar('Nessuna immagine selezionata', Colors.grey);
       }
     } catch (e) {
-      debugPrint('Error in _pickFromGallery: $e');
       if (mounted) {
         _showSnackBar('Errore selezione immagine: ${e.toString()}', Colors.red);
       }
@@ -244,6 +221,15 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
 
   Future<void> _process({bool forceVision = false}) async {
     if (_image == null) return;
+
+    // Desktop fallback: MLKit non supportato
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      _showSnackBar(
+        'Estrazione AI non supportata su desktop. Usa la versione mobile o inserisci i dati manualmente.',
+        Colors.orange,
+      );
+      return;
+    }
     
     setState(() {
       _loading = true;
@@ -331,63 +317,11 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       body: SafeArea(
         child: Column(
           children: [
-            if (_showRetryVision && _parsed != null)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_rounded, color: Colors.orange, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Vision API non disponibile. Usando OCR locale.',
-                        style: TextStyle(
-                          color: Colors.orange[800],
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => _process(forceVision: true),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.orange[700],
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      ),
-                      child: const Text('Riprova Vision', style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
-                ),
-              ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    // Debug info for troubleshooting
-                    if (kDebugMode && (Platform.isMacOS))
-                      Card(
-                        color: Colors.blue.withOpacity(0.1),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Debug macOS:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                              Text('Platform: ${Platform.operatingSystem}', style: TextStyle(fontSize: 11)),
-                              Text('Image selected: ${_image?.path ?? 'None'}', style: TextStyle(fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    
                     // Action buttons
                     Row(
                       children: [
@@ -405,10 +339,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                         ],
                         Expanded(
                           child: _buildActionButton(
-                            onPressed: () async {
-                              debugPrint('Gallery button pressed');
-                              await _pickFromGallery();
-                            },
+                            onPressed: _pickFromGallery,
                             icon: isDesktop ? Icons.folder_open : Icons.photo_library,
                             label: isDesktop ? 'Scegli File' : 'Galleria',
                             color: const Color(0xFF10B981),
@@ -447,21 +378,6 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                         child: Image.file(
                           _image!, 
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[300],
-                              child: const Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.error_outline, size: 48, color: Colors.red),
-                                    SizedBox(height: 8),
-                                    Text('Errore nel caricamento immagine'),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
                         ),
                       ),
                     const SizedBox(height: 20),
@@ -470,7 +386,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                     _buildGlassActionButton(
                       onPressed: (_image != null && !_loading) ? () => _process() : null,
                       icon: Icons.auto_awesome,
-                      label: _loading ? 'Estrazione in corso...' : 'Estrai con AI',
+                      label: isDesktop ? 'Estrai con AI (solo Mobile)' : (_loading ? 'Estrazione in corso...' : 'Estrai con AI'),
                       color: const Color(0xFF10B981),
                       isDark: isDark,
                       isLoading: _loading,
@@ -503,7 +419,6 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                       isFullWidth: true,
                     ),
                     
-                    // Bottom spacing for safe area
                     SizedBox(height: MediaQuery.of(context).padding.bottom + 20),
                   ],
                 ),
