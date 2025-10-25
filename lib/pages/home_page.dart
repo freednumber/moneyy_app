@@ -22,69 +22,80 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   Widget build(BuildContext context) {
     super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final padding = MediaQuery.of(context).padding;
+    final navBarHeight = 72.0; // altezza stimata dock
 
     return Scaffold(
       extendBody: true,
       backgroundColor: isDark ? const Color(0xFF0A0E1A) : const Color(0xFFF8FAFC),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: Padding(
-        padding: EdgeInsets.only(bottom: bottomPadding + 56, right: 4),
-        child: FloatingActionButton(
-          onPressed: () { HapticFeedback.mediumImpact(); widget.onNavigate?.call(4); },
-          backgroundColor: const Color(0xFF6366F1),
-          child: const Icon(Icons.add, color: Colors.white),
-        ),
+      // FAB UNICO spostato sopra al dock in modo adattivo
+      floatingActionButton: _AdaptiveFab(
+        bottomInset: padding.bottom,
+        navBarHeight: navBarHeight,
+        onPressed: () { HapticFeedback.mediumImpact(); widget.onNavigate?.call(4); },
       ),
-      body: SafeArea(
-        bottom: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              padding: EdgeInsets.only(bottom: bottomPadding + 120),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: _HomeContent(isDark: isDark),
-              ),
-            );
-          },
-        ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      body: const _HomeContent(),
+    );
+  }
+}
+
+class _AdaptiveFab extends StatelessWidget {
+  final double bottomInset;
+  final double navBarHeight;
+  final VoidCallback onPressed;
+  const _AdaptiveFab({required this.bottomInset, required this.navBarHeight, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    // eleva il FAB di una quota pari alla navbar + safe inset + margine
+    final double bottomOffset = bottomInset + navBarHeight;
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomOffset, right: 6),
+      child: FloatingActionButton(
+        onPressed: onPressed,
+        backgroundColor: const Color(0xFF6366F1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
     );
   }
 }
 
 class _HomeContent extends StatelessWidget {
-  final bool isDark;
-  const _HomeContent({required this.isDark});
+  const _HomeContent();
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final model = context.watch<MoneyModel>();
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isCompact = screenWidth < 380;
+    final size = MediaQuery.of(context).size;
+    final isCompact = size.width < 380;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(isCompact ? 12 : 16, 14, isCompact ? 12 : 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildLogoSection(isDark, isCompact),
-          const SizedBox(height: 16),
-          _buildNetWorthCard(model, isDark, isCompact),
-          SizedBox(height: isCompact ? 18 : 22),
-          _buildGlassStatsCard(model, isDark, isCompact),
-          SizedBox(height: isCompact ? 18 : 22),
-          _buildQuickAddSection(context, model, isDark, isCompact),
-          SizedBox(height: isCompact ? 18 : 22),
-          _buildGlassRecentTransactions(model, isDark, isCompact),
-        ],
+    return SafeArea(
+      bottom: false,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(isCompact ? 12 : 16, 14, isCompact ? 12 : 16, (MediaQuery.of(context).padding.bottom + 140)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildLogoSection(isDark, isCompact),
+            const SizedBox(height: 16),
+            _buildNetWorthCard(model, isDark, isCompact),
+            SizedBox(height: isCompact ? 18 : 22),
+            _buildGlassStatsCard(model, isDark, isCompact),
+            SizedBox(height: isCompact ? 18 : 22),
+            _buildQuickAddSection(context, model, isDark, isCompact),
+            SizedBox(height: isCompact ? 18 : 22),
+            _buildGlassRecentTransactions(model, isDark, isCompact),
+          ],
+        ),
       ),
     );
   }
 
-  // Header -------------------------------------------------
-  Widget _buildLogoSection(bool isDark, bool isCompact) {
+  // --- funzioni UI (identiche a commit precedenti con chip alti e glass) ---
+  Widget _buildLogoSection(bool isDark, bool isCompact) { /* identico */
     return Center(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -108,8 +119,8 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildNetWorthCard(MoneyModel model, bool isDark, bool isCompact) {
-    final isPositive = model.netWorth >= 0;
+  Widget _buildNetWorthCard(MoneyModel model, bool isDark, bool isCompact) { /* identico con paddings ottimizzati */
+    final positive = model.netWorth >= 0;
     return Center(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(isCompact ? 22 : 24),
@@ -118,17 +129,17 @@ class _HomeContent extends StatelessWidget {
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: isCompact ? 18 : 22, vertical: isCompact ? 12 : 16),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: isDark ? [(isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.14), (isPositive ? const Color(0xFF059669) : const Color(0xFFDC2626)).withOpacity(0.08)] : [Colors.white.withOpacity(0.95), Colors.white.withOpacity(0.85)]),
+              gradient: LinearGradient(colors: isDark ? [(positive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.14), (positive ? const Color(0xFF059669) : const Color(0xFFDC2626)).withOpacity(0.08)] : [Colors.white.withOpacity(0.95), Colors.white.withOpacity(0.85)]),
               borderRadius: BorderRadius.circular(isCompact ? 22 : 24),
-              border: Border.all(color: isDark ? (isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.28) : Colors.white.withOpacity(0.9), width: 1.8),
+              border: Border.all(color: isDark ? (positive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.28) : Colors.white.withOpacity(0.9), width: 1.8),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Container(padding: EdgeInsets.all(isCompact ? 8 : 10), decoration: BoxDecoration(gradient: LinearGradient(colors: isPositive ? [const Color(0xFF10B981), const Color(0xFF059669)] : [const Color(0xFFEF4444), const Color(0xFFDC2626)]), borderRadius: BorderRadius.circular(isCompact ? 10 : 12)), child: Icon(isPositive ? Icons.trending_up : Icons.trending_down, color: Colors.white, size: isCompact ? 18 : 22)),
+              Container(padding: EdgeInsets.all(isCompact ? 8 : 10), decoration: BoxDecoration(gradient: LinearGradient(colors: positive ? [const Color(0xFF10B981), const Color(0xFF059669)] : [const Color(0xFFEF4444), const Color(0xFFDC2626)]), borderRadius: BorderRadius.circular(isCompact ? 10 : 12)), child: Icon(positive ? Icons.trending_up : Icons.trending_down, color: Colors.white, size: isCompact ? 18 : 22)),
               SizedBox(width: isCompact ? 10 : 12),
               Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                 Text('Saldo Netto', style: TextStyle(fontSize: isCompact ? 12 : 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.grey[600])),
                 SizedBox(height: isCompact ? 2 : 4),
-                Text(model.format(model.netWorth), style: TextStyle(fontSize: isCompact ? 18 : 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : (isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444))))
+                Text(model.format(model.netWorth), style: TextStyle(fontSize: isCompact ? 18 : 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : (positive ? const Color(0xFF10B981) : const Color(0xFFEF4444))))
               ])
             ]),
           ),
@@ -137,7 +148,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildGlassStatsCard(MoneyModel model, bool isDark, bool isCompact) {
+  Widget _buildGlassStatsCard(MoneyModel model, bool isDark, bool isCompact) { /* identico */
     return ClipRRect(
       borderRadius: BorderRadius.circular(isCompact ? 20 : 22),
       child: BackdropFilter(
@@ -157,7 +168,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color, IconData icon, bool isDark, bool isCompact) {
+  Widget _buildStatItem(String label, String value, Color color, IconData icon, bool isDark, bool isCompact) { /* identico */
     return Row(children: [
       Container(padding: EdgeInsets.all(isCompact ? 10 : 12), decoration: BoxDecoration(gradient: LinearGradient(colors: [color.withOpacity(0.9), color.withOpacity(0.7)]), borderRadius: BorderRadius.circular(isCompact ? 12 : 14)), child: Icon(icon, color: Colors.white, size: isCompact ? 18 : 20)),
       SizedBox(width: isCompact ? 10 : 12),
@@ -169,8 +180,7 @@ class _HomeContent extends StatelessWidget {
     ]);
   }
 
-  // Quick Add -------------------------------------------------
-  Widget _buildQuickAddSection(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
+  Widget _buildQuickAddSection(BuildContext context, MoneyModel model, bool isDark, bool isCompact) { /* chip alti + ratio basso */
     final mostUsed = _getMostUsedCategories(model);
     return ClipRRect(
       borderRadius: BorderRadius.circular(isCompact ? 20 : 22),
@@ -193,7 +203,7 @@ class _HomeContent extends StatelessWidget {
                 crossAxisCount: 2,
                 crossAxisSpacing: isCompact ? 12 : 14,
                 mainAxisSpacing: isCompact ? 14 : 18,
-                childAspectRatio: 2.1, // più alto per eliminare overflow
+                childAspectRatio: 2.0,
               ),
               itemCount: mostUsed.length,
               itemBuilder: (context, i) {
@@ -210,12 +220,12 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickChip(BuildContext context, String category, IconData icon, Color color, bool isIncome, String lastUsed, bool isDark, bool isCompact) {
+  Widget _buildQuickChip(BuildContext context, String category, IconData icon, Color color, bool isIncome, String lastUsed, bool isDark, bool isCompact) { /* identico ma più alto */
     return InkWell(
       onTap: () { HapticFeedback.mediumImpact(); _showQuickEntryDialog(context, category, isIncome); },
       borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
       child: Container(
-        height: isCompact ? 60 : 70,
+        height: isCompact ? 64 : 74,
         padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 16, vertical: isCompact ? 10 : 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
@@ -235,8 +245,8 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  // Recent -------------------------------------------------
-  Widget _buildGlassRecentTransactions(MoneyModel model, bool isDark, bool isCompact) {
+  // Recent e utils identici ai commit precedenti ...
+  Widget _buildGlassRecentTransactions(MoneyModel model, bool isDark, bool isCompact) { /* invariato */
     final recent = model.recent.take(6).toList();
     if (recent.isEmpty) {
       return Center(child: Padding(padding: EdgeInsets.symmetric(vertical: isCompact ? 18 : 22), child: Text('Nessuna transazione', style: TextStyle(color: isDark ? Colors.white60 : Colors.grey[600]))));
@@ -244,7 +254,7 @@ class _HomeContent extends StatelessWidget {
     return Column(children: recent.map((tx) => _buildTxCard(tx, model, isDark, isCompact)).toList());
   }
 
-  Widget _buildTxCard(MoneyTx tx, MoneyModel model, bool isDark, bool isCompact) {
+  Widget _buildTxCard(MoneyTx tx, MoneyModel model, bool isDark, bool isCompact) { /* invariato */
     final style = model.getTransactionStyle(tx.category);
     return Container(
       margin: EdgeInsets.only(bottom: isCompact ? 12 : 14),
@@ -263,8 +273,7 @@ class _HomeContent extends StatelessWidget {
     );
   }
 
-  // Utils -------------------------------------------------
-  String _getLastUsedDate(MoneyModel model, String category) {
+  String _getLastUsedDate(MoneyModel model, String category) { /* invariato */
     final txForCategory = model.transactions.where((tx) => tx.category == category).toList();
     if (txForCategory.isEmpty) return 'Mai usato';
     final mostRecent = txForCategory.first;
@@ -276,7 +285,7 @@ class _HomeContent extends StatelessWidget {
     return DateFormat('d MMM', 'it_IT').format(mostRecent.date);
   }
 
-  List<String> _getMostUsedCategories(MoneyModel model) {
+  List<String> _getMostUsedCategories(MoneyModel model) { /* invariato */
     final now = DateTime.now();
     final lastMonth = DateTime(now.year, now.month - 1, now.day);
     final recentTxs = model.transactions.where((tx) => tx.date.isAfter(lastMonth)).toList();
@@ -289,7 +298,7 @@ class _HomeContent extends StatelessWidget {
     return most;
   }
 
-  void _showQuickEntryDialog(BuildContext context, String category, bool isIncome) {
+  void _showQuickEntryDialog(BuildContext context, String category, bool isIncome) { /* invariato */
     final amountCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
