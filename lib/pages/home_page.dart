@@ -147,7 +147,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                   top: 100, 
                   left: isCompact ? 12 : 16, 
                   right: isCompact ? 12 : 16, 
-                  bottom: bottomPadding + 140, // Extra space for dock + bottom safe area
+                  bottom: bottomPadding + 150, // Extra spazio per dock + FAB
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,6 +243,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           label,
           style: TextStyle(
             fontSize: isCompact ? 12 : 13,
+            height: 1.05, // riduce line-height
             color: isDark ? Colors.grey[300] : Colors.grey[600],
             fontWeight: FontWeight.w500,
             letterSpacing: 0.2,
@@ -259,6 +260,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
               fontWeight: FontWeight.bold,
               color: isDark ? Colors.white : color,
               letterSpacing: 0.3,
+              height: 1.0,
             ),
             maxLines: 1,
           ),
@@ -270,29 +272,10 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   Widget _buildCategoryBreakdown(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
     final mostUsed = _getMostUsedCategories(model);
     final screenWidth = MediaQuery.of(context).size.width;
-    
-    // Responsive grid calculation with better aspect ratios
-    int crossAxisCount;
-    double childAspectRatio;
-    
-    if (screenWidth > 800) {
-      // Desktop/Large tablet
-      crossAxisCount = 3;
-      childAspectRatio = 3.2;
-    } else if (screenWidth > 600) {
-      // Tablet
-      crossAxisCount = 2;
-      childAspectRatio = 2.8;
-    } else if (screenWidth > 380) {
-      // Normal phone
-      crossAxisCount = 2;
-      childAspectRatio = 2.4;
-    } else {
-      // Small phone
-      crossAxisCount = 1;
-      childAspectRatio = 4.0;
-    }
-    
+
+    // calcolo colonne responsive
+    int crossAxisCount = screenWidth > 380 ? 2 : 1;
+
     return Container(
       padding: EdgeInsets.all(isCompact ? 20 : 24),
       decoration: BoxDecoration(
@@ -351,6 +334,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                           fontSize: isCompact ? 18 : 20,
                           fontWeight: FontWeight.bold,
                           letterSpacing: -0.5,
+                          height: 1.05,
                           color: isDark ? Colors.white : Colors.black87,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -395,32 +379,25 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
             ],
           ),
           SizedBox(height: isCompact ? 16 : 20),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              childAspectRatio: childAspectRatio,
-              crossAxisSpacing: isCompact ? 8 : 12,
-              mainAxisSpacing: isCompact ? 8 : 12,
-            ),
-            itemCount: mostUsed.length,
-            itemBuilder: (context, index) {
-              final cat = mostUsed[index];
+          // Wrap con altezze garantite e padding extra per evitare overflow di frazioni di px
+          Wrap(
+            spacing: isCompact ? 8 : 12,
+            runSpacing: isCompact ? 10 : 14,
+            children: mostUsed.map((cat) {
               final style = model.getTransactionStyle(cat);
               final isIncome = model.incomeCats.contains(cat);
               final lastUsed = _getLastUsedDate(model, cat);
-              return _buildCategoryChipEnhanced(
-                cat, 
-                style.icon, 
-                style.color, 
-                isIncome, 
-                lastUsed, 
-                isDark, 
-                isCompact,
-                () => _showQuickEntryDialog(context, cat, isIncome),
+              final chipWidth = crossAxisCount == 1 
+                ? double.infinity
+                : (MediaQuery.of(context).size.width - (isCompact ? 64 : 72)) / crossAxisCount;
+              return SizedBox(
+                width: chipWidth,
+                child: _buildCategoryChipEnhanced(
+                  cat, style.icon, style.color, isIncome, lastUsed, isDark, isCompact,
+                  () => _showQuickEntryDialog(context, cat, isIncome),
+                ),
               );
-            },
+            }).toList(),
           ),
         ],
       ),
@@ -471,9 +448,10 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         borderRadius: BorderRadius.circular(isCompact ? 16 : 20),
         child: Container(
           padding: EdgeInsets.symmetric(
-            horizontal: isCompact ? 12 : 16, 
-            vertical: isCompact ? 10 : 12,
+            horizontal: isCompact ? 12 : 18, 
+            vertical: isCompact ? 12.5 : 16.5, // +0.5px per evitare overflow frazionale
           ),
+          constraints: const BoxConstraints(minHeight: 54),
           decoration: BoxDecoration(
             color: isDark
               ? color.withOpacity(0.15)
@@ -502,33 +480,33 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    padding: EdgeInsets.all(isCompact ? 6 : 8),
+                    padding: EdgeInsets.all(isCompact ? 8 : 10),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [color, color.withOpacity(0.8)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
+                      borderRadius: BorderRadius.circular(isCompact ? 12 : 14),
                       boxShadow: [
                         BoxShadow(
                           color: color.withOpacity(0.4),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
                     child: Icon(
                       icon, 
                       color: Colors.white, 
-                      size: isCompact ? 16 : 18,
+                      size: isCompact ? 18 : 22,
                     ),
                   ),
                   Positioned(
-                    right: -3,
-                    top: -3,
+                    right: -4,
+                    top: -4,
                     child: Container(
-                      padding: EdgeInsets.all(isCompact ? 1.5 : 2),
+                      padding: EdgeInsets.all(isCompact ? 2 : 3),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: isIncome 
@@ -536,25 +514,25 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                             : [const Color(0xFFEF4444), const Color(0xFFDC2626)],
                         ),
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
+                        border: Border.all(color: Colors.white, width: 2),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.25),
-                            blurRadius: 3,
-                            offset: const Offset(0, 1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: Icon(
                         isIncome ? Icons.arrow_upward : Icons.arrow_downward,
                         color: Colors.white,
-                        size: isCompact ? 6 : 8,
+                        size: isCompact ? 8 : 10,
                       ),
                     ),
                   ),
                 ],
               ),
-              SizedBox(width: isCompact ? 8 : 12),
+              SizedBox(width: isCompact ? 10 : 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,7 +541,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     Text(
                       category,
                       style: TextStyle(
-                        fontSize: isCompact ? 12 : 14,
+                        fontSize: isCompact ? 13 : 15,
+                        height: 1.05,
                         fontWeight: FontWeight.bold,
                         color: isDark ? Colors.white : color,
                         letterSpacing: 0.2,
@@ -571,11 +550,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (!isCompact) SizedBox(height: 2),
+                    SizedBox(height: isCompact ? 2 : 3),
                     Text(
                       lastUsed,
                       style: TextStyle(
-                        fontSize: isCompact ? 8 : 10,
+                        fontSize: isCompact ? 9.5 : 11.0, // +0.5 per evitare cut
+                        height: 1.05,
                         fontWeight: FontWeight.w500,
                         color: isDark 
                           ? Colors.grey[400]
@@ -643,6 +623,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white : Colors.black87,
                   letterSpacing: 0.2,
+                  height: 1.05,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -889,6 +870,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                                   fontSize: isCompact ? 13 : 15,
                                   color: isDark ? Colors.white : Colors.black87,
                                   letterSpacing: 0.1,
+                                  height: 1.05,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -929,6 +911,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                                   fontSize: isCompact ? 10 : 12,
                                   color: isDark ? Colors.grey[400] : Colors.grey[600],
                                   letterSpacing: 0.1,
+                                  height: 1.05,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -959,6 +942,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                             color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
                             fontSize: isCompact ? 13 : 16,
                             letterSpacing: 0.2,
+                            height: 1.05,
                           ),
                           maxLines: 1,
                         ),
@@ -981,6 +965,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                             fontSize: isCompact ? 9 : 10,
                             fontWeight: FontWeight.w600,
                             color: isDark ? Colors.white : style.color,
+                            height: 1.05,
                           ),
                         ),
                       ),
