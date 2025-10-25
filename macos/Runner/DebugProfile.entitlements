@@ -9,6 +9,20 @@
 	<key>com.apple.security.network.server</key>
 	<true/>
 	
+	<!-- Network access for AI services -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	
+	<!-- File access for document picking -->
+	<key>com.apple.security.files.user-selected.read-only</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	
+	<!-- Downloads folder access -->
+	<key>com.apple.security.files.downloads.read-write</key>
+	<true/>
+	
 	<!-- Camera and Photo Library Entitlements for Receipt Scanning -->
 	<key>com.apple.security.device.camera</key>
 	<true/>
@@ -16,5 +30,13 @@
 	<true/>
 	<key>com.apple.security.assets.pictures.read-only</key>
 	<true/>
+	<key>com.apple.security.assets.pictures.read-write</key>
+	<true/>
+	
+	<!-- Temporary files -->
+	<key>com.apple.security.temporary-exception.files.absolute-path.read-write</key>
+	<array>
+		<string>/tmp/</string>
+	</array>
 </dict>
 </plist>
