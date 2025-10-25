@@ -23,51 +23,25 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   Widget build(BuildContext context) {
     super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isCompact = screenWidth < 380;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      extendBody: true,
       backgroundColor: isDark ? const Color(0xFF0A0E1A) : const Color(0xFFF8FAFC),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark
-              ? [const Color(0xFF1A1F2E), const Color(0xFF0A0E1A)]
-              : [const Color(0xFFE0F2FE).withOpacity(0.3), const Color(0xFFF0F9FF).withOpacity(0.5)],
-          ),
-        ),
-        child: Consumer<MoneyModel>(
-          builder: (context, model, child) {
-            return RefreshIndicator(
-              onRefresh: () async {
-                HapticFeedback.mediumImpact();
-                await model.loadInitial();
-              },
-              child: SingleChildScrollView(
-                padding: EdgeInsets.only(
-                  top: 60,
-                  left: isCompact ? 12 : 16,
-                  right: isCompact ? 12 : 16,
-                  bottom: bottomPadding + 160,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildLogoSection(isDark, isCompact),
-                    const SizedBox(height: 16),
-                    _buildNetWorthCard(model, isDark, isCompact),
-                    SizedBox(height: isCompact ? 24 : 32),
-                    _buildGlassStatsCard(model, isDark, isCompact),
-                    SizedBox(height: isCompact ? 24 : 32),
-                    _buildQuickAddGrid(context, model, isDark, isCompact),
-                    SizedBox(height: isCompact ? 24 : 32),
-                    _buildGlassRecentTransactions(context, model, isDark, isCompact),
-                  ],
-                ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(bottom: bottomPadding + 80), // alza il + sopra al dock
+        child: _buildFab(context),
+      ),
+      body: SafeArea(
+        bottom: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(bottom: bottomPadding + 170),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: _HomeBody(isDark: isDark),
               ),
             );
           },
@@ -76,252 +50,131 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  Widget _buildLogoSection(bool isDark, bool isCompact) {
+  Widget _buildFab(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        widget.onNavigate?.call(4); // apre schermata aggiungi
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1).withOpacity(0.85),
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.35), blurRadius: 18, offset: const Offset(0, 8)),
+              ],
+            ),
+            child: const Icon(Icons.add, color: Colors.white, size: 28),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeBody extends StatelessWidget {
+  final bool isDark;
+  const _HomeBody({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final model = context.watch<MoneyModel>();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 380;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLogoSection(isDark, isCompact),
+          const SizedBox(height: 16),
+          _buildNetWorthCard(model, isDark, isCompact),
+          SizedBox(height: isCompact ? 18 : 22),
+          _buildGlassStatsCard(model, isDark, isCompact),
+          SizedBox(height: isCompact ? 18 : 22),
+          _buildQuickAddBlock(context, model, isDark, isCompact),
+          SizedBox(height: isCompact ? 18 : 22),
+          _buildGlassRecentTransactions(context, model, isDark, isCompact),
+        ],
+      ),
+    );
+  }
+
+  // ----------------- HEADER -----------------
+  Widget _buildLogoSection(bool isDark, bool isCompact) { /* invariato come prima */
     return Center(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: isCompact ? 12 : 16,
-              vertical: isCompact ? 8 : 10,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 16, vertical: isCompact ? 8 : 10),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDark
-                  ? [Colors.white.withOpacity(0.08), Colors.white.withOpacity(0.03)]
-                  : [Colors.white.withOpacity(0.9), Colors.white.withOpacity(0.6)],
-              ),
+              gradient: LinearGradient(colors: isDark ? [Colors.white.withOpacity(0.08), Colors.white.withOpacity(0.03)] : [Colors.white.withOpacity(0.9), Colors.white.withOpacity(0.6)]),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.8),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.5 : 0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+              border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.8), width: 1.5),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(shape: BoxShape.circle),
-                  clipBehavior: Clip.antiAlias,
-                  child: Image.asset(
-                    'assets/images/moneyy_icon_home.png',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Moneyy',
-                  style: TextStyle(
-                    color: isDark ? Colors.white : const Color(0xFF1E293B),
-                    fontWeight: FontWeight.w700,
-                    fontSize: isCompact ? 18 : 22,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
-            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(width: 32, height: 32, decoration: const BoxDecoration(shape: BoxShape.circle), clipBehavior: Clip.antiAlias, child: Image.asset('assets/images/moneyy_icon_home.png', fit: BoxFit.cover)),
+              const SizedBox(width: 12),
+              Text('Moneyy', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.w700, fontSize: isCompact ? 18 : 22, letterSpacing: -0.5)),
+            ]),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildNetWorthCard(MoneyModel model, bool isDark, bool isCompact) {
+  Widget _buildNetWorthCard(MoneyModel model, bool isDark, bool isCompact) { /* invariato (ridotti paddings) */
     final isPositive = model.netWorth >= 0;
     return Center(
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(isCompact ? 24 : 28),
+        borderRadius: BorderRadius.circular(isCompact ? 22 : 24),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: isCompact ? 20 : 28,
-              vertical: isCompact ? 16 : 20,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: isCompact ? 18 : 22, vertical: isCompact ? 12 : 16),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDark
-                  ? [
-                      (isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.15),
-                      (isPositive ? const Color(0xFF059669) : const Color(0xFFDC2626)).withOpacity(0.08),
-                    ]
-                  : [
-                      Colors.white.withOpacity(0.95),
-                      Colors.white.withOpacity(0.8),
-                    ],
-              ),
-              borderRadius: BorderRadius.circular(isCompact ? 24 : 28),
-              border: Border.all(
-                color: isDark
-                  ? (isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.3)
-                  : Colors.white.withOpacity(0.9),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: (isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.2),
-                  blurRadius: 24,
-                  offset: const Offset(0, 12),
-                ),
-                BoxShadow(
-                  color: Colors.white.withOpacity(isDark ? 0.1 : 0.6),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
+              gradient: LinearGradient(colors: isDark ? [(isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.14), (isPositive ? const Color(0xFF059669) : const Color(0xFFDC2626)).withOpacity(0.08)] : [Colors.white.withOpacity(0.95), Colors.white.withOpacity(0.85)]),
+              borderRadius: BorderRadius.circular(isCompact ? 22 : 24),
+              border: Border.all(color: isDark ? (isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.28) : Colors.white.withOpacity(0.9), width: 1.8),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(isCompact ? 10 : 12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isPositive
-                        ? [const Color(0xFF10B981), const Color(0xFF059669)]
-                        : [const Color(0xFFEF4444), const Color(0xFFDC2626)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(isCompact ? 12 : 14),
-                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444)).withOpacity(0.5),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    isPositive ? Icons.trending_up : Icons.trending_down,
-                    color: Colors.white,
-                    size: isCompact ? 20 : 24,
-                  ),
-                ),
-                SizedBox(width: isCompact ? 12 : 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Saldo Netto',
-                      style: TextStyle(
-                        fontSize: isCompact ? 12 : 14,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white.withOpacity(0.8) : Colors.grey[600],
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    SizedBox(height: isCompact ? 2 : 4),
-                    Text(
-                      model.format(model.netWorth),
-                      style: TextStyle(
-                        fontSize: isCompact ? 20 : 26,
-                        fontWeight: FontWeight.bold,
-                        color: isDark
-                          ? Colors.white
-                          : (isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Container(padding: EdgeInsets.all(isCompact ? 8 : 10), decoration: BoxDecoration(gradient: LinearGradient(colors: isPositive ? [const Color(0xFF10B981), const Color(0xFF059669)] : [const Color(0xFFEF4444), const Color(0xFFDC2626)]), borderRadius: BorderRadius.circular(isCompact ? 10 : 12)), child: Icon(isPositive ? Icons.trending_up : Icons.trending_down, color: Colors.white, size: isCompact ? 18 : 22)),
+              SizedBox(width: isCompact ? 10 : 12),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                Text('Saldo Netto', style: TextStyle(fontSize: isCompact ? 12 : 13, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.grey[600])),
+                SizedBox(height: isCompact ? 2 : 4),
+                Text(model.format(model.netWorth), style: TextStyle(fontSize: isCompact ? 18 : 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : (isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444))))
+              ])
+            ]),
           ),
         ),
       ),
     );
   }
 
+  // ----------------- STATS -----------------
   Widget _buildGlassStatsCard(MoneyModel model, bool isDark, bool isCompact) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(isCompact ? 24 : 28),
+      borderRadius: BorderRadius.circular(isCompact ? 20 : 22),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
-          padding: EdgeInsets.all(isCompact ? 24 : 28),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark
-                ? [Colors.white.withOpacity(0.12), Colors.white.withOpacity(0.05)]
-                : [Colors.white.withOpacity(0.95), Colors.white.withOpacity(0.8)],
-            ),
-            borderRadius: BorderRadius.circular(isCompact ? 24 : 28),
-            border: Border.all(
-              color: isDark ? Colors.white.withOpacity(0.15) : Colors.white.withOpacity(0.9),
-              width: 2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.4 : 0.08),
-                blurRadius: 32,
-                offset: const Offset(0, 16),
-              ),
-              BoxShadow(
-                color: Colors.white.withOpacity(isDark ? 0.1 : 0.6),
-                blurRadius: 4,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
+          padding: EdgeInsets.all(isCompact ? 18 : 20),
+          decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.08) : Colors.white, borderRadius: BorderRadius.circular(isCompact ? 20 : 22), border: Border.all(color: isDark ? Colors.white12 : Colors.white, width: 1.2)),
           child: IntrinsicHeight(
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    'Entrate Mese',
-                    model.format(model.monthlyIncome),
-                    const Color(0xFF10B981),
-                    Icons.trending_up,
-                    isDark,
-                    isCompact,
-                  ),
-                ),
-                Container(
-                  width: 2,
-                  margin: EdgeInsets.symmetric(horizontal: isCompact ? 16 : 20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        (isDark ? Colors.white : Colors.grey.shade400).withOpacity(0.6),
-                        Colors.transparent,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    'Uscite Mese',
-                    model.format(model.monthlyExpense),
-                    const Color(0xFFEF4444),
-                    Icons.trending_down,
-                    isDark,
-                    isCompact,
-                  ),
-                ),
-              ],
-            ),
+            child: Row(children: [
+              Expanded(child: _buildStatItem('Entrate Mese', model.format(model.monthlyIncome), const Color(0xFF10B981), Icons.trending_up, isDark, isCompact)),
+              VerticalDivider(width: 24, thickness: 1, color: isDark ? Colors.white24 : Colors.grey.shade300),
+              Expanded(child: _buildStatItem('Uscite Mese', model.format(model.monthlyExpense), const Color(0xFFEF4444), Icons.trending_down, isDark, isCompact)),
+            ]),
           ),
         ),
       ),
@@ -329,445 +182,118 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   }
 
   Widget _buildStatItem(String label, String value, Color color, IconData icon, bool isDark, bool isCompact) {
-    return Column(
-      children: [
-        Container(
-          padding: EdgeInsets.all(isCompact ? 10 : 12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [color.withOpacity(0.9), color.withOpacity(0.7)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(isCompact ? 14 : 16),
-            border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.4),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Icon(icon, color: Colors.white, size: isCompact ? 28 : 32),
-        ),
-        SizedBox(height: isCompact ? 12 : 16),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: isCompact ? 12 : 14,
-            color: isDark ? Colors.white.withOpacity(0.8) : Colors.grey[600],
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.3,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        SizedBox(height: isCompact ? 4 : 6),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: isCompact ? 18 : 22,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : color,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-      ],
-    );
+    return Row(children: [
+      Container(padding: EdgeInsets.all(isCompact ? 10 : 12), decoration: BoxDecoration(gradient: LinearGradient(colors: [color.withOpacity(0.9), color.withOpacity(0.7)]), borderRadius: BorderRadius.circular(isCompact ? 12 : 14)), child: Icon(icon, color: Colors.white, size: isCompact ? 18 : 20)),
+      SizedBox(width: isCompact ? 10 : 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: TextStyle(fontSize: isCompact ? 12 : 13, color: isDark ? Colors.white70 : Colors.grey[600], fontWeight: FontWeight.w600)),
+        SizedBox(height: 4),
+        Text(value, style: TextStyle(fontSize: isCompact ? 18 : 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : color)),
+      ])),
+    ]);
   }
 
-  Widget _buildQuickAddGrid(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
+  // ----------------- QUICK ADD -----------------
+  Widget _buildQuickAddBlock(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
     final mostUsed = _getMostUsedCategories(model);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(isCompact ? 24 : 28),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          padding: EdgeInsets.all(isCompact ? 20 : 24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark
-                ? [Colors.white.withOpacity(0.12), Colors.white.withOpacity(0.05)]
-                : [Colors.white.withOpacity(0.95), Colors.white.withOpacity(0.8)],
-            ),
-            borderRadius: BorderRadius.circular(isCompact ? 24 : 28),
-            border: Border.all(
-              color: isDark ? Colors.white.withOpacity(0.15) : Colors.white.withOpacity(0.9),
-              width: 2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.4 : 0.08),
-                blurRadius: 32,
-                offset: const Offset(0, 16),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(isCompact ? 12 : 14),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(isCompact ? 16 : 18),
-                      border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF6366F1).withOpacity(0.5),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.flash_on,
-                      color: Colors.white,
-                      size: isCompact ? 20 : 24,
-                    ),
-                  ),
-                  SizedBox(width: isCompact ? 12 : 16),
-                  Expanded(
-                    child: Text(
-                      'Aggiungi Veloce',
-                      style: TextStyle(
-                        fontSize: isCompact ? 20 : 24,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : const Color(0xFF1E293B),
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: isCompact ? 16 : 20),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: isCompact ? 12 : 16,
-                  mainAxisSpacing: isCompact ? 12 : 16,
-                  childAspectRatio: 2.8,
-                ),
-                itemCount: mostUsed.length,
-                itemBuilder: (context, i) {
-                  final cat = mostUsed[i];
-                  final style = model.getTransactionStyle(cat);
-                  final isIncome = model.incomeCats.contains(cat);
-                  final lastUsed = _getLastUsedDate(model, cat);
-                  return _buildGlassCategoryChip(
-                    cat, style.icon, style.color, isIncome, lastUsed, isDark, isCompact,
-                    () => _showQuickEntryDialog(context, cat, isIncome),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassCategoryChip(
-    String category,
-    IconData icon,
-    Color color,
-    bool isIncome,
-    String lastUsed,
-    bool isDark,
-    bool isCompact,
-    VoidCallback onTap
-  ) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.mediumImpact();
-          onTap();
-        },
-        borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              padding: EdgeInsets.all(isCompact ? 12 : 16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                    ? [color.withOpacity(0.2), color.withOpacity(0.1)]
-                    : [color.withOpacity(0.15), color.withOpacity(0.08)],
-                ),
-                borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
-                border: Border.all(
-                  color: isDark ? color.withOpacity(0.4) : color.withOpacity(0.3),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withOpacity(0.2),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(isCompact ? 8 : 10),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [color.withOpacity(0.9), color.withOpacity(0.7)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
-                          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-                        ),
-                        child: Icon(icon, color: Colors.white, size: isCompact ? 16 : 18),
-                      ),
-                      Positioned(
-                        right: -2,
-                        top: -2,
-                        child: Container(
-                          padding: EdgeInsets.all(isCompact ? 2 : 3),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isIncome
-                                ? [const Color(0xFF10B981), const Color(0xFF059669)]
-                                : [const Color(0xFFEF4444), const Color(0xFFDC2626)],
-                            ),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 1.5),
-                          ),
-                          child: Icon(
-                            isIncome ? Icons.arrow_upward : Icons.arrow_downward,
-                            color: Colors.white,
-                            size: isCompact ? 8 : 10,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: isCompact ? 8 : 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          category,
-                          style: TextStyle(
-                            fontSize: isCompact ? 12 : 14,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : color.withOpacity(0.9),
-                            letterSpacing: 0.2,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        SizedBox(height: isCompact ? 2 : 4),
-                        Text(
-                          lastUsed,
-                          style: TextStyle(
-                            fontSize: isCompact ? 9 : 10,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.white.withOpacity(0.6) : color.withOpacity(0.6),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassRecentTransactions(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
-    final recentTransactions = model.recent.take(6).toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Transazioni Recenti',
-          style: TextStyle(
-            fontSize: isCompact ? 20 : 24,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
-            letterSpacing: -0.5,
-          ),
-        ),
-        SizedBox(height: isCompact ? 16 : 20),
-        if (recentTransactions.isEmpty)
-          _buildGlassEmptyState(isDark, isCompact)
-        else
-          ...recentTransactions.map((tx) =>
-            Padding(
-              padding: EdgeInsets.only(bottom: isCompact ? 12 : 16),
-              child: _buildGlassTransactionCard(tx, model, isDark, isCompact),
-            )
-          ).toList(),
-      ],
-    );
-  }
-
-  Widget _buildGlassEmptyState(bool isDark, bool isCompact) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
+      borderRadius: BorderRadius.circular(isCompact ? 20 : 22),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
-          padding: EdgeInsets.all(isCompact ? 32 : 40),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                ? [Colors.white.withOpacity(0.08), Colors.white.withOpacity(0.03)]
-                : [Colors.white.withOpacity(0.9), Colors.white.withOpacity(0.6)],
+          padding: EdgeInsets.fromLTRB(isCompact ? 14 : 16, isCompact ? 14 : 16, isCompact ? 14 : 16, isCompact ? 8 : 10),
+          decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.06) : Colors.white, borderRadius: BorderRadius.circular(isCompact ? 20 : 22), border: Border.all(color: isDark ? Colors.white12 : Colors.white, width: 1.2)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(padding: EdgeInsets.all(isCompact ? 10 : 12), decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]), borderRadius: BorderRadius.circular(isCompact ? 14 : 16)), child: Icon(Icons.flash_on, color: Colors.white, size: isCompact ? 18 : 20)),
+              SizedBox(width: isCompact ? 10 : 12),
+              Expanded(child: Text('Aggiungi Veloce', style: TextStyle(fontSize: isCompact ? 20 : 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E293B))))
+            ]),
+            SizedBox(height: isCompact ? 12 : 14),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: isCompact ? 10 : 12, mainAxisSpacing: isCompact ? 10 : 12, childAspectRatio: 3.2),
+              itemCount: mostUsed.length,
+              itemBuilder: (context, i) {
+                final cat = mostUsed[i];
+                final style = model.getTransactionStyle(cat);
+                final isIncome = model.incomeCats.contains(cat);
+                final lastUsed = _getLastUsedDate(model, cat);
+                return _buildQuickChip(cat, style.icon, style.color, isIncome, lastUsed, isDark, isCompact, () => _showQuickEntryDialog(context, cat, isIncome));
+              },
             ),
-            borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
-            border: Border.all(
-              color: isDark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.8),
-              width: 1.5,
-            ),
-          ),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.receipt_long,
-                  size: isCompact ? 48 : 60,
-                  color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[400],
-                ),
-                SizedBox(height: isCompact ? 16 : 20),
-                Text(
-                  'Nessuna transazione',
-                  style: TextStyle(
-                    fontSize: isCompact ? 16 : 18,
-                    color: isDark ? Colors.white.withOpacity(0.8) : Colors.grey[600],
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ]),
         ),
       ),
     );
   }
 
-  Widget _buildGlassTransactionCard(MoneyTx tx, MoneyModel model, bool isDark, bool isCompact) {
-    final style = model.getTransactionStyle(tx.category);
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+  Widget _buildQuickChip(String category, IconData icon, Color color, bool isIncome, String lastUsed, bool isDark, bool isCompact, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () { HapticFeedback.mediumImpact(); onTap(); },
+        borderRadius: BorderRadius.circular(isCompact ? 16 : 18),
         child: Container(
-          padding: EdgeInsets.all(isCompact ? 16 : 20),
+          padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 12, vertical: isCompact ? 10 : 12),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                ? [Colors.white.withOpacity(0.08), Colors.white.withOpacity(0.03)]
-                : [Colors.white.withOpacity(0.9), Colors.white.withOpacity(0.7)],
-            ),
-            borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
-            border: Border.all(
-              color: isDark ? Colors.white.withOpacity(0.12) : Colors.white.withOpacity(0.8),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(isCompact ? 16 : 18),
+            color: isDark ? color.withOpacity(0.11) : color.withOpacity(0.09),
+            border: Border.all(color: isDark ? color.withOpacity(0.35) : color.withOpacity(0.28), width: 1.1),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: isCompact ? 48 : 56,
-                height: isCompact ? 48 : 56,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [style.color.withOpacity(0.9), style.color.withOpacity(0.7)],
-                  ),
-                  borderRadius: BorderRadius.circular(isCompact ? 14 : 16),
-                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-                ),
-                child: Icon(style.icon, color: Colors.white, size: isCompact ? 24 : 28),
-              ),
-              SizedBox(width: isCompact ? 12 : 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tx.category,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: isCompact ? 14 : 16,
-                        color: isDark ? Colors.white : const Color(0xFF1E293B),
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      DateFormat('d MMM yyyy', 'it_IT').format(tx.date),
-                      style: TextStyle(
-                        fontSize: isCompact ? 11 : 12,
-                        color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '${tx.isIncome ? '+' : '-'} ${model.format(tx.amount)}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                  fontSize: isCompact ? 14 : 16,
-                ),
-              ),
-            ],
-          ),
+          child: Row(children: [
+            Container(padding: EdgeInsets.all(isCompact ? 8 : 9), decoration: BoxDecoration(gradient: LinearGradient(colors: [color.withOpacity(0.95), color.withOpacity(0.75)]), borderRadius: BorderRadius.circular(isCompact ? 10 : 12)), child: Icon(icon, color: Colors.white, size: isCompact ? 16 : 18)),
+            SizedBox(width: isCompact ? 8 : 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(category, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: isCompact ? 12 : 13.5, fontWeight: FontWeight.w700, color: isDark ? Colors.white : color.withOpacity(0.9))),
+              SizedBox(height: isCompact ? 2 : 3),
+              Text(lastUsed, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: isCompact ? 9 : 10, color: isDark ? Colors.white60 : color.withOpacity(0.6))),
+            ]))
+          ]),
         ),
       ),
     );
   }
 
+  // ----------------- RECENT -----------------
+  Widget _buildGlassRecentTransactions(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
+    final recent = model.recent.take(6).toList();
+    if (recent.isEmpty) {
+      return Center(child: Padding(padding: EdgeInsets.symmetric(vertical: isCompact ? 18 : 22), child: Text('Nessuna transazione', style: TextStyle(color: isDark ? Colors.white60 : Colors.grey[600]))));
+    }
+    return Column(children: recent.map((tx) => _buildTxCard(tx, model, isDark, isCompact)).toList());
+  }
+
+  Widget _buildTxCard(MoneyTx tx, MoneyModel model, bool isDark, bool isCompact) {
+    final style = model.getTransactionStyle(tx.category);
+    return Container(
+      margin: EdgeInsets.only(bottom: isCompact ? 12 : 14),
+      padding: EdgeInsets.all(isCompact ? 14 : 16),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(isCompact ? 16 : 18), color: isDark ? Colors.white.withOpacity(0.06) : Colors.white, border: Border.all(color: isDark ? Colors.white12 : Colors.white, width: 1.1)),
+      child: Row(children: [
+        Container(width: isCompact ? 44 : 50, height: isCompact ? 44 : 50, decoration: BoxDecoration(gradient: LinearGradient(colors: [style.color.withOpacity(0.92), style.color.withOpacity(0.75)]), borderRadius: BorderRadius.circular(isCompact ? 12 : 14)), child: Icon(style.icon, color: Colors.white, size: isCompact ? 22 : 24)),
+        SizedBox(width: isCompact ? 10 : 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tx.category, style: TextStyle(fontSize: isCompact ? 13.5 : 15, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF1E293B))),
+          const SizedBox(height: 4),
+          Text(DateFormat('d MMM yyyy', 'it_IT').format(tx.date), style: TextStyle(fontSize: isCompact ? 10.5 : 11.5, color: isDark ? Colors.white60 : Colors.grey[500]))
+        ])),
+        Text('${tx.isIncome ? '+' : '-'} ${model.format(tx.amount)}', style: TextStyle(fontWeight: FontWeight.bold, color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444), fontSize: isCompact ? 13.5 : 15))
+      ]),
+    );
+  }
+
+  // ----------------- UTILS -----------------
   String _getLastUsedDate(MoneyModel model, String category) {
     final txForCategory = model.transactions.where((tx) => tx.category == category).toList();
     if (txForCategory.isEmpty) return 'Mai usato';
     final mostRecent = txForCategory.first;
     final now = DateTime.now();
-    final difference = now.difference(mostRecent.date).inDays;
-    if (difference == 0) return 'Oggi';
-    if (difference == 1) return 'Ieri';
-    if (difference < 7) return '$difference giorni fa';
+    final d = now.difference(mostRecent.date).inDays;
+    if (d == 0) return 'Oggi';
+    if (d == 1) return 'Ieri';
+    if (d < 7) return '$d giorni fa';
     return DateFormat('d MMM', 'it_IT').format(mostRecent.date);
   }
 
@@ -775,91 +301,32 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     final now = DateTime.now();
     final lastMonth = DateTime(now.year, now.month - 1, now.day);
     final recentTxs = model.transactions.where((tx) => tx.date.isAfter(lastMonth)).toList();
-    final Map<String, int> categoryCount = {};
-    for (var tx in recentTxs) {
-      if (!model.goalCategories.contains(tx.category)) {
-        categoryCount[tx.category] = (categoryCount[tx.category] ?? 0) + 1;
-      }
-    }
-    final sorted = categoryCount.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    final mostUsed = sorted.take(6).map((e) => e.key).toList();
-    final defaults = ['Spesa', 'Trasporti', 'Svago', 'Shopping', 'Bollette', 'Casa'];
-    for (var cat in defaults) {
-      if (mostUsed.length >= 6) break;
-      if (!mostUsed.contains(cat)) mostUsed.add(cat);
-    }
-    return mostUsed;
+    final Map<String, int> count = {};
+    for (final tx in recentTxs) { if (!model.goalCategories.contains(tx.category)) { count[tx.category] = (count[tx.category] ?? 0) + 1; } }
+    final sorted = count.entries.toList()..sort((a,b)=>b.value.compareTo(a.value));
+    final most = sorted.take(6).map((e)=>e.key).toList();
+    final defaults = ['Spesa','Trasporti','Svago','Shopping','Bollette','Casa'];
+    for (final d in defaults) { if (most.length<6 && !most.contains(d)) most.add(d); }
+    return most;
   }
 
   void _showQuickEntryDialog(BuildContext context, String category, bool isIncome) {
     final amountCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Aggiungi a "$category"',
-          style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Importo',
-                prefixIcon: Icon(Icons.euro),
-              ),
-              autofocus: true,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: noteCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Nota (Opzionale)',
-                prefixIcon: Icon(Icons.note),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annulla'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(amountCtrl.text);
-              if (amount != null && amount > 0) {
-                final tx = MoneyTx(
-                  id: null,
-                  isIncome: isIncome,
-                  category: category,
-                  amount: amount,
-                  date: DateTime.now(),
-                  note: noteCtrl.text.isEmpty ? null : noteCtrl.text,
-                  payment: PaymentMethod.contanti,
-                );
-                context.read<MoneyModel>().addTx(tx);
-                Navigator.pop(context);
-                HapticFeedback.heavyImpact();
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Aggiungi'),
-          ),
-        ],
-      ),
-    );
+    showDialog(context: context, builder: (context) => AlertDialog(
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text('Aggiungi a "$category"', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.w600)),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: amountCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Importo', prefixIcon: Icon(Icons.euro))),
+        const SizedBox(height: 12),
+        TextField(controller: noteCtrl, decoration: const InputDecoration(labelText: 'Nota (Opzionale)', prefixIcon: Icon(Icons.note))),
+      ]),
+      actions: [
+        TextButton(onPressed: ()=>Navigator.pop(context), child: const Text('Annulla')),
+        ElevatedButton(onPressed: () { final v = double.tryParse(amountCtrl.text); if (v!=null && v>0) { final tx = MoneyTx(id:null,isIncome:isIncome,category:category,amount:v,date:DateTime.now(),note: noteCtrl.text.isEmpty? null: noteCtrl.text,payment: PaymentMethod.contanti); context.read<MoneyModel>().addTx(tx); Navigator.pop(context); HapticFeedback.heavyImpact(); } }, child: const Text('Aggiungi')),
+      ],
+    ));
   }
 }
