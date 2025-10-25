@@ -38,36 +38,52 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
       ),
       body: SafeArea(
         bottom: false,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(bottom: bottomPadding + 120, left: 16, right: 16, top: 14),
-          child: _buildBody(isDark),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(bottom: bottomPadding + 120),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: _HomeContent(isDark: isDark),
+              ),
+            );
+          },
         ),
       ),
     );
   }
+}
 
-  Widget _buildBody(bool isDark) {
+class _HomeContent extends StatelessWidget {
+  final bool isDark;
+  const _HomeContent({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
     final model = context.watch<MoneyModel>();
     final screenWidth = MediaQuery.of(context).size.width;
     final isCompact = screenWidth < 380;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildLogoSection(isDark, isCompact),
-        const SizedBox(height: 16),
-        _buildNetWorthCard(model, isDark, isCompact),
-        SizedBox(height: isCompact ? 18 : 22),
-        _buildGlassStatsCard(model, isDark, isCompact),
-        SizedBox(height: isCompact ? 18 : 22),
-        _buildQuickAddBlock(model, isDark, isCompact),
-        SizedBox(height: isCompact ? 18 : 22),
-        _buildGlassRecentTransactions(model, isDark, isCompact),
-      ],
+    return Padding(
+      padding: EdgeInsets.fromLTRB(isCompact ? 12 : 16, 14, isCompact ? 12 : 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLogoSection(isDark, isCompact),
+          const SizedBox(height: 16),
+          _buildNetWorthCard(model, isDark, isCompact),
+          SizedBox(height: isCompact ? 18 : 22),
+          _buildGlassStatsCard(model, isDark, isCompact),
+          SizedBox(height: isCompact ? 18 : 22),
+          _buildQuickAddSection(context, model, isDark, isCompact),
+          SizedBox(height: isCompact ? 18 : 22),
+          _buildGlassRecentTransactions(model, isDark, isCompact),
+        ],
+      ),
     );
   }
 
-  // ---------- Header ----------
+  // Header -------------------------------------------------
   Widget _buildLogoSection(bool isDark, bool isCompact) {
     return Center(
       child: ClipRRect(
@@ -153,7 +169,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     ]);
   }
 
-  Widget _buildQuickAddBlock(MoneyModel model, bool isDark, bool isCompact) {
+  // Quick Add -------------------------------------------------
+  Widget _buildQuickAddSection(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
     final mostUsed = _getMostUsedCategories(model);
     return ClipRRect(
       borderRadius: BorderRadius.circular(isCompact ? 20 : 22),
@@ -174,9 +191,9 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                crossAxisSpacing: isCompact ? 10 : 14,
-                mainAxisSpacing: isCompact ? 12 : 18,
-                childAspectRatio: 2.4,
+                crossAxisSpacing: isCompact ? 12 : 14,
+                mainAxisSpacing: isCompact ? 14 : 18,
+                childAspectRatio: 2.1, // più alto per eliminare overflow
               ),
               itemCount: mostUsed.length,
               itemBuilder: (context, i) {
@@ -184,7 +201,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 final style = model.getTransactionStyle(cat);
                 final isIncome = model.incomeCats.contains(cat);
                 final lastUsed = _getLastUsedDate(model, cat);
-                return _buildQuickChip(cat, style.icon, style.color, isIncome, lastUsed, isDark, isCompact, () => _showQuickEntryDialog(context, cat, isIncome));
+                return _buildQuickChip(context, cat, style.icon, style.color, isIncome, lastUsed, isDark, isCompact);
               },
             ),
           ]),
@@ -193,34 +210,32 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  Widget _buildQuickChip(String category, IconData icon, Color color, bool isIncome, String lastUsed, bool isDark, bool isCompact, VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () { HapticFeedback.mediumImpact(); onTap(); },
-        borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
-        child: Container(
-          height: isCompact ? 54 : 64,
-          padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 16, vertical: isCompact ? 10 : 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
-            color: isDark ? color.withOpacity(0.13) : color.withOpacity(0.10),
-            border: Border.all(color: isDark ? color.withOpacity(0.35) : color.withOpacity(0.28), width: 1.1),
-          ),
-          child: Row(children: [
-            Container(padding: EdgeInsets.all(isCompact ? 9 : 11), decoration: BoxDecoration(gradient: LinearGradient(colors: [color.withOpacity(0.95), color.withOpacity(0.75)]), borderRadius: BorderRadius.circular(isCompact ? 12 : 14)), child: Icon(icon, color: Colors.white, size: isCompact ? 20 : 24)),
-            SizedBox(width: isCompact ? 8 : 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text(category, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: isCompact ? 14 : 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : color.withOpacity(0.9))),
-              SizedBox(height: isCompact ? 3 : 4),
-              Text(lastUsed, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: isCompact ? 10 : 12, color: isDark ? Colors.white60 : color.withOpacity(0.57))),
-            ]))
-          ]),
+  Widget _buildQuickChip(BuildContext context, String category, IconData icon, Color color, bool isIncome, String lastUsed, bool isDark, bool isCompact) {
+    return InkWell(
+      onTap: () { HapticFeedback.mediumImpact(); _showQuickEntryDialog(context, category, isIncome); },
+      borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
+      child: Container(
+        height: isCompact ? 60 : 70,
+        padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 16, vertical: isCompact ? 10 : 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
+          color: isDark ? color.withOpacity(0.13) : color.withOpacity(0.10),
+          border: Border.all(color: isDark ? color.withOpacity(0.35) : color.withOpacity(0.28), width: 1.1),
         ),
+        child: Row(children: [
+          Container(padding: EdgeInsets.all(isCompact ? 10 : 12), decoration: BoxDecoration(gradient: LinearGradient(colors: [color.withOpacity(0.95), color.withOpacity(0.75)]), borderRadius: BorderRadius.circular(isCompact ? 12 : 14)), child: Icon(icon, color: Colors.white, size: isCompact ? 22 : 24)),
+          SizedBox(width: isCompact ? 10 : 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Text(category, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: isCompact ? 14 : 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : color.withOpacity(0.9))),
+            SizedBox(height: isCompact ? 3 : 4),
+            Text(lastUsed, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: isCompact ? 10.5 : 12, color: isDark ? Colors.white60 : color.withOpacity(0.57))),
+          ]))
+        ]),
       ),
     );
   }
 
+  // Recent -------------------------------------------------
   Widget _buildGlassRecentTransactions(MoneyModel model, bool isDark, bool isCompact) {
     final recent = model.recent.take(6).toList();
     if (recent.isEmpty) {
@@ -248,7 +263,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // Utils
+  // Utils -------------------------------------------------
   String _getLastUsedDate(MoneyModel model, String category) {
     final txForCategory = model.transactions.where((tx) => tx.category == category).toList();
     if (txForCategory.isEmpty) return 'Mai usato';
