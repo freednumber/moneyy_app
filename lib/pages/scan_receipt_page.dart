@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../providers.dart';
@@ -61,24 +63,92 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
   }
 
   Future<void> _pickFromCamera() async {
-    final x = await _picker.pickImage(source: ImageSource.camera, imageQuality: 90);
-    if (x != null) {
-      setState(() {
-        _image = File(x.path);
-        _parsed = null;
-        _showRetryVision = false;
-      });
+    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+      // Desktop platforms don't have cameras typically, show message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fotocamera non disponibile su desktop. Usa "Scegli File".'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final x = await _picker.pickImage(
+        source: ImageSource.camera, 
+        imageQuality: 90,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (x != null && mounted) {
+        setState(() {
+          _image = File(x.path);
+          _parsed = null;
+          _showRetryVision = false;
+        });
+      }
+    } catch (e) {
+      print('Error picking from camera: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore fotocamera: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _pickFromGallery() async {
-    final x = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
-    if (x != null) {
-      setState(() {
-        _image = File(x.path);
-        _parsed = null;
-        _showRetryVision = false;
-      });
+    try {
+      XFile? x;
+      
+      if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+        // Use file_picker on desktop for better UX
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.image,
+          allowMultiple: false,
+        );
+        
+        if (result != null && result.files.isNotEmpty) {
+          final filePath = result.files.first.path;
+          if (filePath != null) {
+            x = XFile(filePath);
+          }
+        }
+      } else {
+        // Use image_picker on mobile
+        x = await _picker.pickImage(
+          source: ImageSource.gallery, 
+          imageQuality: 90,
+          maxWidth: 1920,
+          maxHeight: 1920,
+        );
+      }
+      
+      if (x != null && mounted) {
+        setState(() {
+          _image = File(x.path);
+          _parsed = null;
+          _showRetryVision = false;
+        });
+      }
+    } catch (e) {
+      print('Error picking from gallery/files: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore selezione immagine: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -90,17 +160,20 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
     });
     try {
       final parsed = await _receiptService.processReceipt(_image!, currencyFallback: 'EUR');
-      setState(() {
-        _parsed = parsed;
-        _showRetryVision = parsed.hasVisionError;
-        
-        // Update editable fields with parsed data
-        _amountController.text = parsed.amount.toStringAsFixed(2);
-        _merchantController.text = parsed.merchant;
-        _selectedDate = parsed.date;
-        _selectedCategory = parsed.categorySuggestion ?? 'Altro';
-      });
+      if (mounted) {
+        setState(() {
+          _parsed = parsed;
+          _showRetryVision = parsed.hasVisionError;
+          
+          // Update editable fields with parsed data
+          _amountController.text = parsed.amount.toStringAsFixed(2);
+          _merchantController.text = parsed.merchant;
+          _selectedDate = parsed.date;
+          _selectedCategory = parsed.categorySuggestion ?? 'Altro';
+        });
+      }
     } catch (e) {
+      print('Error processing receipt: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -111,7 +184,9 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
         );
       }
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -138,7 +213,11 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
     await model.addTx(tx);
     
     // Cleanup temp image file
-    await _receiptService.cleanupAfterSave(_parsed!.imageUrl);
+    try {
+      await _receiptService.cleanupAfterSave(_parsed!.imageUrl);
+    } catch (e) {
+      print('Error cleaning up temp file: $e');
+    }
     
     if (mounted) {
       HapticFeedback.lightImpact();
@@ -149,13 +228,14 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-      Navigator.pop(context);
+      Navigator.of(context).pop();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.grey[50],
@@ -163,6 +243,14 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
         title: const Text('Scansiona scontrino'),
         centerTitle: true,
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
       ),
       body: Column(
         children: [
@@ -211,24 +299,26 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                   // Camera/Gallery buttons
                   Row(
                     children: [
-                      Expanded(
-                        child: _buildActionButton(
-                          onPressed: _pickFromCamera,
-                          icon: Icons.photo_camera,
-                          label: 'Fotocamera',
-                          color: const Color(0xFF6366F1),
-                          isDark: isDark,
+                      if (!isDesktop) ..[
+                        Expanded(
+                          child: _buildActionButton(
+                            onPressed: _pickFromCamera,
+                            icon: Icons.photo_camera,
+                            label: 'Fotocamera',
+                            color: const Color(0xFF6366F1),
+                            isDark: isDark,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
+                        const SizedBox(width: 12),
+                      ],
                       Expanded(
                         child: _buildActionButton(
                           onPressed: _pickFromGallery,
-                          icon: Icons.photo_library,
-                          label: 'Galleria',
+                          icon: isDesktop ? Icons.folder_open : Icons.photo_library,
+                          label: isDesktop ? 'Scegli File' : 'Galleria',
                           color: const Color(0xFF10B981),
                           isDark: isDark,
-                          isOutlined: true,
+                          isOutlined: !isDesktop,
                         ),
                       ),
                     ],
