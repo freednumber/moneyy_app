@@ -23,6 +23,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
   Widget build(BuildContext context) {
     super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 380; // Very small screens
     
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -64,12 +66,24 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         automaticallyImplyLeading: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: false,
         actions: [
           Consumer<MoneyModel>(
             builder: (context, model, child) {
               return Container(
-                margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                margin: EdgeInsets.only(
+                  right: isCompact ? 12 : 16,
+                  top: 4,
+                  bottom: 4,
+                ),
+                constraints: BoxConstraints(
+                  minWidth: isCompact ? 80 : 100,
+                  maxWidth: screenWidth * 0.35,
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 12 : 16, 
+                  vertical: isCompact ? 6 : 8,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: model.netWorth >= 0
@@ -85,13 +99,18 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     ),
                   ],
                 ),
-                child: Text(
-                  model.format(model.netWorth),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontSize: 16,
-                    letterSpacing: 0.3,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    model.format(model.netWorth),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: isCompact ? 14 : 16,
+                      letterSpacing: 0.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               );
@@ -123,15 +142,20 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 await model.loadInitial();
               },
               child: SingleChildScrollView(
-                padding: const EdgeInsets.only(top: 100, left: 16, right: 16, bottom: 100),
+                padding: EdgeInsets.only(
+                  top: 100, 
+                  left: isCompact ? 12 : 16, 
+                  right: isCompact ? 12 : 16, 
+                  bottom: 120, // Extra space for dock
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildQuickStats(model, isDark),
-                    const SizedBox(height: 24),
-                    _buildCategoryBreakdown(context, model, isDark),
-                    const SizedBox(height: 24),
-                    _buildRecentTransactions(context, model, isDark),
+                    _buildQuickStats(model, isDark, isCompact),
+                    SizedBox(height: isCompact ? 20 : 24),
+                    _buildCategoryBreakdown(context, model, isDark, isCompact),
+                    SizedBox(height: isCompact ? 20 : 24),
+                    _buildRecentTransactions(context, model, isDark, isCompact),
                   ],
                 ),
               ),
@@ -139,14 +163,13 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           );
         },
       ),
-      // RIMOSSO IL FAB CHE SI NASCONDEVA DIETRO IL DOCK
     );
   }
 
-  Widget _buildQuickStats(MoneyModel model, bool isDark) {
+  Widget _buildQuickStats(MoneyModel model, bool isDark, bool isCompact) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
         color: isDark 
           ? Colors.grey[900]!.withOpacity(0.8)
           : Colors.white.withOpacity(0.95),
@@ -164,11 +187,11 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: EdgeInsets.all(isCompact ? 20.0 : 24.0),
             child: Row(
               children: [
                 Expanded(
@@ -178,11 +201,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     const Color(0xFF10B981),
                     Icons.trending_up,
                     isDark,
+                    isCompact,
                   ),
                 ),
                 Container(
                   width: 1,
-                  height: 60,
+                  height: isCompact ? 50 : 60,
                   color: isDark 
                     ? Colors.white.withOpacity(0.15)
                     : Colors.grey.shade300,
@@ -194,6 +218,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                     const Color(0xFFEF4444),
                     Icons.trending_down,
                     isDark,
+                    isCompact,
                   ),
                 ),
               ],
@@ -204,50 +229,76 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color, IconData icon, bool isDark) {
+  Widget _buildStatItem(String label, String value, Color color, IconData icon, bool isDark, bool isCompact) {
     return Column(
       children: [
         Icon(
           icon,
           color: isDark ? color.withOpacity(0.9) : color,
-          size: 28,
+          size: isCompact ? 24 : 28,
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: isCompact ? 6 : 8),
         Text(
           label,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: isCompact ? 12 : 13,
             color: isDark ? Colors.grey[300] : Colors.grey[600],
             fontWeight: FontWeight.w500,
             letterSpacing: 0.2,
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : color,
-            letterSpacing: 0.3,
+        SizedBox(height: isCompact ? 2 : 4),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: isCompact ? 16 : 20,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : color,
+              letterSpacing: 0.3,
+            ),
+            maxLines: 1,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildCategoryBreakdown(BuildContext context, MoneyModel model, bool isDark) {
+  Widget _buildCategoryBreakdown(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
     final mostUsed = _getMostUsedCategories(model);
-    final isDesktop = MediaQuery.of(context).size.width > 600;
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Responsive grid calculation
+    int crossAxisCount;
+    double childAspectRatio;
+    
+    if (screenWidth > 800) {
+      // Desktop/Large tablet
+      crossAxisCount = 3;
+      childAspectRatio = 2.8;
+    } else if (screenWidth > 600) {
+      // Tablet
+      crossAxisCount = 2;
+      childAspectRatio = 2.5;
+    } else if (screenWidth > 380) {
+      // Normal phone
+      crossAxisCount = 2;
+      childAspectRatio = 2.2;
+    } else {
+      // Small phone
+      crossAxisCount = 1;
+      childAspectRatio = 3.5;
+    }
     
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isCompact ? 20 : 24),
       decoration: BoxDecoration(
         color: isDark 
           ? Colors.grey[900]!.withOpacity(0.8)
           : Colors.white.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
         border: Border.all(
           color: isDark
             ? Colors.white.withOpacity(0.12)
@@ -267,105 +318,109 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF6366F1).withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.flash_on, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Aggiungi Veloce',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.5,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isDark
-                    ? const Color(0xFF6366F1).withOpacity(0.2)
-                    : const Color(0xFF6366F1).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: const Color(0xFF6366F1).withOpacity(isDark ? 0.4 : 0.3),
-                  ),
-                ),
+              Expanded(
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.trending_up,
-                      size: 14,
-                      color: isDark ? const Color(0xFF8B9BFF) : const Color(0xFF6366F1),
+                    Container(
+                      padding: EdgeInsets.all(isCompact ? 8 : 10),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6366F1).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.flash_on, 
+                        color: Colors.white, 
+                        size: isCompact ? 18 : 20,
+                      ),
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Più usate',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDark ? const Color(0xFF8B9BFF) : const Color(0xFF6366F1),
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.2,
+                    SizedBox(width: isCompact ? 8 : 12),
+                    Flexible(
+                      child: Text(
+                        'Aggiungi Veloce',
+                        style: TextStyle(
+                          fontSize: isCompact ? 18 : 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
+              if (!isCompact)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark
+                      ? const Color(0xFF6366F1).withOpacity(0.2)
+                      : const Color(0xFF6366F1).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF6366F1).withOpacity(isDark ? 0.4 : 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.trending_up,
+                        size: 14,
+                        color: isDark ? const Color(0xFF8B9BFF) : const Color(0xFF6366F1),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Più usate',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? const Color(0xFF8B9BFF) : const Color(0xFF6366F1),
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 20),
-          isDesktop
-              ? GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    childAspectRatio: 2.5,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                  ),
-                  itemCount: mostUsed.length,
-                  itemBuilder: (context, index) {
-                    final cat = mostUsed[index];
-                    final style = model.getTransactionStyle(cat);
-                    final isIncome = model.incomeCats.contains(cat);
-                    final lastUsed = _getLastUsedDate(model, cat);
-                    return _buildCategoryChipEnhanced(cat, style.icon, style.color, isIncome, lastUsed, isDark, () {
-                      _showQuickEntryDialog(context, cat, isIncome);
-                    });
-                  },
-                )
-              : Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: mostUsed.map((cat) {
-                    final style = model.getTransactionStyle(cat);
-                    final isIncome = model.incomeCats.contains(cat);
-                    final lastUsed = _getLastUsedDate(model, cat);
-                    return _buildCategoryChipEnhanced(cat, style.icon, style.color, isIncome, lastUsed, isDark, () {
-                      _showQuickEntryDialog(context, cat, isIncome);
-                    });
-                  }).toList(),
-                ),
+          SizedBox(height: isCompact ? 16 : 20),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: childAspectRatio,
+              crossAxisSpacing: isCompact ? 8 : 12,
+              mainAxisSpacing: isCompact ? 8 : 12,
+            ),
+            itemCount: mostUsed.length,
+            itemBuilder: (context, index) {
+              final cat = mostUsed[index];
+              final style = model.getTransactionStyle(cat);
+              final isIncome = model.incomeCats.contains(cat);
+              final lastUsed = _getLastUsedDate(model, cat);
+              return _buildCategoryChipEnhanced(
+                cat, 
+                style.icon, 
+                style.color, 
+                isIncome, 
+                lastUsed, 
+                isDark, 
+                isCompact,
+                () => _showQuickEntryDialog(context, cat, isIncome),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -395,7 +450,16 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     }
   }
 
-  Widget _buildCategoryChipEnhanced(String category, IconData icon, Color color, bool isIncome, String lastUsed, bool isDark, VoidCallback onTap) {
+  Widget _buildCategoryChipEnhanced(
+    String category, 
+    IconData icon, 
+    Color color, 
+    bool isIncome, 
+    String lastUsed, 
+    bool isDark, 
+    bool isCompact,
+    VoidCallback onTap
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -403,14 +467,17 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           HapticFeedback.mediumImpact();
           onTap();
         },
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isCompact ? 16 : 20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          padding: EdgeInsets.symmetric(
+            horizontal: isCompact ? 12 : 18, 
+            vertical: isCompact ? 12 : 16,
+          ),
           decoration: BoxDecoration(
             color: isDark
               ? color.withOpacity(0.15)
               : color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(isCompact ? 16 : 20),
             border: Border.all(
               color: isDark
                 ? color.withOpacity(0.5)
@@ -434,14 +501,14 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: EdgeInsets.all(isCompact ? 8 : 10),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [color, color.withOpacity(0.8)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(isCompact ? 12 : 14),
                       boxShadow: [
                         BoxShadow(
                           color: color.withOpacity(0.4),
@@ -450,13 +517,17 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                         ),
                       ],
                     ),
-                    child: Icon(icon, color: Colors.white, size: 22),
+                    child: Icon(
+                      icon, 
+                      color: Colors.white, 
+                      size: isCompact ? 18 : 22,
+                    ),
                   ),
                   Positioned(
                     right: -4,
                     top: -4,
                     child: Container(
-                      padding: const EdgeInsets.all(3),
+                      padding: EdgeInsets.all(isCompact ? 2 : 3),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: isIncome 
@@ -476,38 +547,44 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                       child: Icon(
                         isIncome ? Icons.arrow_upward : Icons.arrow_downward,
                         color: Colors.white,
-                        size: 10,
+                        size: isCompact ? 8 : 10,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(width: 14),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    category,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : color,
-                      letterSpacing: 0.2,
+              SizedBox(width: isCompact ? 10 : 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      category,
+                      style: TextStyle(
+                        fontSize: isCompact ? 13 : 15,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : color,
+                        letterSpacing: 0.2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    lastUsed,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: isDark 
-                        ? Colors.grey[400]
-                        : color.withOpacity(0.7),
+                    SizedBox(height: isCompact ? 2 : 3),
+                    Text(
+                      lastUsed,
+                      style: TextStyle(
+                        fontSize: isCompact ? 9 : 11,
+                        fontWeight: FontWeight.w500,
+                        color: isDark 
+                          ? Colors.grey[400]
+                          : color.withOpacity(0.7),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -549,7 +626,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     return mostUsed;
   }
 
-  Widget _buildRecentTransactions(BuildContext context, MoneyModel model, bool isDark) {
+  Widget _buildRecentTransactions(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
     final recentTransactions = model.recent.take(8).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -557,13 +634,16 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Transazioni Recenti',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-                letterSpacing: 0.2,
+            Expanded(
+              child: Text(
+                'Transazioni Recenti',
+                style: TextStyle(
+                  fontSize: isCompact ? 18 : 20,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                  letterSpacing: 0.2,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             if (recentTransactions.isNotEmpty)
@@ -589,23 +669,23 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
               ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: isCompact ? 12 : 16),
         if (recentTransactions.isEmpty)
-          _buildEmptyState(isDark)
+          _buildEmptyState(isDark, isCompact)
         else
-          ...recentTransactions.map((tx) => _buildTransactionCard(tx, model, isDark)).toList(),
+          ...recentTransactions.map((tx) => _buildTransactionCard(tx, model, isDark, isCompact)).toList(),
       ],
     );
   }
 
-  Widget _buildEmptyState(bool isDark) {
+  Widget _buildEmptyState(bool isDark, bool isCompact) {
     return Container(
-      padding: const EdgeInsets.all(40),
+      padding: EdgeInsets.all(isCompact ? 32 : 40),
       decoration: BoxDecoration(
         color: isDark 
           ? Colors.grey[900]!.withOpacity(0.6)
           : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(isCompact ? 16 : 20),
         border: Border.all(
           color: isDark
             ? Colors.white.withOpacity(0.1)
@@ -624,23 +704,23 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           children: [
             Icon(
               Icons.receipt_long,
-              size: 60,
+              size: isCompact ? 48 : 60,
               color: isDark ? Colors.grey[600] : Colors.grey[300],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isCompact ? 12 : 16),
             Text(
               'Nessuna transazione',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: isCompact ? 14 : 16,
                 color: isDark ? Colors.grey[400] : Colors.grey[600],
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: isCompact ? 6 : 8),
             Text(
               'Inizia aggiungendo la tua prima transazione',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: isCompact ? 12 : 13,
                 color: isDark ? Colors.grey[500] : Colors.grey[400],
               ),
               textAlign: TextAlign.center,
@@ -651,14 +731,14 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  Widget _buildTransactionCard(MoneyTx tx, MoneyModel model, bool isDark) {
+  Widget _buildTransactionCard(MoneyTx tx, MoneyModel model, bool isDark, bool isCompact) {
     final style = model.getTransactionStyle(tx.category);
 
     return Dismissible(
       key: Key(tx.id.toString()),
       direction: DismissDirection.endToStart,
       background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(bottom: isCompact ? 8 : 12),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
@@ -667,7 +747,11 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         ),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete, color: Colors.white, size: 28),
+        child: Icon(
+          Icons.delete, 
+          color: Colors.white, 
+          size: isCompact ? 24 : 28,
+        ),
       ),
       confirmDismiss: (direction) async {
         return await showDialog(
@@ -703,7 +787,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(bottom: isCompact ? 8 : 12),
         decoration: BoxDecoration(
           color: isDark 
             ? Colors.grey[900]!.withOpacity(0.7)
@@ -731,15 +815,15 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
               _showEditTransactionDialog(tx, model);
             },
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(isCompact ? 12 : 16),
               child: Row(
                 children: [
                   Stack(
                     clipBehavior: Clip.none,
                     children: [
                       Container(
-                        width: 50,
-                        height: 50,
+                        width: isCompact ? 40 : 50,
+                        height: isCompact ? 40 : 50,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [style.color, style.color.withOpacity(0.7)],
@@ -755,15 +839,19 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                             ),
                           ],
                         ),
-                        child: Icon(style.icon, color: Colors.white, size: 24),
+                        child: Icon(
+                          style.icon, 
+                          color: Colors.white, 
+                          size: isCompact ? 20 : 24,
+                        ),
                       ),
                       if (tx.isFromRecurring)
                         Positioned(
                           right: -6,
                           top: -6,
                           child: Container(
-                            width: 20,
-                            height: 20,
+                            width: isCompact ? 16 : 20,
+                            height: isCompact ? 16 : 20,
                             decoration: BoxDecoration(
                               color: const Color(0xFF6366F1),
                               shape: BoxShape.circle,
@@ -776,16 +864,16 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.repeat,
                               color: Colors.white,
-                              size: 12,
+                              size: isCompact ? 8 : 12,
                             ),
                           ),
                         ),
                     ],
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: isCompact ? 12 : 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -797,10 +885,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                                 tx.category,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 15,
+                                  fontSize: isCompact ? 13 : 15,
                                   color: isDark ? Colors.white : Colors.black87,
                                   letterSpacing: 0.1,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             if (tx.isFromRecurring)
@@ -822,28 +912,32 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                               ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: isCompact ? 2 : 4),
                         Row(
                           children: [
                             Icon(
                               Icons.calendar_today,
-                              size: 12,
+                              size: isCompact ? 10 : 12,
                               color: isDark ? Colors.grey[400] : Colors.grey[500],
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              DateFormat('d MMM yyyy • HH:mm', 'it_IT').format(tx.date),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDark ? Colors.grey[400] : Colors.grey[600],
-                                letterSpacing: 0.1,
+                            SizedBox(width: isCompact ? 3 : 4),
+                            Expanded(
+                              child: Text(
+                                DateFormat('d MMM yyyy • HH:mm', 'it_IT').format(tx.date),
+                                style: TextStyle(
+                                  fontSize: isCompact ? 10 : 12,
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                  letterSpacing: 0.1,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (tx.note != null && tx.note!.isNotEmpty) ...[
-                              const SizedBox(width: 8),
+                            if (tx.note != null && tx.note!.isNotEmpty) ..[
+                              SizedBox(width: isCompact ? 6 : 8),
                               Icon(
                                 Icons.note,
-                                size: 12,
+                                size: isCompact ? 10 : 12,
                                 color: isDark ? Colors.grey[400] : Colors.grey[500],
                               ),
                             ],
@@ -855,18 +949,25 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        '${tx.isIncome ? '+' : '-'} ${model.format(tx.amount)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                          fontSize: 16,
-                          letterSpacing: 0.2,
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '${tx.isIncome ? '+' : '-'} ${model.format(tx.amount)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                            fontSize: isCompact ? 13 : 16,
+                            letterSpacing: 0.2,
+                          ),
+                          maxLines: 1,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: isCompact ? 2 : 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isCompact ? 6 : 8, 
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: isDark
                             ? style.color.withOpacity(0.2)
@@ -876,7 +977,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                         child: Text(
                           tx.payment.name.toUpperCase(),
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: isCompact ? 9 : 10,
                             fontWeight: FontWeight.w600,
                             color: isDark ? Colors.white : style.color,
                           ),
