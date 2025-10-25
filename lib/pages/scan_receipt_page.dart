@@ -143,11 +143,10 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       XFile? x;
       
       if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-        // Desktop: use FilePicker
+        // Desktop: use FileType.image without allowedExtensions (fix macOS error)
         final result = await FilePicker.platform.pickFiles(
           type: FileType.image,
           allowMultiple: false,
-          allowedExtensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp'],
         );
         
         if (result != null && result.files.isNotEmpty) {
@@ -155,9 +154,8 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
           if (file.path != null) {
             x = XFile(file.path!);
           } else if (file.bytes != null) {
-            // Handle web case
-            final tempDir = await _createTempFile(file.bytes!, file.name);
-            x = XFile(tempDir.path);
+            final tempFile = await _createTempFile(file.bytes!, file.name);
+            x = XFile(tempFile.path);
           }
         }
       } else {
@@ -192,7 +190,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
     }
   }
 
-  // Helper to create temp file for web
+  // Helper to create temp file for web/bytes
   Future<File> _createTempFile(Uint8List bytes, String filename) async {
     final tempDir = Directory.systemTemp;
     final file = File('${tempDir.path}/$filename');
