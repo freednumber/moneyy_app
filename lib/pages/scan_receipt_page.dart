@@ -67,6 +67,11 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
   Future<bool> _checkPermissions() async {
     if (kIsWeb) return true;
     
+    // Skip permission check on desktop (macOS handles it via entitlements)
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      return true;
+    }
+    
     if (Platform.isAndroid) {
       final cameraStatus = await Permission.camera.status;
       final storageStatus = await Permission.storage.status;
@@ -140,25 +145,40 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
 
   Future<void> _pickFromGallery() async {
     try {
+      debugPrint('Attempting to pick from gallery/files...');
+      
       XFile? x;
       
       if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+        debugPrint('Desktop detected, using FilePicker');
+        
         // Desktop: use FileType.image without allowedExtensions (fix macOS error)
         final result = await FilePicker.platform.pickFiles(
           type: FileType.image,
           allowMultiple: false,
+          withData: false, // Don't load file data into memory
+          withReadStream: false, // Don't create read streams
         );
+        
+        debugPrint('FilePicker result: ${result?.files.length ?? 0} files');
         
         if (result != null && result.files.isNotEmpty) {
           final file = result.files.first;
+          debugPrint('Selected file: ${file.name}, path: ${file.path}');
+          
           if (file.path != null) {
             x = XFile(file.path!);
           } else if (file.bytes != null) {
+            debugPrint('Using bytes fallback');
             final tempFile = await _createTempFile(file.bytes!, file.name);
             x = XFile(tempFile.path);
           }
+        } else {
+          debugPrint('No file selected or cancelled');
         }
       } else {
+        debugPrint('Mobile detected, using ImagePicker');
+        
         // Mobile: check permissions first
         final hasPermission = await _checkPermissions();
         if (!hasPermission) {
@@ -177,13 +197,24 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       }
       
       if (x != null && mounted) {
+        debugPrint('Setting image: ${x.path}');
         setState(() {
           _image = File(x!.path);
           _parsed = null;
           _showRetryVision = false;
         });
+        
+        if (mounted) {
+          _showSnackBar('Immagine caricata con successo!', Colors.green);
+        }
+      } else {
+        debugPrint('No image selected');
+        if (mounted) {
+          _showSnackBar('Nessuna immagine selezionata', Colors.grey);
+        }
       }
     } catch (e) {
+      debugPrint('Error in _pickFromGallery: $e');
       if (mounted) {
         _showSnackBar('Errore selezione immagine: ${e.toString()}', Colors.red);
       }
@@ -340,6 +371,23 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    // Debug info for troubleshooting
+                    if (kDebugMode && (Platform.isMacOS))
+                      Card(
+                        color: Colors.blue.withOpacity(0.1),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Debug macOS:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              Text('Platform: ${Platform.operatingSystem}', style: TextStyle(fontSize: 11)),
+                              Text('Image selected: ${_image?.path ?? 'None'}', style: TextStyle(fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    
                     // Action buttons
                     Row(
                       children: [
@@ -357,7 +405,10 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
                         ],
                         Expanded(
                           child: _buildActionButton(
-                            onPressed: _pickFromGallery,
+                            onPressed: () async {
+                              debugPrint('Gallery button pressed');
+                              await _pickFromGallery();
+                            },
                             icon: isDesktop ? Icons.folder_open : Icons.photo_library,
                             label: isDesktop ? 'Scegli File' : 'Galleria',
                             color: const Color(0xFF10B981),
