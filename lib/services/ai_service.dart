@@ -139,11 +139,11 @@ class AIService {
   ParsedReceipt _parseReceiptText(String text, String imageUrl, String currency, {required String ocrSource, bool hasVisionError = false}) {
     final lines = text.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
     
-    // Extract amount with improved Italian receipt parsing
-    double amount = _extractAmount(lines);
+    // Extract amount with advanced context-aware Italian receipt parsing
+    double amount = _extractAmountAdvanced(lines);
     
-    // Extract merchant (first non-numeric line, usually at top)
-    String merchant = _extractMerchant(lines, ocrSource);
+    // Extract merchant with improved filtering
+    String merchant = _extractMerchantAdvanced(lines, ocrSource);
     
     // Extract date
     DateTime date = _extractDate(lines) ?? DateTime.now();
@@ -162,107 +162,205 @@ class AIService {
     );
   }
 
-  double _extractAmount(List<String> lines) {
-    // Priority patterns for Italian receipts - most specific first
-    final priorityPatterns = <RegExp>[
-      // TOTALE EURO followed by amount
+  double _extractAmountAdvanced(List<String> lines) {
+    // Create a clean text representation for better pattern matching
+    final fullText = lines.join(' ').toLowerCase();
+    print('Full text for amount parsing: $fullText');
+    
+    // Phase 1: Ultra-high priority patterns - explicit TOTAL mentions with context
+    final ultraPriorityPatterns = <RegExp>[
+      // TOTALE EURO + whitespace + amount (your McDonald's case)
       RegExp(r'totale\s+euro\s+([0-9]+[,.]\d{2})', caseSensitive: false),
-      // TOTALE COMPLESSIVO followed by amount  
+      // TOTALE COMPLESSIVO + whitespace + amount
       RegExp(r'totale\s+complessivo\s+([0-9]+[,.]\d{2})', caseSensitive: false),
-      // Just TOTALE followed by amount
-      RegExp(r'totale\s+([0-9]+[,.]\d{2})', caseSensitive: false),
-      // TOTALE with optional colon/space followed by amount
-      RegExp(r'totale[:\s]+([0-9]+[,.]\d{2})', caseSensitive: false),
+      // Single TOTALE + amount (but only if near end of receipt)
+      RegExp(r'\btotale\s+([0-9]+[,.]\d{2})', caseSensitive: false),
     ];
     
-    // Secondary patterns for common formats
-    final secondaryPatterns = <RegExp>[
-      // Amount followed by EUR/€
-      RegExp(r'([0-9]+[,.]?\d{0,2})\s*(?:eur|€)', caseSensitive: false),
+    // Check ultra-priority patterns first
+    for (final pattern in ultraPriorityPatterns) {
+      final match = pattern.firstMatch(fullText);
+      if (match != null) {
+        final amountStr = match.group(1)!.replaceAll(',', '.');
+        final val = double.tryParse(amountStr);
+        if (val != null && val > 0 && val < 10000) {
+          print('Found amount with ULTRA priority pattern: $val');
+          return val;
+        }
+      }
+    }
+    
+    // Phase 2: Line-by-line analysis for isolated TOTALE lines
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].toLowerCase();
+      final nextLine = i + 1 < lines.length ? lines[i + 1] : '';
+      
+      // Look for standalone "TOTALE EURO" followed by amount on same or next line
+      if (line.contains('totale euro')) {
+        // Check same line first
+        final sameLinePattern = RegExp(r'([0-9]+[,.]\d{2})');
+        final sameLineMatch = sameLinePattern.firstMatch(line);
+        if (sameLineMatch != null) {
+          final amountStr = sameLineMatch.group(1)!.replaceAll(',', '.');
+          final val = double.tryParse(amountStr);
+          if (val != null && val > 0 && val < 10000) {
+            print('Found amount on TOTALE EURO line: $val');
+            return val;
+          }
+        }
+        
+        // Check next line for amount
+        if (nextLine.isNotEmpty) {
+          final nextLinePattern = RegExp(r'^([0-9]+[,.]\d{2})');
+          final nextLineMatch = nextLinePattern.firstMatch(nextLine.trim());
+          if (nextLineMatch != null) {
+            final amountStr = nextLineMatch.group(1)!.replaceAll(',', '.');
+            final val = double.tryParse(amountStr);
+            if (val != null && val > 0 && val < 10000) {
+              print('Found amount on line after TOTALE EURO: $val');
+              return val;
+            }
+          }
+        }
+      }
+    }
+    
+    // Phase 3: High priority patterns - contextual totals
+    final highPriorityPatterns = <RegExp>[
+      // Amount followed by EUR/€ at end of line (likely total)
+      RegExp(r'([0-9]+[,.]\d{2})\s*(?:eur|€)\s*$', caseSensitive: false),
       // € symbol followed by amount
-      RegExp(r'€\s*([0-9]+[,.]\d{2})', caseSensitive: false),
+      RegExp(r'€\s*([0-9]+[,.]\d{2})'),
     ];
     
-    // First try priority patterns - look for specific TOTALE mentions
-    for (final line in lines) {
-      for (final pattern in priorityPatterns) {
+    // Analyze from bottom up (totals usually at end)
+    for (final line in lines.reversed) {
+      for (final pattern in highPriorityPatterns) {
         final match = pattern.firstMatch(line.toLowerCase());
         if (match != null) {
           final amountStr = match.group(1)!.replaceAll(',', '.');
           final val = double.tryParse(amountStr);
-          if (val != null && val > 0 && val < 10000) { // Reasonable receipt amounts
-            print('Found amount with priority pattern: $val from line: $line');
-            return val;
-          }
-        }
-      }
-    }
-    
-    // If no priority pattern found, try secondary patterns
-    for (final line in lines.reversed) { // Start from bottom for totals
-      for (final pattern in secondaryPatterns) {
-        final match = pattern.firstMatch(line);
-        if (match != null) {
-          final amountStr = match.group(1)!.replaceAll(',', '.');
-          final val = double.tryParse(amountStr);
           if (val != null && val > 0 && val < 10000) {
-            print('Found amount with secondary pattern: $val from line: $line');
-            return val;
+            // Additional context check - avoid P.IVA and similar
+            if (!line.toLowerCase().contains('p.iva') && 
+                !line.toLowerCase().contains('codice') &&
+                !line.toLowerCase().contains('via')) {
+              print('Found amount with high priority pattern: $val from line: $line');
+              return val;
+            }
           }
         }
       }
     }
     
-    // Final fallback: find largest reasonable decimal number in text
-    final decimalNumbers = RegExp(r'([0-9]+[,.]\d{2})')
-        .allMatches(lines.join(' '))
-        .map((m) => double.tryParse(m.group(1)!.replaceAll(',', '.')) ?? 0.0)
-        .where((n) => n > 1.0 && n < 10000) // Reasonable receipt amounts
-        .toList();
+    // Phase 4: Smart fallback - find reasonable decimal amounts, exclude obvious non-totals
+    final decimalAmounts = <double>[];
+    for (final line in lines) {
+      final lineLower = line.toLowerCase();
+      
+      // Skip lines that are clearly not totals
+      if (lineLower.contains('p.iva') || 
+          lineLower.contains('codice') ||
+          lineLower.contains('via') ||
+          lineLower.contains('tel') ||
+          lineLower.contains('cf')) {
+        continue;
+      }
+      
+      final amounts = RegExp(r'([0-9]+[,.]\d{2})').allMatches(line);
+      for (final match in amounts) {
+        final amountStr = match.group(1)!.replaceAll(',', '.');
+        final val = double.tryParse(amountStr);
+        if (val != null && val > 1.0 && val < 10000) {
+          decimalAmounts.add(val);
+        }
+      }
+    }
     
-    if (decimalNumbers.isNotEmpty) {
-      // Sort and take the largest reasonable amount
-      decimalNumbers.sort();
-      final largest = decimalNumbers.last;
-      print('Found amount with fallback pattern: $largest');
-      return largest;
+    if (decimalAmounts.isNotEmpty) {
+      // Sort and prefer larger amounts (more likely to be totals)
+      decimalAmounts.sort();
+      
+      // If we have multiple amounts, prefer the largest reasonable one
+      // but not if it's way larger than others (could be P.IVA code)
+      final largest = decimalAmounts.last;
+      final secondLargest = decimalAmounts.length > 1 ? decimalAmounts[decimalAmounts.length - 2] : largest;
+      
+      // If largest is more than 10x the second largest, prefer second largest
+      if (largest > secondLargest * 10 && secondLargest > 10) {
+        print('Found amount with smart fallback (avoiding outlier): $secondLargest');
+        return secondLargest;
+      } else {
+        print('Found amount with smart fallback: $largest');
+        return largest;
+      }
     }
     
     print('No valid amount found in receipt');
     return 0.0;
   }
 
-  String _extractMerchant(List<String> lines, String ocrSource) {
+  String _extractMerchantAdvanced(List<String> lines, String ocrSource) {
     final ignoreWords = {
       'scontrino', 'ricevuta', 'receipt', 'fiscal', 'fiscale',
-      'via', 'tel', 'telefono', 'p.iva', 'partita', 'iva', 
-      'codice', 'cf', 'documento', 'commerciale', 'vendita',
-      'prestazione', 'descrizione', 'totale'
+      'via', 'viale', 'corso', 'piazza', 'tel', 'telefono', 
+      'p.iva', 'partita', 'iva', 'codice', 'cf', 'documento', 
+      'commerciale', 'vendita', 'prestazione', 'descrizione', 
+      'totale', 'servizio', 'tavolo', 'op', 'operatore',
+      'roma', 'milano', 'napoli', 'torino', // common cities
+      'manolo', // operator names from your receipt
     };
     
-    for (final line in lines.take(10)) { // Check first 10 lines for merchant
+    // Skip lines that look like codes or addresses
+    final codePatterns = [
+      RegExp(r'^\d{5,}$'), // Long number sequences (like P.IVA)
+      RegExp(r'^\d{2}-\d{2}-\d{2}'), // Date patterns
+      RegExp(r'^\d+:\d+$'), // Time patterns
+      RegExp(r'^[A-Z]{2,}\s+\d+'), // Codes like "SF 96"
+    ];
+    
+    for (final line in lines.take(15)) { // Check first 15 lines
       final lower = line.toLowerCase();
+      final originalLine = line.trim();
+      
+      // Skip very short, very long, or empty lines
+      if (originalLine.length < 3 || originalLine.length > 35) continue;
       
       // Skip lines with ignore words
       if (ignoreWords.any((w) => lower.contains(w))) continue;
       
-      // Skip very short or very long lines
-      if (line.length < 3 || line.length > 40) continue;
+      // Skip lines that match code patterns
+      if (codePatterns.any((pattern) => pattern.hasMatch(originalLine))) continue;
       
       // Skip lines that are mostly numbers, prices, or symbols
-      if (RegExp(r'^[0-9\s.,€%-]+$').hasMatch(line)) continue;
+      if (RegExp(r'^[0-9\s.,:€%-]+$').hasMatch(originalLine)) continue;
       
-      // Skip lines that look like addresses (contain numbers and short words)
-      if (RegExp(r'\b\d+\b.*\b\w{1,3}\b').hasMatch(line)) continue;
+      // Skip lines that look like menu items with prices
+      if (RegExp(r'\d+[,.]\d{2}$').hasMatch(originalLine)) continue;
+      
+      // Skip single character or very short words
+      if (originalLine.split(' ').every((word) => word.length <= 2)) continue;
       
       // Clean up the merchant name
-      final cleaned = line
-          .replaceAll(RegExp(r'[^a-zA-Z\u00c0-\u00ff0-9\s&]'), ' ')
+      String cleaned = originalLine
+          .replaceAll(RegExp(r'[^\p{L}\p{N}\s&.-]', unicode: true), ' ')
           .replaceAll(RegExp(r'\s+'), ' ')
           .trim();
-          
-      if (cleaned.length >= 3) {
-        return cleaned.length > 30 ? '${cleaned.substring(0, 30)}...' : cleaned;
+      
+      // Additional filtering for cleaned result
+      if (cleaned.length >= 4 && 
+          !RegExp(r'^\d+$').hasMatch(cleaned) && // Not just numbers
+          cleaned.split(' ').length <= 6) { // Not too many words
+        
+        // Capitalize properly and limit length
+        final words = cleaned.split(' ');
+        final capitalizedWords = words.map((word) {
+          if (word.isEmpty) return word;
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        }).toList();
+        
+        final result = capitalizedWords.join(' ');
+        return result.length > 30 ? '${result.substring(0, 30)}...' : result;
       }
     }
     
@@ -270,10 +368,10 @@ class AIService {
   }
 
   DateTime? _extractDate(List<String> lines) {
-    // Italian date patterns
+    // Italian date patterns with flexible spacing
     final datePatterns = <RegExp>[
       // dd/mm/yyyy
-      RegExp(r'(\d{1,2})/(\d{1,2})/(\d{4})'),
+      RegExp(r'(\d{1,2})[/\s-](\d{1,2})[/\s-](\d{4})'),
       // dd-mm-yyyy  
       RegExp(r'(\d{1,2})-(\d{1,2})-(\d{4})'),
       // yyyy-mm-dd (ISO format)
@@ -282,7 +380,7 @@ class AIService {
       RegExp(r'(\d{1,2})\.(\d{1,2})\.(\d{4})'),
     ];
     
-    for (final line in lines.take(15)) { // Check first 15 lines
+    for (final line in lines.take(20)) { // Check first 20 lines
       for (int i = 0; i < datePatterns.length; i++) {
         final match = datePatterns[i].firstMatch(line);
         if (match != null) {
@@ -332,7 +430,8 @@ class AIService {
     } else if (_containsAnyOf(text, [
       'ristorante', 'pizzeria', 'bar', 'trattoria', 'osteria', 'tavola',
       'café', 'caffè', 'pub', 'birreria', 'gelateria', 'pasticceria',
-      'rosticceria', 'paninoteca', 'self service', 'mensa'
+      'rosticceria', 'paninoteca', 'self service', 'mensa', 'mcdonald',
+      'burger', 'hamburger', 'kfc', 'domino', 'pizza'
     ])) {
       return 'Svago';
     } else if (_containsAnyOf(text, [
