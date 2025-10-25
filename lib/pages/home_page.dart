@@ -933,7 +933,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            if (tx.note != null && tx.note!.isNotEmpty) ..[
+                            if (tx.note != null && tx.note!.isNotEmpty) ...[
                               SizedBox(width: isCompact ? 6 : 8),
                               Icon(
                                 Icons.note,
