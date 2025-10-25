@@ -125,7 +125,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       
       if (x != null && mounted) {
         setState(() {
-          _image = File(x.path);
+          _image = File(x!.path);
           _parsed = null;
           _showRetryVision = false;
         });
