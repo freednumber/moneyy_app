@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../providers.dart';
 import '../models.dart';
@@ -31,21 +30,13 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
   late ReceiptService _receiptService;
   bool _showRetryVision = false;
 
-  // Editable field controllers
   late TextEditingController _amountController;
   late TextEditingController _merchantController;
   DateTime _selectedDate = DateTime.now();
   String _selectedCategory = 'Altro';
 
-  // Available categories
   final List<String> _categories = [
-    'Spesa',
-    'Trasporti', 
-    'Svago',
-    'Salute',
-    'Shopping',
-    'Bollette',
-    'Altro'
+    'Spesa','Trasporti','Svago','Salute','Shopping','Bollette','Altro'
   ];
 
   @override
@@ -66,30 +57,17 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
 
   Future<void> _pickFromCamera() async {
     if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-      _showSnackBar('Fotocamera non disponibile su desktop. Usa "Scegli File".', Colors.orange);
+      _snack('Fotocamera non disponibile su desktop. Usa "Scegli File".', Colors.orange);
       return;
     }
-
     final granted = await PermissionHelper.ensureCameraPermission(context);
-    if (!granted) {
-      _showSnackBar('Permesso fotocamera richiesto per continuare.', Colors.red);
-      return;
-    }
-
+    if (!granted) return _snack('Permesso fotocamera richiesto per continuare.', Colors.red);
     try {
-      final x = await _picker.pickImage(
-        source: ImageSource.camera, 
-        imageQuality: 85,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        preferredCameraDevice: CameraDevice.rear,
-      );
+      final x = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85, maxWidth: 1920, maxHeight: 1920);
       if (x != null && mounted) {
-        setState(() { _image = File(x.path); _parsed = null; _showRetryVision = false; });
+        setState(() { _image = File(x!.path); _parsed = null; _showRetryVision = false; });
       }
-    } catch (e) {
-      _showSnackBar('Errore fotocamera: ${e.toString()}', Colors.red);
-    }
+    } catch (e) { _snack('Errore fotocamera: $e', Colors.red); }
   }
 
   Future<void> _pickFromGallery() async {
@@ -97,39 +75,74 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> {
       XFile? x;
       if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
         final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false);
-        if (result != null && result.files.isNotEmpty) {
-          final file = result.files.first;
-          if (file.path != null) x = XFile(file.path!);
+        if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
+          x = XFile(result.files.first.path!);
         }
       } else {
-        final granted = await PermissionHelper.ensureGalleryPermission(context);
-        if (!granted) {
-          _showSnackBar('Permessi galleria necessari per continuare.', Colors.red);
-          return;
-        }
+        final ok = await PermissionHelper.ensureGalleryPermission(context);
+        if (!ok) return _snack('Permessi galleria necessari per continuare.', Colors.red);
         x = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 1920, maxHeight: 1920);
       }
-
       if (x != null && mounted) {
-        setState(() { _image = File(x.path); _parsed = null; _showRetryVision = false; });
-        _showSnackBar('Immagine caricata con successo!', Colors.green);
+        setState(() { _image = File(x!.path); _parsed = null; _showRetryVision = false; });
+        _snack('Immagine caricata con successo!', Colors.green);
       }
-    } catch (e) {
-      _showSnackBar('Errore selezione immagine: ${e.toString()}', Colors.red);
-    }
+    } catch (e) { _snack('Errore selezione immagine: $e', Colors.red); }
   }
 
-  void _showSnackBar(String message, Color color) {
+  void _snack(String m, Color c) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m), backgroundColor: c));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenHeight = MediaQuery.of(context).size.height;
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.grey[50],
+      appBar: AppBar(
+        title: const Text('Scansiona scontrino'),
+        centerTitle: true,
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _pickFromCamera,
+                      icon: const Icon(Icons.photo_camera),
+                      label: const Text('Fotocamera'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _pickFromGallery,
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Galleria'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _image == null
+                  ? Center(child: Text('Nessuna immagine selezionata', style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)))
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(_image!, fit: BoxFit.cover, height: screenHeight * 0.5),
+                    ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
-
-  // ... resto file invariato ...
 }
