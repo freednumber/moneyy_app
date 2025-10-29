@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'models.dart';
-
-enum PaymentMethod { carta, contanti, bonifico }
 
 class MoneyModel extends ChangeNotifier {
   List<MoneyTx> _transactions = [];
@@ -25,7 +22,7 @@ class MoneyModel extends ChangeNotifier {
   // Categories
   final List<String> incomeCats = ['Stipendio', 'Freelance', 'Investimenti', 'Regalo', 'Altro Reddito'];
   final List<String> expenseCats = ['Spesa', 'Trasporti', 'Svago', 'Salute', 'Shopping', 'Bollette', 'Casa', 'Altro'];
-  List<String> get goalCategories => _goals.map((g) => g.name).toList();
+  List<String> get goalCategories => _goals.map((g) => g.title).toList();
   
   // Financial calculations
   double get netWorth => _transactions.fold(0.0, (sum, tx) => sum + (tx.isIncome ? tx.amount : -tx.amount));
@@ -40,7 +37,7 @@ class MoneyModel extends ChangeNotifier {
   void removeTx(MoneyTx tx) { _transactions.remove(tx); notifyListeners(); }
   void updateTx(MoneyTx oldTx, MoneyTx newTx) { final i = _transactions.indexOf(oldTx); if (i != -1) { _transactions[i] = newTx; notifyListeners(); } }
 
-  // Goals management
+  // Goals management (adattato a models.dart)
   void addGoal(Goal goal) { _goals.add(goal); notifyListeners(); }
   void updateGoal(Goal goal) { final i = _goals.indexWhere((g) => g.id == goal.id); if (i != -1) { _goals[i] = goal; notifyListeners(); } }
   void removeGoal(Goal goal) { _goals.remove(goal); notifyListeners(); }
@@ -66,7 +63,6 @@ class MoneyModel extends ChangeNotifier {
       'Investimenti': TransactionStyle(Icons.trending_up, const Color(0xFF8B5CF6)),
       'Regalo': TransactionStyle(Icons.card_giftcard, const Color(0xFFEC4899)),
       'Altro': TransactionStyle(Icons.category, const Color(0xFF6B7280)),
-      'Altro Reddito': TransactionStyle(Icons.attach_money, const Color(0xFF22C55E)),
     }; return styles[category] ?? TransactionStyle(Icons.category, const Color(0xFF6B7280));
   }
 
@@ -74,20 +70,14 @@ class MoneyModel extends ChangeNotifier {
     await Future.delayed(const Duration(milliseconds: 300));
     if (_transactions.isEmpty) {
       _transactions.addAll([
-        MoneyTx(id: '1', isIncome: false, category: 'Spesa', amount: 45.30, date: DateTime.now().subtract(const Duration(hours: 2)), note: 'Supermercato', payment: PaymentMethod.carta),
-        MoneyTx(id: '2', isIncome: false, category: 'Trasporti', amount: 12.50, date: DateTime.now().subtract(const Duration(hours: 5)), note: 'Metro', payment: PaymentMethod.contanti),
-        MoneyTx(id: '3', isIncome: true, category: 'Stipendio', amount: 2500.00, date: DateTime.now().subtract(const Duration(days: 1)), note: 'Mensile', payment: PaymentMethod.bonifico),
-        MoneyTx(id: '4', isIncome: false, category: 'Svago', amount: 28.90, date: DateTime.now().subtract(const Duration(days: 2)), note: 'Cinema', payment: PaymentMethod.carta),
+        MoneyTx(id: null, isIncome: false, category: 'Spesa', amount: 45.30, date: DateTime.now().subtract(const Duration(hours: 2)), note: 'Supermercato', payment: PaymentMethod.carta),
+        MoneyTx(id: null, isIncome: false, category: 'Trasporti', amount: 12.50, date: DateTime.now().subtract(const Duration(hours: 5)), note: 'Metro', payment: PaymentMethod.contanti),
+        MoneyTx(id: null, isIncome: true, category: 'Stipendio', amount: 2500.00, date: DateTime.now().subtract(const Duration(days: 1)), note: 'Mensile', payment: PaymentMethod.bonifico),
+        MoneyTx(id: null, isIncome: false, category: 'Svago', amount: 28.90, date: DateTime.now().subtract(const Duration(days: 2)), note: 'Cinema', payment: PaymentMethod.carta),
       ]);
     }
     notifyListeners();
   }
-}
-
-class Goal {
-  final String id; final String name; final double targetAmount; final double currentAmount; final DateTime deadline; final IconData icon; final Color color;
-  Goal({required this.id, required this.name, required this.targetAmount, required this.currentAmount, required this.deadline, required this.icon, required this.color});
-  double get progress => targetAmount > 0 ? (currentAmount / targetAmount).clamp(0.0, 1.0) : 0.0; bool get isCompleted => currentAmount >= targetAmount;
 }
 
 class TransactionStyle { final IconData icon; final Color color; TransactionStyle(this.icon, this.color); }
