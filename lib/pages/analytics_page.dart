@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../models.dart';
 import '../providers.dart';
 
@@ -36,7 +37,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSpendingAlert(isDark),
+                  _buildSpendingAlert(model, isDark),
                   const SizedBox(height: 24),
                   _buildGoalsSection(model, isDark),
                   const SizedBox(height: 32),
@@ -52,7 +53,20 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
     );
   }
 
-  Widget _buildSpendingAlert(bool isDark) {
+  Widget _buildSpendingAlert(MoneyModel model, bool isDark) {
+    // Calcolo reale alert basato sui dati utente
+    final shoppingThisMonth = model.transactions
+        .where((tx) => tx.category == 'Shopping' && 
+               tx.date.month == DateTime.now().month && 
+               tx.date.year == DateTime.now().year && 
+               !tx.isIncome)
+        .fold<double>(0, (sum, tx) => sum + tx.amount);
+    
+    const shoppingLimit = 600.0;
+    final percentage = (shoppingThisMonth / shoppingLimit * 100).round();
+    
+    if (percentage < 80) return const SizedBox.shrink();
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -73,7 +87,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'You are close to your monthly spending limit for "Shopping".',
+              'Hai speso €${shoppingThisMonth.toStringAsFixed(2)} di €${shoppingLimit.toStringAsFixed(0)} per Shopping questo mese ($percentage%)',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -87,10 +101,36 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
   }
 
   Widget _buildGoalsSection(MoneyModel model, bool isDark) {
+    // Goals basati sui dati reali dell'utente
+    final totalSavings = model.transactions
+        .where((tx) => tx.isIncome)
+        .fold<double>(0, (sum, tx) => sum + tx.amount) - 
+        model.transactions
+        .where((tx) => !tx.isIncome)
+        .fold<double>(0, (sum, tx) => sum + tx.amount);
+    
     final goals = [
-      {'name': 'New Car', 'current': 12550.0, 'target': 25000.0, 'icon': Icons.directions_car, 'color': const Color(0xFF3B82F6)},
-      {'name': 'Vacation in Italy', 'current': 1800.0, 'target': 4000.0, 'icon': Icons.flight, 'color': const Color(0xFF8B5CF6)},
-      {'name': 'Emergency Fund', 'current': 7890.0, 'target': 10000.0, 'icon': Icons.savings, 'color': const Color(0xFF10B981)},
+      {
+        'name': 'Fondo Emergenza',
+        'current': totalSavings > 0 ? totalSavings * 0.6 : 0.0,
+        'target': 5000.0,
+        'icon': Icons.savings,
+        'color': const Color(0xFF10B981)
+      },
+      {
+        'name': 'Vacanze Estate',
+        'current': totalSavings > 0 ? totalSavings * 0.25 : 0.0,
+        'target': 2500.0,
+        'icon': Icons.flight,
+        'color': const Color(0xFF8B5CF6)
+      },
+      {
+        'name': 'Nuova Auto',
+        'current': totalSavings > 0 ? totalSavings * 0.15 : 0.0,
+        'target': 15000.0,
+        'icon': Icons.directions_car,
+        'color': const Color(0xFF3B82F6)
+      },
     ];
 
     return Column(
@@ -99,7 +139,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
   }
 
   Widget _buildGoalCard(Map<String, dynamic> goal, bool isDark) {
-    final progress = (goal['current'] as double) / (goal['target'] as double);
+    final current = goal['current'] as double;
+    final target = goal['target'] as double;
+    final progress = target > 0 ? current / target : 0.0;
     final percentage = (progress * 100).round();
     
     return Container(
@@ -140,7 +182,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
           ),
           const SizedBox(height: 16),
           Text(
-            '€${NumberFormat('#,##0.00').format(goal['current'])} / €${NumberFormat('#,##0.00').format(goal['target'])}',
+            '€${NumberFormat('#,##0.00').format(current)} / €${NumberFormat('#,##0.00').format(target)}',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
@@ -159,7 +201,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
               ),
               Container(
                 height: 8,
-                width: MediaQuery.of(context).size.width * 0.8 * progress,
+                width: MediaQuery.of(context).size.width * 0.8 * progress.clamp(0.0, 1.0),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [(goal['color'] as Color).withOpacity(0.9), goal['color'] as Color],
@@ -171,7 +213,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
           ),
           const SizedBox(height: 8),
           Text(
-            '$percentage% completed',
+            '$percentage% completato',
             style: TextStyle(
               fontSize: 14,
               color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[600],
@@ -186,7 +228,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
   Widget _buildAddNewGoal(bool isDark) {
     return GestureDetector(
       onTap: () {
-        // TODO: Implement add goal dialog
+        _showAddGoalDialog();
       },
       child: Container(
         width: double.infinity,
@@ -215,7 +257,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
             ),
             const SizedBox(height: 16),
             Text(
-              'Add New Goal',
+              'Aggiungi Nuovo Obiettivo',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -229,17 +271,36 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
   }
 
   Widget _buildMonthlyBudgets(MoneyModel model, bool isDark) {
-    final budgets = [
-      {'name': 'Groceries', 'spent': 250.0, 'limit': 500.0, 'icon': Icons.shopping_cart, 'percentage': 50},
-      {'name': 'Shopping', 'spent': 510.0, 'limit': 600.0, 'icon': Icons.shopping_bag, 'percentage': 85},
-      {'name': 'Dining Out', 'spent': 652.30, 'limit': 500.0, 'icon': Icons.restaurant, 'percentage': 117},
-    ];
+    // Budget reali basati sui dati utente
+    final categories = ['Spesa', 'Shopping', 'Trasporti', 'Svago'];
+    final budgetLimits = {'Spesa': 500.0, 'Shopping': 600.0, 'Trasporti': 200.0, 'Svago': 300.0};
+    final icons = {'Spesa': Icons.shopping_cart, 'Shopping': Icons.shopping_bag, 'Trasporti': Icons.directions_car, 'Svago': Icons.movie};
+    
+    final budgets = categories.map((category) {
+      final spent = model.transactions
+          .where((tx) => tx.category == category && 
+                 tx.date.month == DateTime.now().month && 
+                 tx.date.year == DateTime.now().year && 
+                 !tx.isIncome)
+          .fold<double>(0, (sum, tx) => sum + tx.amount);
+      
+      final limit = budgetLimits[category] ?? 500.0;
+      final percentage = limit > 0 ? (spent / limit * 100).round() : 0;
+      
+      return {
+        'name': category,
+        'spent': spent,
+        'limit': limit,
+        'icon': icons[category] ?? Icons.category,
+        'percentage': percentage,
+      };
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Monthly Budgets',
+          'Budget Mensili',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
@@ -254,6 +315,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
 
   Widget _buildBudgetItem(Map<String, dynamic> budget, bool isDark) {
     final percentage = budget['percentage'] as int;
+    final spent = budget['spent'] as double;
+    final limit = budget['limit'] as double;
     final isOverBudget = percentage > 100;
     final color = isOverBudget ? const Color(0xFFEF4444) : 
                   percentage > 80 ? const Color(0xFFF59E0B) :
@@ -293,8 +356,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
                 const SizedBox(height: 4),
                 Text(
                   isOverBudget 
-                    ? '€${(budget['spent'] as double - budget['limit'] as double).toStringAsFixed(2)} over budget'
-                    : '€${(budget['limit'] as double - budget['spent'] as double).toStringAsFixed(0)} left of €${budget['limit'].toStringAsFixed(0)}',
+                    ? '€${(spent - limit).toStringAsFixed(2)} oltre il budget'
+                    : '€${(limit - spent).toStringAsFixed(0)} rimanenti di €${limit.toStringAsFixed(0)}',
                   style: TextStyle(
                     fontSize: 13,
                     color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[600],
@@ -317,6 +380,50 @@ class _AnalyticsPageState extends State<AnalyticsPage> with AutomaticKeepAliveCl
                 color: color,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddGoalDialog() {
+    final nameController = TextEditingController();
+    final targetController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Nuovo Obiettivo'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nome obiettivo',
+                prefixIcon: Icon(Icons.flag),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: targetController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Importo obiettivo',
+                prefixIcon: Icon(Icons.euro),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Implementare salvataggio obiettivo
+              Navigator.pop(context);
+            },
+            child: const Text('Salva'),
           ),
         ],
       ),
