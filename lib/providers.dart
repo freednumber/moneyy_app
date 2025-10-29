@@ -37,7 +37,7 @@ class MoneyModel extends ChangeNotifier {
   void removeTx(MoneyTx tx) { _transactions.remove(tx); notifyListeners(); }
   void updateTx(MoneyTx oldTx, MoneyTx newTx) { final i = _transactions.indexOf(oldTx); if (i != -1) { _transactions[i] = newTx; notifyListeners(); } }
 
-  // Goals management (adattato a models.dart)
+  // Goals management (models.dart)
   void addGoal(Goal goal) { _goals.add(goal); notifyListeners(); }
   void updateGoal(Goal goal) { final i = _goals.indexWhere((g) => g.id == goal.id); if (i != -1) { _goals[i] = goal; notifyListeners(); } }
   void removeGoal(Goal goal) { _goals.remove(goal); notifyListeners(); }
@@ -70,10 +70,10 @@ class MoneyModel extends ChangeNotifier {
     await Future.delayed(const Duration(milliseconds: 300));
     if (_transactions.isEmpty) {
       _transactions.addAll([
-        MoneyTx(id: null, isIncome: false, category: 'Spesa', amount: 45.30, date: DateTime.now().subtract(const Duration(hours: 2)), note: 'Supermercato', payment: PaymentMethod.carta),
-        MoneyTx(id: null, isIncome: false, category: 'Trasporti', amount: 12.50, date: DateTime.now().subtract(const Duration(hours: 5)), note: 'Metro', payment: PaymentMethod.contanti),
-        MoneyTx(id: null, isIncome: true, category: 'Stipendio', amount: 2500.00, date: DateTime.now().subtract(const Duration(days: 1)), note: 'Mensile', payment: PaymentMethod.bonifico),
-        MoneyTx(id: null, isIncome: false, category: 'Svago', amount: 28.90, date: DateTime.now().subtract(const Duration(days: 2)), note: 'Cinema', payment: PaymentMethod.carta),
+        MoneyTx(id: null, isIncome: false, category: 'Spesa', amount: 45.30, date: DateTime.now().subtract(const Duration(hours: 2)), note: 'Supermercato', payment: PaymentMethod.card),
+        MoneyTx(id: null, isIncome: false, category: 'Trasporti', amount: 12.50, date: DateTime.now().subtract(const Duration(hours: 5)), note: 'Metro', payment: PaymentMethod.cash),
+        MoneyTx(id: null, isIncome: true, category: 'Stipendio', amount: 2500.00, date: DateTime.now().subtract(const Duration(days: 1)), note: 'Mensile', payment: PaymentMethod.transfer),
+        MoneyTx(id: null, isIncome: false, category: 'Svago', amount: 28.90, date: DateTime.now().subtract(const Duration(days: 2)), note: 'Cinema', payment: PaymentMethod.card),
       ]);
     }
     notifyListeners();
