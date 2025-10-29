@@ -71,8 +71,8 @@ class MoneyModel extends ChangeNotifier {
     if (_transactions.isEmpty) {
       _transactions.addAll([
         MoneyTx(id: null, isIncome: false, category: 'Spesa', amount: 45.30, date: DateTime.now().subtract(const Duration(hours: 2)), note: 'Supermercato', payment: PaymentMethod.card),
-        MoneyTx(id: null, isIncome: false, category: 'Trasporti', amount: 12.50, date: DateTime.now().subtract(const Duration(hours: 5)), note: 'Metro', payment: PaymentMethod.cash),
-        MoneyTx(id: null, isIncome: true, category: 'Stipendio', amount: 2500.00, date: DateTime.now().subtract(const Duration(days: 1)), note: 'Mensile', payment: PaymentMethod.transfer),
+        MoneyTx(id: null, isIncome: false, category: 'Trasporti', amount: 12.50, date: DateTime.now().subtract(const Duration(hours: 5)), note: 'Metro', payment: PaymentMethod.card),
+        MoneyTx(id: null, isIncome: true, category: 'Stipendio', amount: 2500.00, date: DateTime.now().subtract(const Duration(days: 1)), note: 'Mensile', payment: PaymentMethod.card),
         MoneyTx(id: null, isIncome: false, category: 'Svago', amount: 28.90, date: DateTime.now().subtract(const Duration(days: 2)), note: 'Cinema', payment: PaymentMethod.card),
       ]);
     }
