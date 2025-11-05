@@ -108,6 +108,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   Widget build(BuildContext context) {
     final pages = [
       HomePage(onNavigate: _onNavigate),
+      const ScanReceiptPage(), // SCANNER PAGE AGGIUNTA!
       GoalsPage(key: goalsKey),
       const ReportsPage(),
       RecurringPage(key: recurringKey),
@@ -143,7 +144,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     final paddingBottom = MediaQuery.of(context).padding.bottom;
     final width = MediaQuery.of(context).size.width;
     final horizontal = 16.0;
-    final itemCount = 5;
+    final itemCount = 6; // AUMENTATO A 6 PER SCANNER
     final itemWidth = (width - (horizontal * 2)) / itemCount;
 
     return SafeArea(
@@ -205,11 +206,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                   Row(
                     children: List.generate(itemCount, (index) {
                       final icons = const [
-                        Icons.home_rounded,
-                        Icons.flag_rounded,
-                        Icons.bar_chart_rounded,
-                        Icons.repeat_rounded,
-                        Icons.settings_rounded,
+                        Icons.home_rounded,         // 0 - Home
+                        Icons.document_scanner,     // 1 - Scanner OCR ⭐
+                        Icons.flag_rounded,         // 2 - Goals
+                        Icons.bar_chart_rounded,    // 3 - Reports
+                        Icons.repeat_rounded,       // 4 - Recurring
+                        Icons.settings_rounded,     // 5 - Settings
                       ];
                       final isSelected = _currentIndex == index;
                       return Expanded(
@@ -227,7 +229,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                                 icons[index],
                                 size: 26,
                                 color: isSelected
-                                  ? const Color(0xFF6366F1)
+                                  ? (index == 1 ? const Color(0xFF10B981) : const Color(0xFF6366F1)) // Scanner in verde
                                   : isDark ? Colors.grey[300] : Colors.grey[700],
                               ),
                             ),
@@ -260,7 +262,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         },
         isDark: isDark,
       );
-    } else if (_currentIndex == 1) {
+    } else if (_currentIndex == 2) { // Goals ora è index 2
       return _buildGlassFab(
         color: const Color(0xFF6366F1),
         icon: Icons.flag,
@@ -276,7 +278,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         },
         isDark: isDark,
       );
-    } else if (_currentIndex == 3) {
+    } else if (_currentIndex == 4) { // Recurring ora è index 4
       return _buildGlassFab(
         color: const Color(0xFF6366F1),
         icon: Icons.add,
@@ -406,7 +408,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                     color: const Color(0xFF10B981),
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, '/scan_receipt');
+                      _onNavigate(1); // Vai alla tab Scanner (index 1)
                     },
                   ),
                   const SizedBox(height: 12),
