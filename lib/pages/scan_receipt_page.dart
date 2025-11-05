@@ -655,23 +655,23 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
 
   Future<void> _pickFromGallery() async {
     try {
-      XFile? x;
-      if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
-        final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false);
-        if (result != null && result.files.isNotEmpty && result.files.first.path != null) {
-          x = XFile(result.files.first.path!);
-        }
-      } else {
-        final ok = await PermissionHelper.ensureGalleryPermission(context);
-        if (!ok) return _showSnackBar('Permessi galleria necessari', const Color(0xFFEF4444));
-        x = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85, maxWidth: 1920, maxHeight: 1920);
-      }
-      if (x != null && mounted) {
-        setState(() => _selectedImage = File(x!.path));
+      // Fix per iOS - metodo più diretto
+      final image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      
+      if (image != null && mounted) {
+        setState(() => _selectedImage = File(image.path));
         HapticFeedback.lightImpact();
         _showSnackBar('Immagine caricata!', const Color(0xFF10B981));
       }
-    } catch (e) { _showSnackBar('Errore selezione: $e', const Color(0xFFEF4444)); }
+    } catch (e) {
+      print('Gallery error: $e');
+      _showSnackBar('Errore galleria: ${e.toString()}', const Color(0xFFEF4444));
+    }
   }
 
   void _saveTransaction() {
