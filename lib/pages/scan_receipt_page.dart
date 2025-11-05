@@ -43,7 +43,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
   DateTime _selectedDate = DateTime.now();
 
   // Production Vercel endpoint - App Store ready
-  static const String _backendUrl = 'https://receipt-ocr-api.vercel.app';
+  static const String _backendUrl = 'https://moneyyocr2025-jqiwfk839-freed-numbers-projects.vercel.app';
 
   @override
   void initState() {
