@@ -27,7 +27,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
   File? _selectedImage;
   bool _isProcessing = false;
   bool _showResult = false;
-  bool _useChandraOCR = true; // Toggle per Chandra vs simulazione
+  bool _useDeepSeekOCR = true; // Toggle per DeepSeek vs simulazione
 
   String _extractedMerchant = '';
   double _extractedAmount = 0.0;
@@ -42,8 +42,8 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
   String _selectedCategory = 'Spesa';
   DateTime _selectedDate = DateTime.now();
 
-  // Backend URL - modifica se deployi il backend altrove
-  static const String _backendUrl = 'http://localhost:3000';
+  // Production Vercel endpoint - App Store ready
+  static const String _backendUrl = 'https://receipt-ocr-api.vercel.app';
 
   @override
   void initState() {
@@ -75,14 +75,14 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
         centerTitle: true,
         automaticallyImplyLeading: false,
         actions: [
-          // Toggle Chandra OCR
+          // Toggle DeepSeek OCR
           IconButton(
             icon: Icon(
-              _useChandraOCR ? Icons.auto_awesome : Icons.psychology_alt,
-              color: _useChandraOCR ? const Color(0xFF6366F1) : Colors.grey,
+              _useDeepSeekOCR ? Icons.auto_awesome : Icons.psychology_alt,
+              color: _useDeepSeekOCR ? const Color(0xFF6366F1) : Colors.grey,
             ),
-            onPressed: () => setState(() => _useChandraOCR = !_useChandraOCR),
-            tooltip: _useChandraOCR ? 'AI Chandra attivo' : 'Modalità demo',
+            onPressed: () => setState(() => _useDeepSeekOCR = !_useDeepSeekOCR),
+            tooltip: _useDeepSeekOCR ? 'AI DeepSeek attivo' : 'Modalità demo',
           ),
         ],
       ),
@@ -132,14 +132,14 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
                   ),
                 ),
                 child: Icon(
-                  _useChandraOCR ? Icons.auto_awesome : Icons.receipt_long,
+                  _useDeepSeekOCR ? Icons.auto_awesome : Icons.receipt_long,
                   size: 48,
                   color: const Color(0xFF6366F1),
                 ),
               ),
               const SizedBox(height: 16),
               Text(
-                _useChandraOCR ? 'Scansiona con Chandra AI' : 'Modalità Demo',
+                _useDeepSeekOCR ? 'Scansiona con DeepSeek AI' : 'Modalità Demo',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -148,8 +148,8 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
               ),
               const SizedBox(height: 8),
               Text(
-                _useChandraOCR 
-                  ? 'OCR avanzato che gestisce tabelle, scrittura a mano e layout complessi'
+                _useDeepSeekOCR 
+                  ? 'OCR economico e veloce con analisi intelligente scontrini'
                   : 'Elaborazione simulata per test dell\'interfaccia',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -176,18 +176,18 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
     return SizedBox(
       width: double.infinity,
       child: InkWell(
-        onTap: _isProcessing ? null : (_useChandraOCR ? _processWithChandra : _processWithAI),
+        onTap: _isProcessing ? null : (_useDeepSeekOCR ? _processWithDeepSeek : _processWithAI),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 18),
           decoration: BoxDecoration(
             gradient: _isProcessing
                 ? LinearGradient(colors: [Colors.grey.withOpacity(0.5), Colors.grey.withOpacity(0.3)])
-                : LinearGradient(colors: _useChandraOCR ? [const Color(0xFF6366F1), const Color(0xFF8B5CF6)] : [const Color(0xFF10B981), const Color(0xFF059669)]),
+                : LinearGradient(colors: _useDeepSeekOCR ? [const Color(0xFF6366F1), const Color(0xFF8B5CF6)] : [const Color(0xFF10B981), const Color(0xFF059669)]),
             borderRadius: BorderRadius.circular(16),
             boxShadow: _isProcessing ? [] : [
               BoxShadow(
-                color: (_useChandraOCR ? const Color(0xFF6366F1) : const Color(0xFF10B981)).withOpacity(0.4),
+                color: (_useDeepSeekOCR ? const Color(0xFF6366F1) : const Color(0xFF10B981)).withOpacity(0.4),
                 blurRadius: 16,
                 offset: const Offset(0, 8),
               ),
@@ -200,18 +200,18 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
                 const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
                 const SizedBox(width: 12),
                 Text(
-                  _useChandraOCR ? 'Elaborazione Chandra OCR...' : 'Elaborazione AI...',
+                  _useDeepSeekOCR ? 'Elaborazione DeepSeek OCR...' : 'Elaborazione AI...',
                   style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ] else ...[
                 Icon(
-                  _useChandraOCR ? Icons.auto_awesome : Icons.psychology_alt,
+                  _useDeepSeekOCR ? Icons.auto_awesome : Icons.psychology_alt,
                   color: Colors.white,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  _useChandraOCR ? 'Elabora con Chandra' : 'Elabora (Demo)',
+                  _useDeepSeekOCR ? 'Elabora con DeepSeek' : 'Elabora (Demo)',
                   style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ],
@@ -241,7 +241,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
                 padding: const EdgeInsets.all(12),
                 decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)])),
                 child: Icon(
-                  _useChandraOCR ? Icons.auto_awesome : Icons.check,
+                  _useDeepSeekOCR ? Icons.auto_awesome : Icons.check,
                   color: Colors.white,
                   size: 24,
                 ),
@@ -254,14 +254,14 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
                     Row(
                       children: [
                         Text(
-                          _useChandraOCR ? 'Chandra OCR completato!' : 'Elaborazione completata!',
+                          _useDeepSeekOCR ? 'DeepSeek OCR completato!' : 'Elaborazione completata!',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: isDark ? Colors.white : const Color(0xFF1E293B),
                           ),
                         ),
-                        if (_useChandraOCR && _confidence > 0) ...[
+                        if (_useDeepSeekOCR && _confidence > 0) ...[
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -391,8 +391,8 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
     );
   }
 
-  // Processo con Chandra OCR (VERA API)
-  Future<void> _processWithChandra() async {
+  // Processo con DeepSeek OCR via Vercel (PRODUCTION)
+  Future<void> _processWithDeepSeek() async {
     if (_selectedImage == null) return;
     
     setState(() => _isProcessing = true);
@@ -403,15 +403,14 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
       final bytes = await _selectedImage!.readAsBytes();
       final base64Image = base64Encode(bytes);
       
-      // Chiamata al backend Chandra
+      // Chiamata al backend Vercel + DeepSeek
       final response = await http.post(
         Uri.parse('$_backendUrl/api/ocr/receipt'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'imageBase64': 'data:image/jpeg;base64,$base64Image',
-          'language': 'it'
+          'imageBase64': 'data:image/jpeg;base64,$base64Image'
         }),
-      ).timeout(const Duration(minutes: 3)); // Timeout generoso per OCR
+      ).timeout(const Duration(seconds: 45)); // Timeout per serverless
       
       if (response.statusCode != 200) {
         throw Exception('Backend error: ${response.statusCode}');
@@ -423,7 +422,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
         throw Exception(data['error'] ?? 'OCR processing failed');
       }
       
-      // Popola i campi con i risultati Chandra
+      // Popola i campi con i risultati DeepSeek
       _extractedMerchant = data['merchant'] ?? 'Negozio Non Identificato';
       _extractedAmount = (data['total'] ?? 0.0).toDouble();
       _suggestedCategory = data['category'] ?? 'Spesa';
@@ -447,14 +446,14 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
       });
       
       HapticFeedback.heavyImpact();
-      _showSnackBar('Scontrino elaborato con Chandra OCR!', const Color(0xFF10B981));
+      _showSnackBar('Scontrino elaborato con DeepSeek!', const Color(0xFF10B981));
       
     } catch (e) {
       setState(() => _isProcessing = false);
       _showSnackBar('Errore OCR: ${e.toString()}', const Color(0xFFEF4444));
       
-      // Fallback alla modalità demo se Chandra fallisce
-      if (_useChandraOCR) {
+      // Fallback alla modalità demo se DeepSeek fallisce
+      if (_useDeepSeekOCR) {
         _showSnackBar('Fallback alla modalità demo...', const Color(0xFFF59E0B));
         await _processWithAI();
       }
