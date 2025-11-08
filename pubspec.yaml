@@ -21,29 +21,29 @@ dependencies:
   # State management
   provider: ^6.1.1
 
+  # HTTP per OCR.space API
   http: ^1.2.0
-  google_generative_ai: ^0.4.3
   
   # Preferenze utente (per salvare valuta, tema, etc.)
   shared_preferences: ^2.2.2
 
-  # Localizzazione e formattazione (allineata a flutter_localizations)
+  # Localizzazione e formattazione
   intl: ^0.20.2
   flutter_localizations:
     sdk: flutter
 
-  # ✅ IMPORTAZIONE FILE AVANZATA (aggiornato per desktop)
+  # Importazione/Esportazione file
   file_picker: ^8.0.0+1
   excel: ^2.1.0
   path_provider: ^2.1.1
-  # ✅ DRAG & DROP SUPPORT
+  
+  # Drag & Drop support
   desktop_drop: ^0.4.4
   
-  # 📸 RECEIPT SCANNING
+  # Scansione scontrini
   image_picker: ^1.0.7
-  # 🤖 LOCAL OCR FALLBACK (versione compatibile simulatore)
-  google_mlkit_text_recognition: ^0.12.0
-  # 🔒 PERMISSION HANDLER for gallery/camera access
+  
+  # Permission handler per galleria/fotocamera
   permission_handler: ^11.0.1
 
 dev_dependencies:
