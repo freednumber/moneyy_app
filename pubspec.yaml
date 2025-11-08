@@ -24,6 +24,8 @@ dependencies:
   # HTTP per OCR.space API
   http: ^1.2.0
   
+  image: ^4.0.17
+  
   # Preferenze utente (per salvare valuta, tema, etc.)
   shared_preferences: ^2.2.2
 
