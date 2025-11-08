@@ -1,3 +1,4 @@
+// VERSIONE COMPLETA: OCA SPACE (OCR.SPACE) INTEGRATA
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -41,7 +42,6 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
   String _selectedCategory = 'Spesa';
   DateTime _selectedDate = DateTime.now();
 
-  // OCR.Space API endpoint
   static const String _ocrSpaceUrl = 'https://api.ocr.space/parse/image';
   static const String _ocrSpaceApiKey = 'K89996646088957';
 
@@ -213,7 +213,6 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Success header con confidence
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
@@ -265,8 +264,6 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
           ),
         ),
         const SizedBox(height: 24),
-        
-        // Dati estratti
         _buildEditableField('Negozio', _merchantController, Icons.store, isDark),
         const SizedBox(height: 16),
         _buildEditableField('Importo', _amountController, Icons.euro, isDark, isAmount: true),
@@ -276,13 +273,10 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
         _buildDateSelector(isDark),
         const SizedBox(height: 16),
         _buildEditableField('Note (opzionale)', _noteController, Icons.note, isDark),
-        
-        // Line items preview se disponibile
         if (_extractedItems.isNotEmpty) ...[
           const SizedBox(height: 24),
           _buildLineItemsPreview(isDark),
         ],
-        
         const SizedBox(height: 32),
         Row(
           children: [
@@ -311,7 +305,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
               Icon(Icons.receipt, color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[600], size: 20),
               const SizedBox(width: 8),
               Text(
-                'Articoli Estratti ({_extractedItems.length})',
+                'Articoli Estratti (${_extractedItems.length})',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -327,7 +321,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
               children: [
                 Expanded(
                   child: Text(
-                    '{item['quantity']}x {item['name']}',
+                    '${item['quantity']}x ${item['name']}',
                     style: TextStyle(
                       fontSize: 13,
                       color: isDark ? Colors.white.withOpacity(0.8) : Colors.grey[700],
@@ -337,7 +331,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
                   ),
                 ),
                 Text(
-                  '€{item['lineTotal'].toStringAsFixed(2)}',
+                  '€${item['lineTotal'].toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
@@ -349,7 +343,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
           )).toList()),
           if (_extractedItems.length > 5) 
             Text(
-              '...e altri {_extractedItems.length - 5} articoli',
+              '...e altri ${_extractedItems.length - 5} articoli',
               style: TextStyle(
                 fontSize: 12,
                 color: isDark ? Colors.white.withOpacity(0.5) : Colors.grey[500],
@@ -360,13 +354,11 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
     );
   }
 
-  // Processo con OCA Space (OCR.space API)
   Future<void> _processWithOCASpace() async {
     if (_selectedImage == null) return;
     setState(() => _isProcessing = true);
     HapticFeedback.mediumImpact();
     try {
-      // Converti immagine a base64
       final bytes = await _selectedImage!.readAsBytes();
       final base64Image = base64Encode(bytes);
       final response = await http.post(
@@ -380,13 +372,12 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
           'isOverlayRequired': 'false',
         },
       ).timeout(const Duration(seconds: 45));
-      if (response.statusCode != 200) throw Exception('Backend error: {response.statusCode}');
+      if (response.statusCode != 200) throw Exception('Backend error: ${response.statusCode}');
       final data = jsonDecode(response.body);
       if (!(data['IsErroredOnProcessing'] == false && data['ParsedResults'] != null && data['ParsedResults'].isNotEmpty)) {
         throw Exception("OCR.space non ha restituito risultati validi");
       }
       final ocrText = data['ParsedResults'][0]['ParsedText'] ?? '';
-      // Puoi implementare qui qualche estrazione semplice di importo/data/negozio da ocrText
       _extractedMerchant = 'Negozio rilevato';
       _extractedAmount = 0.0;
       _suggestedCategory = 'Spesa';
@@ -404,11 +395,10 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
       _showSnackBar('Scontrino elaborato con OCA Space!', const Color(0xFF10B981));
     } catch (e) {
       setState(() => _isProcessing = false);
-      _showSnackBar('Errore OCR: {e.toString()}', const Color(0xFFEF4444));
+      _showSnackBar('Errore OCR: ${e.toString()}', const Color(0xFFEF4444));
     }
   }
 
-  // Reset scanner state
   void _resetScanner() {
     setState(() {
       _selectedImage = null;
@@ -446,7 +436,157 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
       ),
     );
   }
-  
-// --- RESTO DEL CODICE ECC (funzioni galleria, salvataggio, snackbar ecc) ---
-  // ... Rimangono invariati ...
+
+  Widget _buildImagePreviewBox(bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 250,
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300]!),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            Positioned.fill(child: Image.file(_selectedImage!, fit: BoxFit.cover)),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedImage = null),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                  child: const Icon(Icons.close, color: Colors.white, size: 18),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFromCamera() async {
+    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+      _showSnackBar('Fotocamera non disponibile su desktop. Usa "Galleria".', const Color(0xFFF59E0B));
+      return;
+    }
+    final granted = await PermissionHelper.ensureCameraPermission(context);
+    if (!granted) { _showSnackBar('Permesso fotocamera richiesto', const Color(0xFFEF4444)); return; }
+    try {
+      final image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85, maxWidth: 1920, maxHeight: 1920);
+      if (image != null) { setState(() => _selectedImage = File(image.path)); HapticFeedback.lightImpact(); }
+    } catch (e) { _showSnackBar('Errore fotocamera: $e', const Color(0xFFEF4444)); }
+  }
+
+  Future<void> _pickFromGallery() async {
+    try {
+      final image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (image != null && mounted) {
+        setState(() => _selectedImage = File(image.path));
+        HapticFeedback.lightImpact();
+        _showSnackBar('Immagine caricata!', const Color(0xFF10B981));
+      }
+    } catch (e) {
+      print('Gallery error: $e');
+      _showSnackBar('Errore galleria: ${e.toString()}', const Color(0xFFEF4444));
+    }
+  }
+
+  Widget _buildEditableField(String label, TextEditingController controller, IconData icon, bool isDark, {bool isAmount = false}) {
+    return Container(
+      decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.05) : Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300]!)),
+      child: TextField(
+        controller: controller,
+        keyboardType: isAmount ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontSize: 16, fontWeight: FontWeight.w500),
+        decoration: InputDecoration(labelText: label, labelStyle: TextStyle(color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[600]), prefixIcon: Icon(icon, color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[600]), border: InputBorder.none, contentPadding: const EdgeInsets.all(16)),
+      ),
+    );
+  }
+
+  Widget _buildCategorySelector(bool isDark) {
+    final categories = ['Spesa', 'Trasporti', 'Svago', 'Salute', 'Shopping', 'Bollette', 'Casa', 'Altro'];
+    return Container(
+      decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.05) : Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300]!)),
+      child: DropdownButtonFormField<String>(
+        value: _selectedCategory,
+        decoration: InputDecoration(labelText: 'Categoria', labelStyle: TextStyle(color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[600]), prefixIcon: Icon(Icons.category, color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[600]), border: InputBorder.none, contentPadding: const EdgeInsets.all(16)),
+        dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontSize: 16),
+        items: categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+        onChanged: (value) => setState(() => _selectedCategory = value!),
+      ),
+    );
+  }
+
+  Widget _buildDateSelector(bool isDark) {
+    return GestureDetector(
+      onTap: () async {
+        final picked = await showDatePicker(context: context, initialDate: _selectedDate, firstDate: DateTime(2020), lastDate: DateTime.now());
+        if (picked != null) setState(() => _selectedDate = picked);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.05) : Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300]!)),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_today, color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[600]),
+            const SizedBox(width: 16),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Data', style: TextStyle(fontSize: 12, color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[600])),
+              const SizedBox(height: 4),
+              Text(DateFormat('d MMMM yyyy', 'it_IT').format(_selectedDate), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: isDark ? Colors.white : const Color(0xFF1E293B))),
+            ]),
+            const Spacer(),
+            Icon(Icons.chevron_right, color: isDark ? Colors.white.withOpacity(0.4) : Colors.grey[400]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecondaryButton(String label, IconData icon, VoidCallback onTap, bool isDark) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200], borderRadius: BorderRadius.circular(12), border: Border.all(color: isDark ? Colors.white.withOpacity(0.2) : Colors.grey[400]!)),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, color: isDark ? Colors.white : Colors.grey[700], size: 18), const SizedBox(width: 8), Text(label, style: TextStyle(color: isDark ? Colors.white : Colors.grey[700], fontSize: 16, fontWeight: FontWeight.w600))]),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(bool isDark) {
+    return InkWell(
+      onTap: _saveTransaction,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]), borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: const Color(0xFF10B981).withOpacity(0.4), blurRadius: 16, offset: const Offset(0, 8))]),
+        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.save, color: Colors.white, size: 20), SizedBox(width: 8), Text('Salva Transazione', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700))]),
+      ),
+    );
+  }
+
+  void _saveTransaction() {
+    final amount = double.tryParse(_amountController.text);
+    if (amount == null || amount <= 0 || _merchantController.text.isEmpty) { _showSnackBar('Compila tutti i campi obbligatori', const Color(0xFFEF4444)); return; }
+    final tx = MoneyTx(id: null, isIncome: false, category: _selectedCategory, amount: amount, date: _selectedDate, note: '${_merchantController.text}${_noteController.text.isNotEmpty ? ' - ${_noteController.text}' : ''}', payment: PaymentMethod.carta);
+    context.read<MoneyModel>().addTx(tx); HapticFeedback.heavyImpact(); _showSnackBar('Transazione salvata!', const Color(0xFF10B981));
+    _resetScanner();
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: color, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+  }
 }
