@@ -59,7 +59,7 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (model.activeGoals.isNotEmpty) ..[
+                    if (model.activeGoals.isNotEmpty) ...[
                       Text(
                         'In Corso',
                         style: TextStyle(
@@ -73,7 +73,7 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                       ...model.activeGoals.map((goal) => _buildGoalCard(goal, model, false, isDark)),
                       const SizedBox(height: 24),
                     ],
-                    if (model.completedGoals.isNotEmpty) ..[
+                    if (model.completedGoals.isNotEmpty) ...[
                       Text(
                         'Completati',
                         style: TextStyle(
@@ -321,7 +321,7 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                               ),
                             ),
                           ),
-                        if (!goal.isPurchased) ..[
+                        if (!goal.isPurchased) ...[
                           const SizedBox(width: 8),
                           IconButton(
                             onPressed: () => _showEditGoalDialog(goal, model),
@@ -600,8 +600,8 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -781,8 +781,8 @@ class _GoalsPageState extends State<GoalsPage> with AutomaticKeepAliveClientMixi
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
