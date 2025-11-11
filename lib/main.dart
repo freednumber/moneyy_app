@@ -6,9 +6,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers.dart';
 import 'theme_provider.dart';
 import 'pages/home_page.dart';
-import 'pages/goals_page.dart';
+import 'pages/planning_page.dart';
 import 'pages/reports_page.dart';
-import 'pages/recurring_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/splash_page.dart';
 import 'pages/add_tx_page.dart';
@@ -48,7 +47,6 @@ class MoneyYApp extends StatelessWidget {
             home: const SplashPage(),
             routes: {
               '/home': (context) => const MainNavigationPage(),
-              '/scan_receipt': (context) => const ScanReceiptPage(),
             },
           );
         },
@@ -68,12 +66,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   int _currentIndex = 0;
   MoneyModel? _model;
   late AnimationController _fabController;
-
-  // GlobalKey senza tipo privato: usiamo GlobalKey<State<StatefulWidget>>
-  final GlobalKey goalsKey = GlobalKey();
-  final GlobalKey recurringKey = GlobalKey();
-
-  // slider dock (stile precedente: track larga sotto l'item)
+  final GlobalKey planningKey = GlobalKey();
   late ValueNotifier<int> _dockIndex;
 
   @override
@@ -106,12 +99,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
 
   @override
   Widget build(BuildContext context) {
+    // 4 PAGINE: Home, Planning, Reports, Settings
     final pages = [
       HomePage(onNavigate: _onNavigate),
-      const ScanReceiptPage(), // SCANNER PAGE AGGIUNTA!
-      GoalsPage(key: goalsKey),
+      PlanningPage(key: planningKey),
       const ReportsPage(),
-      RecurringPage(key: recurringKey),
       const SettingsPage(),
     ];
 
@@ -138,13 +130,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     );
   }
 
-  // ------------------ GLASS DOCK ------------------
   Widget _buildGlassDock() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final paddingBottom = MediaQuery.of(context).padding.bottom;
     final width = MediaQuery.of(context).size.width;
     final horizontal = 16.0;
-    final itemCount = 6; // AUMENTATO A 6 PER SCANNER
+    final itemCount = 4; // 4 TAB: Home, Planning, Reports, Settings
     final itemWidth = (width - (horizontal * 2)) / itemCount;
 
     return SafeArea(
@@ -207,11 +198,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                     children: List.generate(itemCount, (index) {
                       final icons = const [
                         Icons.home_rounded,         // 0 - Home
-                        Icons.document_scanner,     // 1 - Scanner OCR ⭐
-                        Icons.flag_rounded,         // 2 - Goals
-                        Icons.bar_chart_rounded,    // 3 - Reports
-                        Icons.repeat_rounded,       // 4 - Recurring
-                        Icons.settings_rounded,     // 5 - Settings
+                        Icons.calendar_month,       // 1 - Planning (NEW!)
+                        Icons.bar_chart_rounded,    // 2 - Reports
+                        Icons.settings_rounded,     // 3 - Settings
+                      ];
+                      final colors = [
+                        const Color(0xFF6366F1),  // Home
+                        const Color(0xFF10B981),  // Planning
+                        const Color(0xFF8B5CF6),  // Reports
+                        const Color(0xFF6B7280),  // Settings
                       ];
                       final isSelected = _currentIndex == index;
                       return Expanded(
@@ -229,7 +224,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                                 icons[index],
                                 size: 26,
                                 color: isSelected
-                                  ? (index == 1 ? const Color(0xFF10B981) : const Color(0xFF6366F1)) // Scanner in verde
+                                  ? colors[index]
                                   : isDark ? Colors.grey[300] : Colors.grey[700],
                               ),
                             ),
@@ -247,11 +242,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     );
   }
 
-  // ------------------ GLASS FAB ------------------
   Widget _buildContextFab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (_currentIndex == 0) {
+      // Home: FAB Aggiungi con modal
       return _buildGlassFab(
         color: const Color(0xFF6366F1),
         icon: Icons.add,
@@ -262,33 +257,20 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         },
         isDark: isDark,
       );
-    } else if (_currentIndex == 2) { // Goals ora è index 2
+    } else if (_currentIndex == 1) {
+      // Planning: FAB Aggiungi
       return _buildGlassFab(
-        color: const Color(0xFF6366F1),
-        icon: Icons.flag,
-        tooltip: 'Nuovo Obiettivo',
-        onTap: () {
-          HapticFeedback.mediumImpact();
-          final state = goalsKey.currentState;
-          if (state != null && state.mounted) {
-            final dynamic dyn = state;
-            final model = Provider.of<MoneyModel>(context, listen: false);
-            try { dyn.showAddGoalDialog(model); } catch (_) {}
-          }
-        },
-        isDark: isDark,
-      );
-    } else if (_currentIndex == 4) { // Recurring ora è index 4
-      return _buildGlassFab(
-        color: const Color(0xFF6366F1),
+        color: const Color(0xFF10B981),
         icon: Icons.add,
-        tooltip: 'Nuova Ricorrente',
+        tooltip: 'Aggiungi',
         onTap: () {
           HapticFeedback.mediumImpact();
-          final state = recurringKey.currentState;
+          final state = planningKey.currentState;
           if (state != null && state.mounted) {
             final dynamic dyn = state;
-            try { dyn.showAddRecurringDialog(context); } catch (_) {}
+            try {
+              dyn.showAddDialog(context);
+            } catch (_) {}
           }
         },
         isDark: isDark,
@@ -352,7 +334,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     );
   }
 
-  // ------------------ GLASS QUICK ADD MENU ------------------
   void _showQuickAddMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -400,7 +381,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Bottone Glass Scansione Scontrino (AI)
                   _GlassQuickAction(
                     icon: Icons.receipt_long,
                     title: 'Scansione scontrino (AI)',
@@ -408,7 +388,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                     color: const Color(0xFF10B981),
                     onTap: () {
                       Navigator.pop(context);
-                      _onNavigate(1); // Vai alla tab Scanner (index 1)
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ScanReceiptPageWithHome(),
+                        ),
+                      );
                     },
                   ),
                   const SizedBox(height: 12),
@@ -655,6 +640,53 @@ class _GlassQuickAction extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Scanner page con bottone Home per tornare indietro
+class ScanReceiptPageWithHome extends StatelessWidget {
+  const ScanReceiptPageWithHome({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: AppBar(
+              title: Text(
+                'Scansiona Scontrino',
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              leading: IconButton(
+                icon: Icon(
+                  Icons.home,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pop(context);
+                },
+                tooltip: 'Torna alla Home',
+              ),
+              elevation: 0,
+              centerTitle: true,
+              backgroundColor: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
+            ),
+          ),
+        ),
+      ),
+      body: const ScanReceiptPage(),
     );
   }
 }
