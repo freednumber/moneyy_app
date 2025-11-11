@@ -49,7 +49,8 @@ dependencies:
   permission_handler: ^11.0.1
   
   # Liquid Glass Effect (Apple-style glassmorphism)
-  liquid_glass_renderer: ^0.2.0
+  # Nota: Il package è ancora in versione dev/experimental
+  liquid_glass_renderer: ^0.2.0-dev.3
 
 dev_dependencies:
   flutter_test:
