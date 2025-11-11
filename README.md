@@ -8,6 +8,13 @@
 
 ## ✨ Caratteristiche Principali
 
+### 🎨 **Liquid Glass UI (Apple WWDC 2025)**
+- **Effetto Liquid Glass** autentico come presentato da Apple
+- **Glassmorphism avanzato** con rifrazione e blur dinamici
+- **Effetti interattivi** con glow e stretch al tocco
+- **Performance ottimizzate** con rendering Impeller
+- 📚 [**Guida completa**](LIQUID_GLASS_GUIDE.md) all'implementazione
+
 ### 🏠 **Dashboard Moderna**
 - **Panoramica finanziaria** in tempo reale
 - **Statistiche mensili** di entrate e uscite
@@ -37,39 +44,27 @@
 - **Trend e insights** finanziari
 
 ### 🎨 **Design System**
-- **Glassmorphism UI** moderna e accattivante
+- **Liquid Glass UI** stile Apple WWDC 2025
 - **Dark/Light Mode** automatico
 - **Animazioni fluide** e transizioni
 - **Responsive design** per tutti i dispositivi
 
 ---
 
-## 🚀 **Novità v1.0.0+4 (Ottobre 2025)**
+## 🚀 **Novità v1.0.0+5 (Novembre 2025)**
 
-### ✅ **Bug Fixes Critici**
-- **Risolto errore** spread operator syntax (`...[` invece di `..[`)
-- **Corretto problema** null safety per XFile nella galleria
-- **Eliminato overflow** "BOTTOM OVERFLOWED BY 7.0 PIXELS"
-- **Sistemata posizione** FAB e dock per evitare sovrapposizioni
+### 🫧 **Liquid Glass Effect**
+- **Integrazione completa** dell'effetto Liquid Glass di Apple
+- **Widget personalizzati** per card, button e container
+- **Effetti interattivi** con glow e stretch
+- **Guida completa** per l'implementazione
+- **Performance ottimizzate** con Impeller
 
-### 🎨 **Miglioramenti UI/UX**
-- **Layout responsivo** migliorato con CustomScrollView
-- **Spacing ottimizzato** per evitare conflitti con dock
-- **Categorie veloci** ridisegnate con Wrap invece di GridView
-- **Aspect ratio** migliorati per schermi compatti
-
-### 📱 **Scansione Scontrini Potenziata**
-- **Gestione permessi** robusta per fotocamera/galleria
-- **Error handling** migliorato con messaggi informativi
-- **Supporto multi-piattaforma** ottimizzato (iOS/Android/Desktop)
-- **UI responsiva** con altezze dinamiche per immagini
-- **Fallback robusti** per FilePicker su desktop
-
-### ⚡ **Performance & Stabilità**
-- **Memory leaks** risolti nella gestione immagini
-- **Async operations** ottimizzate
-- **Loading states** migliorati
-- **Exception handling** più robusto
+### 📚 **Documentazione**
+- **LIQUID_GLASS_GUIDE.md** - Guida dettagliata all'uso
+- **Esempi completi** di implementazione
+- **Best practices** per le performance
+- **Widget riutilizzabili** pronti all'uso
 
 ---
 
@@ -99,6 +94,18 @@ flutter build ios --release
 flutter build macos --release
 ```
 
+### Requisiti per Liquid Glass
+
+⚠️ **IMPORTANTE**: Il Liquid Glass funziona **SOLO con Impeller**.
+
+- ✅ **Supportato**: iOS, Android, macOS
+- ❌ **NON Supportato**: Web, Windows, Linux (per ora)
+
+```bash
+# iOS/macOS: Impeller è attivo di default
+# Android: verifica che sia abilitato nelle build settings
+```
+
 ### Configurazione Permessi
 
 **Android** (`android/app/src/main/AndroidManifest.xml`):
@@ -118,7 +125,7 @@ flutter build macos --release
 
 ---
 
-## 🏗️ **Architettura**
+## 🏛️ **Architettura**
 
 ```
 lib/
@@ -126,8 +133,11 @@ lib/
 ├── models.dart              # Modelli dati (MoneyTx, Goal, etc.)
 ├── providers.dart           # State management (MoneyModel)
 ├── theme_provider.dart      # Gestione temi
+├── widgets/
+│   └── liquid_glass_card.dart # Widget Liquid Glass riutilizzabili
 ├── pages/
 │   ├── home_page.dart       # Dashboard principale
+│   ├── home_page_liquid_glass.dart # Esempio con Liquid Glass
 │   ├── scan_receipt_page.dart # Scansione AI scontrini
 │   ├── goals_page.dart      # Gestione obiettivi
 │   ├── reports_page.dart    # Analytics e grafici
@@ -139,6 +149,60 @@ lib/
 │   └── storage_service.dart # Database SQLite
 └── parsed_receipt.dart      # Modello dati scontrini
 ```
+
+---
+
+## 🎓 **Guida Rapida Liquid Glass**
+
+### Uso Base
+
+```dart
+import 'package:moneyy/widgets/liquid_glass_card.dart';
+
+// Card semplice
+LiquidGlassCard(
+  borderRadius: 30,
+  child: Text('Hello, Liquid Glass!'),
+)
+
+// Card con effetto glow
+LiquidGlassCardWithGlow(
+  borderRadius: 30,
+  child: YourWidget(),
+)
+
+// Button interattivo
+LiquidGlassButton(
+  onPressed: () {},
+  child: Text('Tap Me'),
+)
+```
+
+### Struttura Base
+
+```dart
+Scaffold(
+  body: Stack(
+    children: [
+      // 1. Sfondo (gradiente o immagine)
+      Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(...),
+        ),
+      ),
+      
+      // 2. Contenuto con liquid glass
+      SafeArea(
+        child: LiquidGlassCard(
+          child: YourContent(),
+        ),
+      ),
+    ],
+  ),
+)
+```
+
+📚 **Per la guida completa, vedi [LIQUID_GLASS_GUIDE.md](LIQUID_GLASS_GUIDE.md)**
 
 ---
 
@@ -164,6 +228,19 @@ Questo progetto è rilasciato sotto licenza MIT. Vedi il file [LICENSE](LICENSE)
 
 ---
 
+## 📦 **Risorse**
+
+### Liquid Glass
+- [Apple WWDC 2025 - Meet Liquid Glass](https://developer.apple.com/videos/play/wwdc2025/219/)
+- [liquid_glass_renderer su pub.dev](https://pub.dev/packages/liquid_glass_renderer)
+- [awesome-liquid-glass](https://github.com/carolhsiaoo/awesome-liquid-glass)
+
+### Flutter
+- [Flutter Documentation](https://docs.flutter.dev/)
+- [Dart Language Tour](https://dart.dev/guides/language/language-tour)
+
+---
+
 ## 📞 **Supporto**
 
 Per bug report, richieste di funzionalità o domande:
@@ -173,4 +250,4 @@ Per bug report, richieste di funzionalità o domande:
 
 ---
 
-**Made with ❤️ and Flutter**
+**Made with ❤️, 🫧 and Flutter**
