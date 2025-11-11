@@ -2,7 +2,7 @@ name: moneyy
 description: "Un gestore di finanze personali completo, costruito con Flutter."
 publish_to: 'none'
 
-version: 1.0.0+4
+version: 1.0.0+5
 
 environment:
   sdk: '>=3.1.0 <4.0.0'
@@ -47,6 +47,9 @@ dependencies:
   
   # Permission handler per galleria/fotocamera
   permission_handler: ^11.0.1
+  
+  # Liquid Glass Effect (Apple-style glassmorphism)
+  liquid_glass_renderer: ^0.2.0
 
 dev_dependencies:
   flutter_test:
