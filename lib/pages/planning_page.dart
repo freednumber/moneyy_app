@@ -53,9 +53,7 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
       ),
       body: Column(
         children: [
-          // Tab selector stile dock
           _buildTabSelector(isDark),
-          // Content
           Expanded(
             child: _selectedTab == PlanningTab.obiettivi
                 ? _buildGoalsContent(model, isDark)
@@ -85,7 +83,6 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
             ),
             child: Stack(
               children: [
-                // Highlight animato
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
@@ -109,7 +106,6 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
                     ),
                   ),
                 ),
-                // Buttons
                 Row(
                   children: [
                     Expanded(
@@ -188,7 +184,6 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     );
   }
 
-  // Metodo pubblico per essere chiamato dal FAB
   void showAddDialog(BuildContext context) {
     if (_selectedTab == PlanningTab.obiettivi) {
       final model = Provider.of<MoneyModel>(context, listen: false);
@@ -198,7 +193,6 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     }
   }
 
-  // ========== GOALS CONTENT ==========
   Widget _buildGoalsContent(MoneyModel model, bool isDark) {
     if (model.loading) {
       return const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)));
@@ -429,12 +423,10 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     );
   }
 
-  // ========== RECURRING CONTENT ==========
   Widget _buildRecurringContent(MoneyModel model, bool isDark) {
     if (model.recurringTransactions.isEmpty) {
       return _buildRecurringEmptyState(isDark);
     }
-
     return ListView.builder(
       padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 100),
       itemCount: model.recurringTransactions.length,
@@ -573,7 +565,6 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     );
   }
 
-  // ========== GOAL DIALOGS ==========
   void _showAddGoalDialog(BuildContext context, MoneyModel model) {
     final targetController = TextEditingController();
     String selectedCategory = model.goalCategories.first;
@@ -790,7 +781,6 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     );
   }
 
-  // ========== RECURRING DIALOGS ==========
   void _showAddRecurringDialog(BuildContext context) {
     final model = Provider.of<MoneyModel>(context, listen: false);
     final amountCtrl = TextEditingController();
@@ -947,8 +937,8 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
                   ),
                 ),
               ),
-            );
-          },
+            ),
+          ),
         ),
       ),
     );
