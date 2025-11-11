@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui';
 import '../theme_provider.dart';
 import '../providers.dart';
 import 'io_page.dart';
@@ -11,25 +12,30 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
-      backgroundColor: isDark 
-        ? const Color(0xFF0F172A)
-        : Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          'Impostazioni',
-          style: TextStyle(
-            color: isDark ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.w600,
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: AppBar(
+              title: Text(
+                'Impostazioni',
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              automaticallyImplyLeading: false,
+              elevation: 0,
+              centerTitle: true,
+              backgroundColor: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
+            ),
           ),
         ),
-        automaticallyImplyLeading: false,
-        elevation: 0,
-        centerTitle: true,
-        backgroundColor: isDark 
-          ? const Color(0xFF1E293B)
-          : Colors.white,
       ),
       body: Column(
         children: [
@@ -37,8 +43,7 @@ class SettingsPage extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // SEZIONE TEMA
-                _buildCard(
+                _buildGlassCard(
                   context,
                   'Aspetto',
                   Icons.palette,
@@ -77,9 +82,7 @@ class SettingsPage extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // SEZIONE DATI
-                _buildCard(
+                _buildGlassCard(
                   context,
                   'Gestione Dati',
                   Icons.storage,
@@ -88,7 +91,7 @@ class SettingsPage extends StatelessWidget {
                     ListTile(
                       leading: Icon(
                         Icons.import_export,
-                        color: isDark ? const Color(0xFF34D399) : const Color(0xFF6366F1), // Verde lime in dark
+                        color: isDark ? const Color(0xFF34D399) : const Color(0xFF6366F1),
                       ),
                       title: Text(
                         'Importa/Esporta',
@@ -143,9 +146,7 @@ class SettingsPage extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // SEZIONE INFO
-                _buildCard(
+                _buildGlassCard(
                   context,
                   'Informazioni',
                   Icons.info,
@@ -164,7 +165,7 @@ class SettingsPage extends StatelessWidget {
                         ),
                       ),
                       trailing: Text(
-                        '1.0.0',
+                        '1.0.0+5',
                         style: TextStyle(
                           color: isDark ? Colors.grey[300] : Colors.grey[600],
                           fontWeight: FontWeight.w600,
@@ -177,14 +178,14 @@ class SettingsPage extends StatelessWidget {
                     ListTile(
                       leading: const Icon(Icons.star, color: Color(0xFF6366F1)),
                       title: Text(
-                        'AI in arrivo',
+                        'Liquid Glass UI',
                         style: TextStyle(
                           color: isDark ? Colors.white : Colors.black87,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       subtitle: Text(
-                        'Funzionalità AI presto disponibili',
+                        'Apple WWDC 2025 style',
                         style: TextStyle(
                           color: isDark ? Colors.grey[400] : Colors.grey[600],
                         ),
@@ -192,16 +193,14 @@ class SettingsPage extends StatelessWidget {
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: isDark
-                            ? const Color(0xFF6366F1).withOpacity(0.2)
-                            : const Color(0xFF6366F1).withOpacity(0.1),
+                          color: const Color(0xFF6366F1).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: const Color(0xFF6366F1).withOpacity(isDark ? 0.4 : 0.3),
+                            color: const Color(0xFF6366F1).withOpacity(0.3),
                           ),
                         ),
                         child: Text(
-                          'PRESTO',
+                          'NEW',
                           style: TextStyle(
                             color: isDark ? const Color(0xFF8B9BFF) : const Color(0xFF6366F1),
                             fontWeight: FontWeight.bold,
@@ -215,63 +214,74 @@ class SettingsPage extends StatelessWidget {
               ],
             ),
           ),
-          
-          // Spazio per footer fisso
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
         ],
       ),
-      // Footer "Sviluppato da" spostato in basso come bottomNavigationBar fisso
       bottomNavigationBar: _FooterCredit(isDark: isDark),
     );
   }
 
-  Widget _buildCard(BuildContext context, String title, IconData icon, bool isDark, List<Widget> children) {
-    return Card(
-      color: isDark 
-        ? Colors.grey[900]!.withOpacity(0.8)
-        : Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: isDark ? 8 : 2,
-      shadowColor: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF6366F1).withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(icon, color: Colors.white, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ],
+  Widget _buildGlassCard(
+    BuildContext context,
+    String title,
+    IconData icon,
+    bool isDark,
+    List<Widget> children,
+  ) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? Colors.white.withOpacity(0.15) : Colors.white,
+              width: 1.2,
             ),
           ),
-          ...children,
-          const SizedBox(height: 12),
-        ],
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF6366F1).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(icon, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ...children,
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -279,144 +289,91 @@ class SettingsPage extends StatelessWidget {
   void _showResetDialog(BuildContext context) {
     final model = Provider.of<MoneyModel>(context, listen: false);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-        title: Row(
-          children: [
-            const Icon(Icons.warning, color: Color(0xFFEF4444)),
-            const SizedBox(width: 8),
-            Text(
-              'Reset Completo',
-              style: TextStyle(
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-          ],
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withOpacity(isDark ? 0.15 : 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFFEF4444).withOpacity(0.4),
+      builder: (dialogContext) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.black.withOpacity(0.75) : Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(isDark ? 0.2 : 0.5),
+                    width: 1.5,
+                  ),
                 ),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.delete_forever, color: Color(0xFFEF4444)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '⚠️ ATTENZIONE',
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.warning, color: Color(0xFFEF4444)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Reset Completo',
                           style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : const Color(0xFFEF4444),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Questa azione eliminerà PERMANENTEMENTE tutti i dati:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark ? Colors.grey[300] : Colors.black87,
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.receipt, color: isDark ? Colors.grey[400] : Colors.grey[600], size: 16),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withOpacity(isDark ? 0.15 : 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFFEF4444).withOpacity(0.4),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            '⚠️ ATTENZIONE',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFFEF4444),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Questa azione eliminerà PERMANENTEMENTE tutti i dati',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? Colors.grey[300] : Colors.black87,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Text(
-                      'Tutte le transazioni',
+                      'Scrivi "RESET" per confermare:',
                       style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? Colors.grey[300] : Colors.black87,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    _ResetConfirmationField(isDark: isDark),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.flag, color: isDark ? Colors.grey[400] : Colors.grey[600], size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Tutti gli obiettivi',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? Colors.grey[300] : Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(Icons.repeat, color: isDark ? Colors.grey[400] : Colors.grey[600], size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Tutte le ricorrenti',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? Colors.grey[300] : Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '💾 Consigliamo di esportare i dati prima del reset!',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                    color: isDark ? const Color(0xFFFFB347) : Colors.orange,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Scrivi "RESET" per confermare:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _ResetConfirmationField(isDark: isDark),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              'Annulla',
-              style: TextStyle(
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -431,41 +388,43 @@ class _FooterCredit extends StatelessWidget {
     return SafeArea(
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0B1220) : Colors.white,
+        child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDark ? Colors.white.withOpacity(0.18) : Colors.black.withOpacity(0.08),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? Colors.white.withOpacity(0.18) : Colors.white,
+                  width: 1.2,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.code, size: 18, color: Color(0xFF6366F1)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Sviluppato da ',
+                    style: TextStyle(
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    'freednumber',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF6366F1),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.4 : 0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.code, size: 18, color: Color(0xFF6366F1)),
-            const SizedBox(width: 8),
-            Text(
-              'Sviluppato da ',
-              style: TextStyle(
-                color: isDark ? Colors.grey[300] : Colors.grey[700],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            Text(
-              'freednumber',
-              style: TextStyle(
-                color: isDark ? Colors.white : const Color(0xFF6366F1),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -505,15 +464,13 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
   @override
   Widget build(BuildContext context) {
     final model = Provider.of<MoneyModel>(context, listen: false);
-    
+
     return Column(
       children: [
         TextField(
           controller: _controller,
           style: TextStyle(
-            color: _isValid 
-              ? Colors.red
-              : widget.isDark ? Colors.white : Colors.black87,
+            color: _isValid ? Colors.red : (widget.isDark ? Colors.white : Colors.black87),
             fontWeight: _isValid ? FontWeight.bold : FontWeight.normal,
           ),
           decoration: InputDecoration(
@@ -522,15 +479,11 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
               color: widget.isDark ? Colors.grey[500] : Colors.grey[400],
             ),
             filled: true,
-            fillColor: widget.isDark 
-              ? Colors.grey[800]!.withOpacity(0.6)
-              : Colors.grey[100],
+            fillColor: widget.isDark ? Colors.grey[800]!.withOpacity(0.6) : Colors.grey[100],
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: _isValid 
-                  ? Colors.red
-                  : widget.isDark ? Colors.grey[600]! : Colors.grey[300]!,
+                color: _isValid ? Colors.red : (widget.isDark ? Colors.grey[600]! : Colors.grey[300]!),
                 width: 2,
               ),
             ),
@@ -575,43 +528,60 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
 
   Future<void> _performReset(BuildContext context, MoneyModel model) async {
     Navigator.pop(context);
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: widget.isDark ? Colors.grey[900] : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(color: Color(0xFF6366F1)),
-            const SizedBox(height: 16),
-            Text(
-              'Reset in corso...',
-              style: TextStyle(
-                color: widget.isDark ? Colors.white : Colors.black87,
-                fontWeight: FontWeight.w600,
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: widget.isDark ? Colors.black.withOpacity(0.75) : Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(widget.isDark ? 0.2 : 0.5),
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(color: Color(0xFF6366F1)),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Reset in corso...',
+                      style: TextStyle(
+                        color: widget.isDark ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Non chiudere l\'app',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Non chiudere l\'app',
-              style: TextStyle(
-                fontSize: 12,
-                color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
 
     try {
       await model.resetAllData();
-      
       Navigator.pop(context);
-      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ Reset completato! L\'app è stata ripulita.'),
@@ -620,11 +590,9 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-      
       HapticFeedback.heavyImpact();
     } catch (e) {
       Navigator.pop(context);
-      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ Errore durante il reset: $e'),
