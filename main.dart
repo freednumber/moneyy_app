@@ -1,9 +1,9 @@
-// Migliorato il layout dock e quick add con simmetria e griglia
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'providers.dart';
 import 'theme_provider.dart';
 import 'pages/home_page.dart';
@@ -20,6 +20,7 @@ void main() {
 
 class MoneyYApp extends StatelessWidget {
   const MoneyYApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -57,7 +58,8 @@ class MainNavigationPage extends StatefulWidget {
   State createState() => _MainNavigationPageState();
 }
 
-class _MainNavigationPageState extends State<MainNavigationPage> with TickerProviderStateMixin {
+class _MainNavigationPageState extends State<MainNavigationPage>
+    with TickerProviderStateMixin {
   int _currentIndex = 0;
   MoneyModel? _model;
   late AnimationController _fabController;
@@ -67,7 +69,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   @override
   void initState() {
     super.initState();
-    _fabController = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
+    _fabController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 250));
     _dockIndex = ValueNotifier(_currentIndex);
     _initModel();
   }
@@ -100,6 +103,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
       const ReportsPage(),
       const SettingsPage(),
     ];
+
     return Scaffold(
       body: Stack(
         children: [
@@ -110,10 +114,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               transitionBuilder: (child, animation) => SlideTransition(
-                position: Tween(begin: const Offset(0.06, 0), end: Offset.zero).animate(animation),
+                position: Tween(begin: const Offset(0.06, 0), end: Offset.zero)
+                    .animate(animation),
                 child: FadeTransition(opacity: animation, child: child),
               ),
-              child: KeyedSubtree(key: ValueKey(_currentIndex), child: pages[_currentIndex]),
+              child: KeyedSubtree(
+                  key: ValueKey(_currentIndex), child: pages[_currentIndex]),
             ),
           ),
           Positioned(
@@ -133,11 +139,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     final width = MediaQuery.of(context).size.width;
     final horizontal = 16.0;
     final itemCount = 4;
-    final itemWidth = (width - (horizontal * 2)) / itemCount;
+    final dockWidth = width - (horizontal * 2);
+    final slotWidth = dockWidth / itemCount;
+
     return SafeArea(
       top: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(horizontal, 8, horizontal, paddingBottom > 0 ? 8 : 20),
+        padding: EdgeInsets.fromLTRB(
+            horizontal, 8, horizontal, paddingBottom > 0 ? 8 : 20),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(26),
           child: BackdropFilter(
@@ -147,8 +156,14 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: isDark
-                      ? [Colors.white.withOpacity(0.18), Colors.white.withOpacity(0.10)]
-                      : [Colors.white.withOpacity(0.70), Colors.white.withOpacity(0.50)],
+                      ? [
+                          Colors.white.withOpacity(0.18),
+                          Colors.white.withOpacity(0.10)
+                        ]
+                      : [
+                          Colors.white.withOpacity(0.70),
+                          Colors.white.withOpacity(0.50)
+                        ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
@@ -171,59 +186,109 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                   ),
                 ],
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(itemCount, (index) {
-                  final icons = const [
-                    Icons.home_rounded, 
-                    Icons.calendar_month, 
-                    Icons.bar_chart_rounded, 
-                    Icons.settings_rounded,
-                  ];
-                  final colors = [
-                    const Color(0xFF6366F1), 
-                    const Color(0xFF10B981), 
-                    const Color(0xFF8B5CF6), 
-                    const Color(0xFF6B7280), 
-                  ];
-                  final isSelected = _currentIndex == index;
-                  return Expanded(
-                    child: InkResponse(
-                      onTap: () => _onNavigate(index),
-                      radius: 32,
-                      splashColor: Colors.white.withOpacity(0.15),
-                      highlightColor: Colors.transparent,
-                      containedInkWell: true,
-                      child: Center(
-                        child: AnimatedScale(
-                          duration: const Duration(milliseconds: 300),
-                          scale: isSelected ? 1.15 : 1.0,
-                          curve: Curves.easeOutCubic,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOutCubic,
-                            padding: const EdgeInsets.all(2),
-                            child: Icon(
-                              icons[index],
-                              size: isSelected ? 30 : 26,
-                              color: isSelected
-                                  ? colors[index]
-                                  : (isDark ? Colors.grey[300] : Colors.grey[700]),
-                              shadows: isSelected
+              child: Stack(
+                children: [
+                  // Animated highlight background
+                  ValueListenableBuilder<int>(
+                    valueListenable: _dockIndex,
+                    builder: (context, idx, _) {
+                      return AnimatedPositioned(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeOutCubic,
+                        left: idx * slotWidth + 8,
+                        top: 10,
+                        child: Container(
+                          width: slotWidth - 16,
+                          height: 62,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: isDark
                                   ? [
-                                      Shadow(
-                                        color: colors[index].withOpacity(0.4),
-                                        blurRadius: 8,
-                                      ),
+                                      Colors.white.withOpacity(0.22),
+                                      Colors.white.withOpacity(0.14),
                                     ]
-                                  : null,
+                                  : [
+                                      Colors.white.withOpacity(0.85),
+                                      Colors.white.withOpacity(0.65),
+                                    ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color:
+                                  Colors.white.withOpacity(isDark ? 0.40 : 0.70),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.white
+                                    .withOpacity(isDark ? 0.15 : 0.30),
+                                blurRadius: 15,
+                                spreadRadius: -2,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  // Navigation items
+                  Row(
+                    children: List.generate(itemCount, (index) {
+                      final icons = const [
+                        Icons.home_rounded,
+                        Icons.calendar_month,
+                        Icons.bar_chart_rounded,
+                        Icons.settings_rounded,
+                      ];
+                      final colors = [
+                        const Color(0xFF6366F1),
+                        const Color(0xFF10B981),
+                        const Color(0xFF8B5CF6),
+                        const Color(0xFF6B7280),
+                      ];
+                      final isSelected = _currentIndex == index;
+
+                      return SizedBox(
+                        width: slotWidth,
+                        child: InkResponse(
+                          onTap: () => _onNavigate(index),
+                          radius: 32,
+                          splashColor: Colors.white.withOpacity(0.15),
+                          highlightColor: Colors.transparent,
+                          containedInkWell: true,
+                          child: Center(
+                            child: AnimatedScale(
+                              duration: const Duration(milliseconds: 300),
+                              scale: isSelected ? 1.15 : 1.0,
+                              curve: Curves.easeOutCubic,
+                              child: Icon(
+                                icons[index],
+                                size: isSelected ? 30 : 26,
+                                color: isSelected
+                                    ? colors[index]
+                                    : (isDark
+                                        ? Colors.grey[300]
+                                        : Colors.grey[700]),
+                                shadows: isSelected
+                                    ? [
+                                        Shadow(
+                                          color:
+                                              colors[index].withOpacity(0.4),
+                                          blurRadius: 8,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                  );
-                }),
+                      );
+                    }),
+                  ),
+                ],
               ),
             ),
           ),
@@ -234,6 +299,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
 
   Widget _buildContextFab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (_currentIndex == 0) {
       return _buildGlassFab(
         color: const Color(0xFF6366F1),
@@ -263,65 +329,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         isDark: isDark,
       );
     }
-    return const SizedBox.shrink();
-  }
 
-  void _showQuickAddMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: Theme.of(context).brightness == Brightness.dark
-                    ? [Colors.black.withOpacity(0.85), Colors.black.withOpacity(0.75)]
-                    : [Colors.white.withOpacity(0.95), Colors.white.withOpacity(0.85)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.25),
-                width: 1.2,
-              ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                left: 20,
-                right: 20,
-                top: 20,
-              ),
-              child: GridView.count(
-                shrinkWrap: true,
-                crossAxisCount: 2,
-                childAspectRatio: 2.5,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                physics: NeverScrollableScrollPhysics(),
-                children: [
-                  _buildGlassQuickAddButton(context: context, title: 'Spesa', subtitle: 'Mai usato', icon: Icons.shopping_cart, color: Colors.green, isIncome: false),
-                  _buildGlassQuickAddButton(context: context, title: 'Trasporti', subtitle: 'Mai usato', icon: Icons.directions_car, color: Colors.blue, isIncome: false),
-                  _buildGlassQuickAddButton(context: context, title: 'Svago', subtitle: 'Mai usato', icon: Icons.restaurant, color: Colors.yellow, isIncome: false),
-                  _buildGlassQuickAddButton(context: context, title: 'Casa', subtitle: 'Mai usato', icon: Icons.home, color: Colors.teal, isIncome: false),
-                  _buildGlassQuickAddButton(context: context, title: 'Cibo', subtitle: 'Mai usato', icon: Icons.fastfood, color: Colors.orange, isIncome: false),
-                  _buildGlassQuickAddButton(context: context, title: 'Altro', subtitle: 'Mai usato', icon: Icons.more_horiz, color: Colors.purple, isIncome: false),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    return const SizedBox.shrink();
   }
 
   Widget _buildGlassFab({
@@ -379,6 +388,128 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     );
   }
 
+  void _showQuickAddMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: Theme.of(context).brightness == Brightness.dark
+                    ? [
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.75)
+                      ]
+                    : [
+                        Colors.white.withOpacity(0.95),
+                        Colors.white.withOpacity(0.85)
+                      ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.25),
+                width: 1.2,
+              ),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.45),
+                      borderRadius: BorderRadius.circular(2.5),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  GridView.count(
+                    shrinkWrap: true,
+                    crossAxisCount: 2,
+                    childAspectRatio: 2.2,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _buildGlassQuickAddButton(
+                        context: context,
+                        title: 'Spesa',
+                        subtitle: 'Supermercato, negozi',
+                        icon: Icons.shopping_cart,
+                        color: const Color(0xFF10B981),
+                        isIncome: false,
+                      ),
+                      _buildGlassQuickAddButton(
+                        context: context,
+                        title: 'Trasporti',
+                        subtitle: 'Auto, bus, treno',
+                        icon: Icons.directions_car,
+                        color: const Color(0xFF3B82F6),
+                        isIncome: false,
+                      ),
+                      _buildGlassQuickAddButton(
+                        context: context,
+                        title: 'Svago',
+                        subtitle: 'Ristoranti, bar',
+                        icon: Icons.restaurant,
+                        color: const Color(0xFFF59E0B),
+                        isIncome: false,
+                      ),
+                      _buildGlassQuickAddButton(
+                        context: context,
+                        title: 'Casa',
+                        subtitle: 'Affitto, bollette',
+                        icon: Icons.home,
+                        color: const Color(0xFF06B6D4),
+                        isIncome: false,
+                      ),
+                      _buildGlassQuickAddButton(
+                        context: context,
+                        title: 'Salute',
+                        subtitle: 'Farmacia, medico',
+                        icon: Icons.local_hospital,
+                        color: const Color(0xFFEF4444),
+                        isIncome: false,
+                      ),
+                      _buildGlassQuickAddButton(
+                        context: context,
+                        title: 'Altro',
+                        subtitle: 'Altre spese',
+                        icon: Icons.more_horiz,
+                        color: const Color(0xFF8B5CF6),
+                        isIncome: false,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildGlassQuickAddButton({
     required BuildContext context,
     required String title,
@@ -405,7 +536,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isDark
@@ -427,55 +558,117 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                 ),
               ],
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Row(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [color.withOpacity(0.9), color.withOpacity(0.7)],
+                          colors: [
+                            color.withOpacity(0.9),
+                            color.withOpacity(0.7)
+                          ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: Colors.white.withOpacity(0.35),
                           width: 1.0,
                         ),
                       ),
-                      child: Icon(icon, color: Colors.white, size: 22),
+                      child: Icon(icon, color: Colors.white, size: 24),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : Colors.black87,
-                    fontSize: 14.5,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : Colors.black87,
+                          fontSize: 14.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.grey[300] : Colors.grey[700],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isDark ? Colors.grey[300] : Colors.grey[700],
-                  ),
-                  textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Scanner page con bottone Home per tornare indietro
+class ScanReceiptPageWithHome extends StatelessWidget {
+  const ScanReceiptPageWithHome({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor:
+          isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: ClipRRect(
+          borderRadius:
+              const BorderRadius.vertical(bottom: Radius.circular(20)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: AppBar(
+              title: Text(
+                'Scansiona Scontrino',
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              leading: IconButton(
+                icon: Icon(
+                  Icons.home,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pop(context);
+                },
+                tooltip: 'Torna alla Home',
+              ),
+              elevation: 0,
+              centerTitle: true,
+              backgroundColor: isDark
+                  ? Colors.white.withOpacity(0.08)
+                  : Colors.white.withOpacity(0.85),
+            ),
+          ),
+        ),
+      ),
+      body: const ScanReceiptPage(),
     );
   }
 }
