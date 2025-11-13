@@ -1,9 +1,9 @@
+// main.dart aggiornato con aggiunte veloci simmetriche e griglia 3x2
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-
 import 'providers.dart';
 import 'theme_provider.dart';
 import 'pages/home_page.dart';
@@ -20,7 +20,6 @@ void main() {
 
 class MoneyYApp extends StatelessWidget {
   const MoneyYApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -188,17 +187,16 @@ class _MainNavigationPageState extends State<MainNavigationPage>
               ),
               child: Stack(
                 children: [
-                  // Animated highlight background
                   ValueListenableBuilder<int>(
                     valueListenable: _dockIndex,
                     builder: (context, idx, _) {
                       return AnimatedPositioned(
                         duration: const Duration(milliseconds: 400),
                         curve: Curves.easeOutCubic,
-                        left: idx * slotWidth + 8,
+                        left: idx * slotWidth,
                         top: 10,
                         child: Container(
-                          width: slotWidth - 16,
+                          width: slotWidth,
                           height: 62,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -234,7 +232,6 @@ class _MainNavigationPageState extends State<MainNavigationPage>
                       );
                     },
                   ),
-                  // Navigation items
                   Row(
                     children: List.generate(itemCount, (index) {
                       final icons = const [
@@ -618,57 +615,6 @@ class _MainNavigationPageState extends State<MainNavigationPage>
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Scanner page con bottone Home per tornare indietro
-class ScanReceiptPageWithHome extends StatelessWidget {
-  const ScanReceiptPageWithHome({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: ClipRRect(
-          borderRadius:
-              const BorderRadius.vertical(bottom: Radius.circular(20)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-            child: AppBar(
-              title: Text(
-                'Scansiona Scontrino',
-                style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black87,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              leading: IconButton(
-                icon: Icon(
-                  Icons.home,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.pop(context);
-                },
-                tooltip: 'Torna alla Home',
-              ),
-              elevation: 0,
-              centerTitle: true,
-              backgroundColor: isDark
-                  ? Colors.white.withOpacity(0.08)
-                  : Colors.white.withOpacity(0.85),
-            ),
-          ),
-        ),
-      ),
-      body: const ScanReceiptPage(),
     );
   }
 }
