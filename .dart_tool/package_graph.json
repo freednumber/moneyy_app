@@ -5,7 +5,7 @@
   "packages": [
     {
       "name": "moneyy",
-      "version": "1.0.0+4",
+      "version": "1.0.0+5",
       "dependencies": [
         "cupertino_icons",
         "desktop_drop",
@@ -15,8 +15,10 @@
         "flutter_localizations",
         "http",
         "image",
+        "image_cropper",
         "image_picker",
         "intl",
+        "liquid_glass_renderer",
         "path",
         "path_provider",
         "permission_handler",
@@ -61,6 +63,27 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "image_cropper",
+      "version": "11.0.0",
+      "dependencies": [
+        "flutter",
+        "image_cropper_for_web",
+        "image_cropper_platform_interface"
+      ]
+    },
+    {
+      "name": "liquid_glass_renderer",
+      "version": "0.2.0-dev.3",
+      "dependencies": [
+        "equatable",
+        "flutter",
+        "flutter_shaders",
+        "logging",
+        "meta",
+        "motor"
       ]
     },
     {
@@ -165,6 +188,15 @@
         "shared_preferences_platform_interface",
         "shared_preferences_web",
         "shared_preferences_windows"
+      ]
+    },
+    {
+      "name": "image",
+      "version": "4.3.0",
+      "dependencies": [
+        "archive",
+        "meta",
+        "xml"
       ]
     },
     {
@@ -310,6 +342,47 @@
         "stream_channel",
         "string_scanner",
         "term_glyph"
+      ]
+    },
+    {
+      "name": "image_cropper_for_web",
+      "version": "7.0.0",
+      "dependencies": [
+        "flutter",
+        "flutter_web_plugins",
+        "image_cropper_platform_interface",
+        "web"
+      ]
+    },
+    {
+      "name": "image_cropper_platform_interface",
+      "version": "8.0.0",
+      "dependencies": [
+        "flutter",
+        "http",
+        "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "motor",
+      "version": "1.0.1",
+      "dependencies": [
+        "equatable",
+        "flutter",
+        "meta"
+      ]
+    },
+    {
+      "name": "logging",
+      "version": "1.3.0",
+      "dependencies": []
+    },
+    {
+      "name": "flutter_shaders",
+      "version": "0.1.3",
+      "dependencies": [
+        "flutter",
+        "vector_math"
       ]
     },
     {
@@ -816,15 +889,6 @@
       "name": "vm_service",
       "version": "15.0.2",
       "dependencies": []
-    },
-    {
-      "name": "image",
-      "version": "4.3.0",
-      "dependencies": [
-        "archive",
-        "meta",
-        "xml"
-      ]
     }
   ],
   "configVersion": 1

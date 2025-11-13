@@ -152,6 +152,12 @@
       "languageVersion": "3.9"
     },
     {
+      "name": "flutter_shaders",
+      "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/flutter_shaders-0.1.3",
+      "packageUri": "lib/",
+      "languageVersion": "2.19"
+    },
+    {
       "name": "flutter_test",
       "rootUri": "file:///Users/emanueleantonazzo/dev/flutter/packages/flutter_test",
       "packageUri": "lib/",
@@ -180,6 +186,24 @@
       "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/image-4.3.0",
       "packageUri": "lib/",
       "languageVersion": "2.15"
+    },
+    {
+      "name": "image_cropper",
+      "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/image_cropper-11.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
+      "name": "image_cropper_for_web",
+      "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/image_cropper_for_web-7.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
+      "name": "image_cropper_platform_interface",
+      "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/image_cropper_platform_interface-8.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
     },
     {
       "name": "image_picker",
@@ -260,6 +284,18 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "liquid_glass_renderer",
+      "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/liquid_glass_renderer-0.2.0-dev.3",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "logging",
+      "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/logging-1.3.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
       "name": "matcher",
       "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/matcher-0.12.17",
       "packageUri": "lib/",
@@ -282,6 +318,12 @@
       "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/mime-2.0.0",
       "packageUri": "lib/",
       "languageVersion": "3.2"
+    },
+    {
+      "name": "motor",
+      "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/motor-1.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
     },
     {
       "name": "nested",

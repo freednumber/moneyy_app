@@ -24,7 +24,7 @@ dependencies:
   # HTTP per OCR.space API
   http: ^1.2.0
   
-  image: ^4.0.17
+  image: ^4.3.0
   
   # Preferenze utente (per salvare valuta, tema, etc.)
   shared_preferences: ^2.2.2
@@ -51,6 +51,7 @@ dependencies:
   # Liquid Glass Effect (Apple-style glassmorphism)
   # Nota: Il package è ancora in versione dev/experimental
   liquid_glass_renderer: ^0.2.0-dev.3
+  image_cropper: ^11.0.0
 
 dev_dependencies:
   flutter_test:

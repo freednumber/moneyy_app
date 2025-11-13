@@ -516,32 +516,36 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
     }
   }
 
-  Future<void> _processPickedImage(File image) async {
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: image.path,
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Ritaglia Scontrino',
-          toolbarColor: const Color(0xFF6366F1),
-          toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: false,
-        ),
-        IOSUiSettings(
-          title: 'Ritaglia Scontrino',
-        ),
-      ],
-    );
-
-    if (croppedFile != null) {
-      setState(() {
-        _selectedImage = File(croppedFile.path);
-        _processedImage = null;
-        _currentFilter = 'none';
-      });
-      HapticFeedback.mediumImpact();
-    }
+ Future<void> _processPickedImage(File image) async {
+  final croppedFile = await ImageCropper().cropImage(
+    sourcePath: image.path,
+    uiSettings: [
+      AndroidUiSettings(
+        toolbarTitle: 'Ritaglia Scontrino',
+        toolbarColor: const Color(0xFF6366F1),
+        toolbarWidgetColor: Colors.white,
+        initAspectRatio: CropAspectRatioPreset.original,
+        lockAspectRatio: false,
+      ),
+      IOSUiSettings(
+        title: 'Ritaglia Scontrino',
+      ),
+    ],
+  );
+  
+  // FIX: Se l'utente annulla il crop, esci subito senza fare nulla
+  if (croppedFile == null) {
+    return;
   }
+  
+  // Procedi solo se il crop è stato completato
+  setState(() {
+    _selectedImage = File(croppedFile.path);
+    _processedImage = null;
+    _currentFilter = 'none';
+  });
+  HapticFeedback.mediumImpact();
+}
 
   Future<void> _applyFilter(String filterKey) async {
     if (_selectedImage == null) return;
