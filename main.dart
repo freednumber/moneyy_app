@@ -14,7 +14,6 @@ import 'pages/settings_page.dart';
 import 'pages/splash_page.dart';
 import 'pages/add_tx_page.dart';
 import 'pages/scan_receipt_page.dart';
-import 'widgets/liquid_glass_dock.dart';
 
 void main() {
   runApp(const MoneyYApp());
@@ -44,11 +43,12 @@ class MoneyYApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            supportedLocales: const [Locale('it', 'IT')],
+            supportedLocales: const [
+              Locale('it', 'IT'),
+            ],
             home: const SplashPage(),
             routes: {
               '/home': (context) => const MainNavigationPage(),
-              '/scan_receipt': (context) => const ScanReceiptPageWithHome(),
             },
           );
         },
@@ -67,21 +67,21 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   int _currentIndex = 0;
   MoneyModel? _model;
   late AnimationController _fabController;
-  late ScrollController _scrollController;
   final GlobalKey planningKey = GlobalKey();
+  late ValueNotifier<int> _dockIndex;
 
   @override
   void initState() {
     super.initState();
     _fabController = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
-    _scrollController = ScrollController();
+    _dockIndex = ValueNotifier(_currentIndex);
     _initModel();
   }
 
   @override
   void dispose() {
     _fabController.dispose();
-    _scrollController.dispose();
+    _dockIndex.dispose();
     super.dispose();
   }
 
@@ -93,26 +93,19 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
   void _onNavigate(int index, [bool? isIncome]) {
     if (index != _currentIndex) {
       HapticFeedback.selectionClick();
-      setState(() => _currentIndex = index);
+      _dockIndex.value = index;
     }
+    setState(() => _currentIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    // 3 pagine principali + settings
+    // 4 PAGINE: Home, Planning, Reports, Settings
     final pages = [
-      HomePage(onNavigate: _onNavigate, scrollController: _scrollController),
+      HomePage(onNavigate: _onNavigate),
       PlanningPage(key: planningKey),
       const ReportsPage(),
       const SettingsPage(),
-    ];
-    
-    // 3 tab nel dock
-    final dockItems = [
-      DockItem(icon: Icons.home_rounded, activeColor: const Color(0xFF6366F1), label: 'Home'),
-      DockItem(icon: Icons.calendar_month, activeColor: const Color(0xFF10B981), label: 'Pianificazione'),
-      DockItem(icon: Icons.bar_chart_rounded, activeColor: const Color(0xFF8B5CF6), label: 'Report'),
-      DockItem(icon: Icons.settings_rounded, activeColor: const Color(0xFF6B7280), label: 'Impostazioni'),
     ];
     
     return Scaffold(
@@ -128,21 +121,177 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                 position: Tween(begin: const Offset(0.06, 0), end: Offset.zero).animate(animation),
                 child: FadeTransition(opacity: animation, child: child),
               ),
-              child: KeyedSubtree(
-                key: ValueKey(_currentIndex),
-                child: pages[_currentIndex],
+              child: KeyedSubtree(key: ValueKey(_currentIndex), child: pages[_currentIndex]),
+            ),
+          ),
+          Positioned(
+            right: 20,
+            bottom: MediaQuery.of(context).padding.bottom + 110,
+            child: _buildContextFab(),
+          ),
+          Positioned(left: 0, right: 0, bottom: 0, child: _buildGlassDock()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGlassDock() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final paddingBottom = MediaQuery.of(context).padding.bottom;
+    final width = MediaQuery.of(context).size.width;
+    final horizontal = 16.0;
+    final itemCount = 4; // 4 TAB: Home, Planning, Reports, Settings
+    final itemWidth = (width - (horizontal * 2)) / itemCount;
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(horizontal, 8, horizontal, paddingBottom > 0 ? 8 : 20),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(26),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+            child: Container(
+              height: 82,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDark
+                      ? [
+                          Colors.white.withOpacity(0.18),
+                          Colors.white.withOpacity(0.10),
+                        ]
+                      : [
+                          Colors.white.withOpacity(0.70),
+                          Colors.white.withOpacity(0.50),
+                        ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(
+                  color: Colors.white.withOpacity(isDark ? 0.35 : 0.60),
+                  width: 1.8,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.50 : 0.12),
+                    blurRadius: 35,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 15),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.25 : 0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Animated background highlight - stile iOS
+                  ValueListenableBuilder<int>(
+                    valueListenable: _dockIndex,
+                    builder: (context, idx, _) {
+                      return AnimatedPositioned(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeOutCubic,
+                        left: 12 + (idx * itemWidth),
+                        top: 10,
+                        child: Container(
+                          width: itemWidth - 8,
+                          height: 62,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: isDark
+                                  ? [
+                                      Colors.white.withOpacity(0.22),
+                                      Colors.white.withOpacity(0.14),
+                                    ]
+                                  : [
+                                      Colors.white.withOpacity(0.85),
+                                      Colors.white.withOpacity(0.65),
+                                    ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(isDark ? 0.40 : 0.70),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.white.withOpacity(isDark ? 0.15 : 0.30),
+                                blurRadius: 15,
+                                spreadRadius: -2,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  // Navigation items
+                  Row(
+                    children: List.generate(itemCount, (index) {
+                      final icons = const [
+                        Icons.home_rounded, // 0 - Home
+                        Icons.calendar_month, // 1 - Planning
+                        Icons.bar_chart_rounded, // 2 - Reports
+                        Icons.settings_rounded, // 3 - Settings
+                      ];
+                      final colors = [
+                        const Color(0xFF6366F1), // Home
+                        const Color(0xFF10B981), // Planning
+                        const Color(0xFF8B5CF6), // Reports
+                        const Color(0xFF6B7280), // Settings
+                      ];
+                      final isSelected = _currentIndex == index;
+                      
+                      return Expanded(
+                        child: InkResponse(
+                          onTap: () => _onNavigate(index),
+                          radius: 32,
+                          splashColor: Colors.white.withOpacity(0.15),
+                          highlightColor: Colors.transparent,
+                          containedInkWell: true,
+                          child: Center(
+                            child: AnimatedScale(
+                              duration: const Duration(milliseconds: 300),
+                              scale: isSelected ? 1.15 : 1.0,
+                              curve: Curves.easeOutCubic,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOutCubic,
+                                padding: const EdgeInsets.all(2),
+                                child: Icon(
+                                  icons[index],
+                                  size: isSelected ? 30 : 26,
+                                  color: isSelected
+                                      ? colors[index]
+                                      : (isDark ? Colors.grey[300] : Colors.grey[700]),
+                                  shadows: isSelected
+                                      ? [
+                                          Shadow(
+                                            color: colors[index].withOpacity(0.4),
+                                            blurRadius: 8,
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
             ),
           ),
-          Positioned(right: 20, bottom: 100, child: _buildContextFab()),
-          LiquidGlassDock(
-            currentIndex: _currentIndex,
-            onIndexChanged: _onNavigate,
-            items: dockItems,
-            scrollController: _scrollController,
-            hideOnScroll: true,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -163,7 +312,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         isDark: isDark,
       );
     } else if (_currentIndex == 1) {
-      // Planning: FAB Aggiungi (Obiettivo o Ricorrente)
+      // Planning: FAB Aggiungi
       return _buildGlassFab(
         color: const Color(0xFF10B981),
         icon: Icons.add,
@@ -206,7 +355,10 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               height: 56,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [color.withOpacity(0.8), color.withOpacity(0.6)],
+                  colors: [
+                    color.withOpacity(0.8),
+                    color.withOpacity(0.6),
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -244,46 +396,46 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: Theme.of(context).brightness == Brightness.dark
-                    ? [Colors.black.withOpacity(0.8), Colors.black.withOpacity(0.6)]
-                    : [Colors.white.withOpacity(0.9), Colors.white.withOpacity(0.7)],
+                    ? [Colors.black.withOpacity(0.85), Colors.black.withOpacity(0.75)]
+                    : [Colors.white.withOpacity(0.95), Colors.white.withOpacity(0.85)],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
               border: Border.all(
-                color: Colors.white.withOpacity(0.2),
-                width: 1.0,
+                color: Colors.white.withOpacity(0.25),
+                width: 1.2,
               ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             ),
             child: Padding(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-                left: 16,
-                right: 16,
-                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                left: 20,
+                right: 20,
+                top: 20,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 40,
-                    height: 4,
+                    width: 42,
+                    height: 5,
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(2),
+                      color: Colors.grey.withOpacity(0.45),
+                      borderRadius: BorderRadius.circular(2.5),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   _GlassQuickAction(
                     icon: Icons.receipt_long,
                     title: 'Scansione scontrino (AI)',
@@ -299,7 +451,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                       );
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Row(
                     children: [
                       Expanded(
@@ -312,7 +464,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                           isIncome: false,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: _buildGlassQuickAddButton(
                           context: context,
@@ -325,7 +477,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -355,69 +507,69 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
           ),
         );
       },
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isDark
-                    ? [color.withOpacity(0.15), color.withOpacity(0.08)]
-                    : [color.withOpacity(0.12), color.withOpacity(0.06)],
+                    ? [color.withOpacity(0.18), color.withOpacity(0.10)]
+                    : [color.withOpacity(0.15), color.withOpacity(0.08)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: color.withOpacity(isDark ? 0.3 : 0.25),
-                width: 1.0,
+                color: color.withOpacity(isDark ? 0.35 : 0.28),
+                width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(0.2),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: color.withOpacity(0.22),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
             child: Column(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                    filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                     child: Container(
-                      width: 48,
-                      height: 48,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [color.withOpacity(0.9), color.withOpacity(0.7)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                          width: 0.5,
+                          color: Colors.white.withOpacity(0.35),
+                          width: 1.0,
                         ),
                       ),
-                      child: Icon(icon, color: Colors.white, size: 24),
+                      child: Icon(icon, color: Colors.white, size: 26),
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Text(
                   title,
                   style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: isDark ? Colors.white : Colors.black87,
-                    fontSize: 14,
+                    fontSize: 14.5,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
                   subtitle,
                   style: TextStyle(
@@ -441,6 +593,7 @@ class _GlassQuickAction extends StatelessWidget {
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
+  
   const _GlassQuickAction({
     required this.icon,
     required this.title,
@@ -454,61 +607,61 @@ class _GlassQuickAction extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isDark
-                    ? [color.withOpacity(0.20), color.withOpacity(0.12)]
-                    : [color.withOpacity(0.15), color.withOpacity(0.08)],
+                    ? [color.withOpacity(0.22), color.withOpacity(0.14)]
+                    : [color.withOpacity(0.18), color.withOpacity(0.10)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: color.withOpacity(isDark ? 0.35 : 0.30),
-                width: 1.2,
+                color: color.withOpacity(isDark ? 0.40 : 0.35),
+                width: 1.4,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: color.withOpacity(isDark ? 0.25 : 0.18),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+                  color: color.withOpacity(isDark ? 0.28 : 0.20),
+                  blurRadius: 18,
+                  offset: const Offset(0, 7),
                 ),
               ],
             ),
             child: Row(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                     child: Container(
-                      width: 48,
-                      height: 48,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [color.withOpacity(0.9), color.withOpacity(0.7)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.4),
-                          width: 1.0,
+                          color: Colors.white.withOpacity(0.45),
+                          width: 1.2,
                         ),
                       ),
-                      child: Icon(icon, color: Colors.white, size: 26),
+                      child: Icon(icon, color: Colors.white, size: 28),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -517,15 +670,15 @@ class _GlassQuickAction extends StatelessWidget {
                         title,
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
-                          fontSize: 16,
+                          fontSize: 16.5,
                           color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 5),
                       Text(
                         subtitle,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 12.5,
                           color: isDark ? Colors.grey[300] : Colors.grey[700],
                         ),
                       ),
@@ -534,7 +687,7 @@ class _GlassQuickAction extends StatelessWidget {
                 ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  size: 24,
+                  size: 26,
                   color: isDark ? Colors.white.withOpacity(0.8) : Colors.black54,
                 ),
               ],
