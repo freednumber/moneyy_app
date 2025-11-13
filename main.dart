@@ -1,10 +1,9 @@
+// Migliorato il layout dock e quick add con simmetria e griglia
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-
 import 'providers.dart';
 import 'theme_provider.dart';
 import 'pages/home_page.dart';
@@ -21,7 +20,6 @@ void main() {
 
 class MoneyYApp extends StatelessWidget {
   const MoneyYApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -43,13 +41,9 @@ class MoneyYApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            supportedLocales: const [
-              Locale('it', 'IT'),
-            ],
+            supportedLocales: const [Locale('it', 'IT')],
             home: const SplashPage(),
-            routes: {
-              '/home': (context) => const MainNavigationPage(),
-            },
+            routes: {'/home': (context) => const MainNavigationPage()},
           );
         },
       ),
@@ -100,14 +94,12 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
 
   @override
   Widget build(BuildContext context) {
-    // 4 PAGINE: Home, Planning, Reports, Settings
     final pages = [
       HomePage(onNavigate: _onNavigate),
       PlanningPage(key: planningKey),
       const ReportsPage(),
       const SettingsPage(),
     ];
-    
     return Scaffold(
       body: Stack(
         children: [
@@ -140,9 +132,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     final paddingBottom = MediaQuery.of(context).padding.bottom;
     final width = MediaQuery.of(context).size.width;
     final horizontal = 16.0;
-    final itemCount = 4; // 4 TAB: Home, Planning, Reports, Settings
+    final itemCount = 4;
     final itemWidth = (width - (horizontal * 2)) / itemCount;
-
     return SafeArea(
       top: false,
       child: Padding(
@@ -156,14 +147,8 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: isDark
-                      ? [
-                          Colors.white.withOpacity(0.18),
-                          Colors.white.withOpacity(0.10),
-                        ]
-                      : [
-                          Colors.white.withOpacity(0.70),
-                          Colors.white.withOpacity(0.50),
-                        ],
+                      ? [Colors.white.withOpacity(0.18), Colors.white.withOpacity(0.10)]
+                      : [Colors.white.withOpacity(0.70), Colors.white.withOpacity(0.50)],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
@@ -186,108 +171,59 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                   ),
                 ],
               ),
-              child: Stack(
-                children: [
-                  // Animated background highlight - stile iOS
-                  ValueListenableBuilder<int>(
-                    valueListenable: _dockIndex,
-                    builder: (context, idx, _) {
-                      return AnimatedPositioned(
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeOutCubic,
-                        left: 12 + (idx * itemWidth),
-                        top: 10,
-                        child: Container(
-                          width: itemWidth - 8,
-                          height: 62,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isDark
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(itemCount, (index) {
+                  final icons = const [
+                    Icons.home_rounded, 
+                    Icons.calendar_month, 
+                    Icons.bar_chart_rounded, 
+                    Icons.settings_rounded,
+                  ];
+                  final colors = [
+                    const Color(0xFF6366F1), 
+                    const Color(0xFF10B981), 
+                    const Color(0xFF8B5CF6), 
+                    const Color(0xFF6B7280), 
+                  ];
+                  final isSelected = _currentIndex == index;
+                  return Expanded(
+                    child: InkResponse(
+                      onTap: () => _onNavigate(index),
+                      radius: 32,
+                      splashColor: Colors.white.withOpacity(0.15),
+                      highlightColor: Colors.transparent,
+                      containedInkWell: true,
+                      child: Center(
+                        child: AnimatedScale(
+                          duration: const Duration(milliseconds: 300),
+                          scale: isSelected ? 1.15 : 1.0,
+                          curve: Curves.easeOutCubic,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOutCubic,
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              icons[index],
+                              size: isSelected ? 30 : 26,
+                              color: isSelected
+                                  ? colors[index]
+                                  : (isDark ? Colors.grey[300] : Colors.grey[700]),
+                              shadows: isSelected
                                   ? [
-                                      Colors.white.withOpacity(0.22),
-                                      Colors.white.withOpacity(0.14),
+                                      Shadow(
+                                        color: colors[index].withOpacity(0.4),
+                                        blurRadius: 8,
+                                      ),
                                     ]
-                                  : [
-                                      Colors.white.withOpacity(0.85),
-                                      Colors.white.withOpacity(0.65),
-                                    ],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(isDark ? 0.40 : 0.70),
-                              width: 1.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.white.withOpacity(isDark ? 0.15 : 0.30),
-                                blurRadius: 15,
-                                spreadRadius: -2,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  // Navigation items
-                  Row(
-                    children: List.generate(itemCount, (index) {
-                      final icons = const [
-                        Icons.home_rounded, // 0 - Home
-                        Icons.calendar_month, // 1 - Planning
-                        Icons.bar_chart_rounded, // 2 - Reports
-                        Icons.settings_rounded, // 3 - Settings
-                      ];
-                      final colors = [
-                        const Color(0xFF6366F1), // Home
-                        const Color(0xFF10B981), // Planning
-                        const Color(0xFF8B5CF6), // Reports
-                        const Color(0xFF6B7280), // Settings
-                      ];
-                      final isSelected = _currentIndex == index;
-                      
-                      return Expanded(
-                        child: InkResponse(
-                          onTap: () => _onNavigate(index),
-                          radius: 32,
-                          splashColor: Colors.white.withOpacity(0.15),
-                          highlightColor: Colors.transparent,
-                          containedInkWell: true,
-                          child: Center(
-                            child: AnimatedScale(
-                              duration: const Duration(milliseconds: 300),
-                              scale: isSelected ? 1.15 : 1.0,
-                              curve: Curves.easeOutCubic,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeOutCubic,
-                                padding: const EdgeInsets.all(2),
-                                child: Icon(
-                                  icons[index],
-                                  size: isSelected ? 30 : 26,
-                                  color: isSelected
-                                      ? colors[index]
-                                      : (isDark ? Colors.grey[300] : Colors.grey[700]),
-                                  shadows: isSelected
-                                      ? [
-                                          Shadow(
-                                            color: colors[index].withOpacity(0.4),
-                                            blurRadius: 8,
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                              ),
+                                  : null,
                             ),
                           ),
                         ),
-                      );
-                    }),
-                  ),
-                ],
+                      ),
+                    ),
+                  );
+                }),
               ),
             ),
           ),
@@ -298,9 +234,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
 
   Widget _buildContextFab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     if (_currentIndex == 0) {
-      // Home: FAB Aggiungi con modal
       return _buildGlassFab(
         color: const Color(0xFF6366F1),
         icon: Icons.add,
@@ -312,7 +246,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         isDark: isDark,
       );
     } else if (_currentIndex == 1) {
-      // Planning: FAB Aggiungi
       return _buildGlassFab(
         color: const Color(0xFF10B981),
         icon: Icons.add,
@@ -330,8 +263,65 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
         isDark: isDark,
       );
     }
-    
     return const SizedBox.shrink();
+  }
+
+  void _showQuickAddMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: Theme.of(context).brightness == Brightness.dark
+                    ? [Colors.black.withOpacity(0.85), Colors.black.withOpacity(0.75)]
+                    : [Colors.white.withOpacity(0.95), Colors.white.withOpacity(0.85)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.25),
+                width: 1.2,
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: GridView.count(
+                shrinkWrap: true,
+                crossAxisCount: 2,
+                childAspectRatio: 2.5,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                physics: NeverScrollableScrollPhysics(),
+                children: [
+                  _buildGlassQuickAddButton(context: context, title: 'Spesa', subtitle: 'Mai usato', icon: Icons.shopping_cart, color: Colors.green, isIncome: false),
+                  _buildGlassQuickAddButton(context: context, title: 'Trasporti', subtitle: 'Mai usato', icon: Icons.directions_car, color: Colors.blue, isIncome: false),
+                  _buildGlassQuickAddButton(context: context, title: 'Svago', subtitle: 'Mai usato', icon: Icons.restaurant, color: Colors.yellow, isIncome: false),
+                  _buildGlassQuickAddButton(context: context, title: 'Casa', subtitle: 'Mai usato', icon: Icons.home, color: Colors.teal, isIncome: false),
+                  _buildGlassQuickAddButton(context: context, title: 'Cibo', subtitle: 'Mai usato', icon: Icons.fastfood, color: Colors.orange, isIncome: false),
+                  _buildGlassQuickAddButton(context: context, title: 'Altro', subtitle: 'Mai usato', icon: Icons.more_horiz, color: Colors.purple, isIncome: false),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildGlassFab({
@@ -389,104 +379,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
     );
   }
 
-  void _showQuickAddMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: Theme.of(context).brightness == Brightness.dark
-                    ? [Colors.black.withOpacity(0.85), Colors.black.withOpacity(0.75)]
-                    : [Colors.white.withOpacity(0.95), Colors.white.withOpacity(0.85)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.25),
-                width: 1.2,
-              ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                left: 20,
-                right: 20,
-                top: 20,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.45),
-                      borderRadius: BorderRadius.circular(2.5),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _GlassQuickAction(
-                    icon: Icons.receipt_long,
-                    title: 'Scansione scontrino (AI)',
-                    subtitle: 'Estrai importo e negozio automaticamente',
-                    color: const Color(0xFF10B981),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ScanReceiptPageWithHome(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildGlassQuickAddButton(
-                          context: context,
-                          title: 'Nuova Uscita',
-                          subtitle: 'Spesa, bolletta...',
-                          icon: Icons.arrow_downward,
-                          color: Colors.red,
-                          isIncome: false,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _buildGlassQuickAddButton(
-                          context: context,
-                          title: 'Nuova Entrata',
-                          subtitle: 'Stipendio, regalo...',
-                          icon: Icons.arrow_upward,
-                          color: Colors.green,
-                          isIncome: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildGlassQuickAddButton({
     required BuildContext context,
     required String title,
@@ -536,14 +428,15 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
               ],
             ),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                     child: Container(
-                      width: 52,
-                      height: 52,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [color.withOpacity(0.9), color.withOpacity(0.7)],
@@ -556,11 +449,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                           width: 1.0,
                         ),
                       ),
-                      child: Icon(icon, color: Colors.white, size: 26),
+                      child: Icon(icon, color: Colors.white, size: 22),
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 Text(
                   title,
                   style: TextStyle(
@@ -569,11 +462,11 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
                     fontSize: 14.5,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10,
                     color: isDark ? Colors.grey[300] : Colors.grey[700],
                   ),
                   textAlign: TextAlign.center,
@@ -583,165 +476,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
           ),
         ),
       ),
-    );
-  }
-}
-
-class _GlassQuickAction extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-  
-  const _GlassQuickAction({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-  
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDark
-                    ? [color.withOpacity(0.22), color.withOpacity(0.14)]
-                    : [color.withOpacity(0.18), color.withOpacity(0.10)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: color.withOpacity(isDark ? 0.40 : 0.35),
-                width: 1.4,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(isDark ? 0.28 : 0.20),
-                  blurRadius: 18,
-                  offset: const Offset(0, 7),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [color.withOpacity(0.9), color.withOpacity(0.7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.45),
-                          width: 1.2,
-                        ),
-                      ),
-                      child: Icon(icon, color: Colors.white, size: 28),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16.5,
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: isDark ? Colors.grey[300] : Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 26,
-                  color: isDark ? Colors.white.withOpacity(0.8) : Colors.black54,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Scanner page con bottone Home per tornare indietro
-class ScanReceiptPageWithHome extends StatelessWidget {
-  const ScanReceiptPageWithHome({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-            child: AppBar(
-              title: Text(
-                'Scansiona Scontrino',
-                style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black87,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              leading: IconButton(
-                icon: Icon(
-                  Icons.home,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.pop(context);
-                },
-                tooltip: 'Torna alla Home',
-              ),
-              elevation: 0,
-              centerTitle: true,
-              backgroundColor: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
-            ),
-          ),
-        ),
-      ),
-      body: const ScanReceiptPage(),
     );
   }
 }
