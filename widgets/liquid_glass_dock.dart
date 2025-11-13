@@ -21,7 +21,8 @@ class LiquidGlassDock extends StatefulWidget {
   State createState() => _LiquidGlassDockState();
 }
 
-class _LiquidGlassDockState extends State<LiquidGlassDock> with SingleTickerProviderStateMixin {
+class _LiquidGlassDockState extends State<LiquidGlassDock>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation _slideAnimation;
   late Animation _opacityAnimation;
@@ -69,6 +70,9 @@ class _LiquidGlassDockState extends State<LiquidGlassDock> with SingleTickerProv
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final padding = MediaQuery.of(context).padding;
+    final dockItemCount = widget.items.length;
+    final dockFullWidth = MediaQuery.of(context).size.width - 32;
+    final slotWidth = dockFullWidth / dockItemCount;
     return Positioned(
       left: 0,
       right: 0,
@@ -83,97 +87,92 @@ class _LiquidGlassDockState extends State<LiquidGlassDock> with SingleTickerProv
           child: SafeArea(
             top: false,
             child: Padding(
-              padding: EdgeInsets.fromLTRB(12, 8, 12, padding.bottom > 0 ? 8 : 16),
-              child: _buildLiquidGlassDock(isDark),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLiquidGlassDock(bool isDark) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          height: 75,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [Colors.white.withOpacity(0.12), Colors.white.withOpacity(0.06)]
-                  : [Colors.white.withOpacity(0.25), Colors.white.withOpacity(0.15)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withOpacity(isDark ? 0.25 : 0.4),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.4 : 0.15),
-                blurRadius: 25,
-                offset: const Offset(0, 12),
-              ),
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              // Animated background highlight
-              AnimatedBuilder(
-                animation: Listenable.merge([]),
-                builder: (context, child) {
-                  double highlightLeft = 8 + (widget.currentIndex * ((MediaQuery.of(context).size.width - 32) / widget.items.length));
-                  return Positioned(
-                    left: highlightLeft,
-                    top: 8,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeInOut,
-                      width: (MediaQuery.of(context).size.width - 32) / widget.items.length - 16,
-                      height: 59,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(isDark ? 0.15 : 0.25),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(isDark ? 0.3 : 0.45),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.white.withOpacity(isDark ? 0.1 : 0.15),
-                            blurRadius: 12,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+              padding: EdgeInsets.fromLTRB(16, 8, 16, padding.bottom > 0 ? 8 : 16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(26),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                  child: Container(
+                    height: 82,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isDark
+                            ? [Colors.white.withOpacity(0.18), Colors.white.withOpacity(0.10)]
+                            : [Colors.white.withOpacity(0.70), Colors.white.withOpacity(0.50)],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
                       ),
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(isDark ? 0.35 : 0.60),
+                        width: 1.8,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.50 : 0.12),
+                          blurRadius: 35,
+                          offset: const Offset(0, 15),
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.25 : 0.06),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                  );
-                },
-              ),
-              // Navigation items
-              Row(
-                children: List.generate(
-                  widget.items.length,
-                  (index) => Expanded(
-                    child: _buildDockItem(
-                      item: widget.items[index],
-                      isSelected: widget.currentIndex == index,
-                      onTap: () => widget.onIndexChanged(index),
-                      isDark: isDark,
+                    child: Stack(
+                      children: [
+                        AnimatedPositioned(
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeOutCubic,
+                          left: widget.currentIndex * slotWidth,
+                          top: 10,
+                          child: Container(
+                            width: slotWidth,
+                            height: 62,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: isDark
+                                    ? [Colors.white.withOpacity(0.22), Colors.white.withOpacity(0.14)]
+                                    : [Colors.white.withOpacity(0.85), Colors.white.withOpacity(0.65)],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(isDark ? 0.40 : 0.70),
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withOpacity(isDark ? 0.15 : 0.30),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Row(
+                          children: List.generate(
+                            dockItemCount,
+                            (index) => SizedBox(
+                              width: slotWidth,
+                              child: _buildDockItem(
+                                item: widget.items[index],
+                                isSelected: widget.currentIndex == index,
+                                onTap: () => widget.onIndexChanged(index),
+                                isDark: isDark,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -188,40 +187,28 @@ class _LiquidGlassDockState extends State<LiquidGlassDock> with SingleTickerProv
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      splashColor: Colors.white.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(20),
+      splashColor: Colors.white.withOpacity(0.15),
       highlightColor: Colors.transparent,
       child: Center(
         child: AnimatedScale(
-          duration: const Duration(milliseconds: 250),
-          scale: isSelected ? 1.2 : 1.0,
-          curve: Curves.easeInOut,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                item.icon,
-                size: isSelected ? 28 : 24,
-                color: isSelected
-                    ? item.activeColor
-                    : (isDark ? Colors.grey[400] : Colors.grey[600]),
-              ),
-              if (item.label != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  item.label!,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: isSelected
-                        ? item.activeColor
-                        : (isDark ? Colors.grey[400] : Colors.grey[600]),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ],
+          duration: const Duration(milliseconds: 300),
+          scale: isSelected ? 1.15 : 1.0,
+          curve: Curves.easeOutCubic,
+          child: Icon(
+            item.icon,
+            size: isSelected ? 30 : 26,
+            color: isSelected
+                ? item.activeColor
+                : (isDark ? Colors.grey[300] : Colors.grey[700]),
+            shadows: isSelected
+                ? [
+                    Shadow(
+                      color: item.activeColor.withOpacity(0.4),
+                      blurRadius: 8,
+                    ),
+                  ]
+                : null,
           ),
         ),
       ),
