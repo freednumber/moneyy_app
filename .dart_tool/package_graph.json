@@ -11,6 +11,7 @@
         "desktop_drop",
         "excel",
         "file_picker",
+        "fl_chart",
         "flutter",
         "flutter_localizations",
         "http",
@@ -27,7 +28,6 @@
         "sqflite"
       ],
       "devDependencies": [
-        "fl_chart",
         "flutter_lints",
         "flutter_test"
       ]
@@ -37,14 +37,6 @@
       "version": "3.0.2",
       "dependencies": [
         "lints"
-      ]
-    },
-    {
-      "name": "fl_chart",
-      "version": "0.66.2",
-      "dependencies": [
-        "equatable",
-        "flutter"
       ]
     },
     {
@@ -63,6 +55,14 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "fl_chart",
+      "version": "0.66.2",
+      "dependencies": [
+        "equatable",
+        "flutter"
       ]
     },
     {
@@ -258,14 +258,6 @@
       "dependencies": []
     },
     {
-      "name": "equatable",
-      "version": "2.0.7",
-      "dependencies": [
-        "collection",
-        "meta"
-      ]
-    },
-    {
       "name": "stream_channel",
       "version": "2.1.4",
       "dependencies": [
@@ -342,6 +334,14 @@
         "stream_channel",
         "string_scanner",
         "term_glyph"
+      ]
+    },
+    {
+      "name": "equatable",
+      "version": "2.0.7",
+      "dependencies": [
+        "collection",
+        "meta"
       ]
     },
     {

@@ -53,10 +53,12 @@ dependencies:
   liquid_glass_renderer: ^0.2.0-dev.3
   image_cropper: ^11.0.0
 
+  # Chart per reports (se non già presente)
+  fl_chart: ^0.66.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  fl_chart: ^0.66.2
   flutter_lints: ^3.0.0
 
 # Configurazione specifica per Flutter
