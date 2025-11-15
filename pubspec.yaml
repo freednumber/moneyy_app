@@ -65,6 +65,11 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Dichiarazione degli assets (immagini)
+  # Aggiungi questa cartella agli assets
   assets:
     - assets/images/
+    - shaders/ # <-- ✅ AGGIUNGI QUESTA RIGA
+
+  # Aggiungi questa nuova sezione
+  shaders:
+    - shaders/liquid_glass_lens.frag # <-- ✅ AGGIUNGI QUESTA SEZIONE

@@ -1,10 +1,9 @@
+// [Codice adattato da 'main.dart' e 'lucasxu0/liquid_glass/lib/main.dart']
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-
 import 'providers.dart';
 import 'theme_provider.dart';
 import 'pages/home_page.dart';
@@ -14,7 +13,10 @@ import 'pages/settings_page.dart';
 import 'pages/splash_page.dart';
 import 'pages/add_tx_page.dart';
 import 'pages/scan_receipt_page.dart';
-import 'liquid_glass_dock.dart';
+import 'widgets/liquid_glass_dock.dart';
+// ✅ 1. IMPORTA I NUOVI WIDGET
+import 'widgets/shader_helpers/background_capture_widget.dart';
+import 'dart:ui' as ui;
 
 void main() {
   runApp(const MoneyYApp());
@@ -22,7 +24,6 @@ void main() {
 
 class MoneyYApp extends StatelessWidget {
   const MoneyYApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -47,10 +48,7 @@ class MoneyYApp extends StatelessWidget {
             supportedLocales: const [
               Locale('it', 'IT'),
             ],
-            home: const SplashPage(),
-            routes: {
-              '/home': (context) => const MainNavigationPage(),
-            },
+            home: const SplashPage(child: MainNavigationPage()),
           );
         },
       ),
@@ -64,30 +62,60 @@ class MainNavigationPage extends StatefulWidget {
   State createState() => _MainNavigationPageState();
 }
 
-class _MainNavigationPageState extends State<MainNavigationPage> with TickerProviderStateMixin {
+class _MainNavigationPageState extends State<MainNavigationPage>
+    with TickerProviderStateMixin {
   int _currentIndex = 0;
   MoneyModel? _model;
   late AnimationController _fabController;
   final GlobalKey planningKey = GlobalKey();
   late ValueNotifier<int> _dockIndex;
 
+  // ✅ 2. AGGIUNGI QUESTI PER LA CATTURA DELLO SFONDO
+  final GlobalKey<BackgroundCaptureWidgetState> _captureKey = GlobalKey();
+  final ValueNotifier<ui.Image?> _backgroundNotifier = ValueNotifier(null);
+
+  final List<DockItem> _dockItems = [
+    DockItem(
+        icon: Icons.home_rounded,
+        label: 'Home',
+        activeColor: const Color(0xFF38F9D7)),
+    DockItem(
+        icon: Icons.calendar_month,
+        label: 'Planning',
+        activeColor: const Color(0xFF00E676)),
+    DockItem(
+        icon: Icons.bar_chart_rounded,
+        label: 'Reports',
+        activeColor: const Color(0xFF00BFA5)),
+    DockItem(
+        icon: Icons.settings_rounded,
+        label: 'Settings',
+        activeColor: const Color(0xFF76FF03)),
+  ];
+
   @override
   void initState() {
     super.initState();
-    _fabController = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
+    _fabController =
+        AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
     _dockIndex = ValueNotifier(_currentIndex);
     _initModel();
+    // ✅ 3. CAPTURA LO SFONDO AL PRIMO FRAME
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _captureKey.currentState?.capture();
+    });
   }
 
   @override
   void dispose() {
     _fabController.dispose();
     _dockIndex.dispose();
+    _backgroundNotifier.dispose(); // Pulisci il notifier
     super.dispose();
   }
 
   Future _initModel() async {
-    _model = Provider.of<MoneyModel>(context, listen: false);
+    _model = Provider.of(context, listen: false);
     await _model!.loadInitial();
   }
 
@@ -97,14 +125,16 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
       _dockIndex.value = index;
     }
     setState(() => _currentIndex = index);
+    // ✅ 4. RICATTURA LO SFONDO OGNI VOLTA CHE CAMBI PAGINA
+    _captureKey.currentState?.capture();
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final dockHeight = 75 + bottomPadding; // ✅ RIDOTTO ALTEZZA
+    // L'altezza del dock la definiamo nel widget dock stesso
+    final dockHeight = 82 + (bottomPadding > 0 ? 8 : 16);
     
-    // 4 PAGINE: Home, Planning, Reports, Settings
     final pages = [
       HomePage(onNavigate: _onNavigate),
       PlanningPage(key: planningKey),
@@ -112,45 +142,58 @@ class _MainNavigationPageState extends State<MainNavigationPage> with TickerProv
       const SettingsPage(),
     ];
     
+    // ✅ 5. STRUTTURA DELLO SCAFFOLD CAMBIATA
+    // Non usiamo più bottomNavigationBar, ma uno Stack
     return Scaffold(
+      extendBody: true, // Fondamentale
       body: Stack(
         children: [
-          // ✅ CONTENUTO PRINCIPALE CON PIÙ SPAZIO
-          Padding(
-            padding: EdgeInsets.only(bottom: dockHeight + 15), // ✅ AUMENTATO PADDING
+          // Questo è lo sfondo che verrà "fotografato"
+          BackgroundCaptureWidget(
+            key: _captureKey,
+            backgroundNotifier: _backgroundNotifier,
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               transitionBuilder: (child, animation) => SlideTransition(
-                position: Tween(begin: const Offset(0.06, 0), end: Offset.zero).animate(animation),
+                position:
+                    Tween(begin: const Offset(0.06, 0), end: Offset.zero)
+                        .animate(animation),
                 child: FadeTransition(opacity: animation, child: child),
               ),
-              child: KeyedSubtree(key: ValueKey(_currentIndex), child: pages[_currentIndex]),
+              child: KeyedSubtree(
+                  key: ValueKey(_currentIndex), child: pages[_currentIndex]),
             ),
           ),
           
-          // ✅ FAB CON POSIZIONAMENTO CORRETTO
+          // FAB
           Positioned(
             right: 20,
-            bottom: dockHeight + 25, // ✅ AGGIUSTATO
+            bottom: dockHeight + 20, // Posizionato sopra il dock
             child: _buildContextFab(),
           ),
-          
-          // ✅ LIQUID GLASS DOCK COMPATTO
+
+          // IL NUOVO DOCK CON SHADER
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             child: LiquidGlassDock(
               currentIndex: _currentIndex,
-              onCategoryChanged: _onNavigate,
+              onIndexChanged: _onNavigate,
+              items: _dockItems,
+              // ✅ 6. PASSA L'IMMAGINE CATTURATA AL DOCK
+              backgroundImageNotifier: _backgroundNotifier,
             ),
           ),
         ],
       ),
     );
   }
+  
+  // ... (Tutto il resto del tuo codice _buildContextFab, _showQuickAddMenu, etc.
+  // resta invariato. Copio il resto del file da 'main.dart' che hai caricato)
 
   Widget _buildContextFab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
