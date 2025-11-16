@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../models.dart'; // <-- IMPORT NECESSARIO
 import '../providers.dart';
 import '../widgets/liquid_glass_card.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
@@ -10,6 +11,51 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 class HomePageLiquidGlass extends StatelessWidget {
   const HomePageLiquidGlass({super.key});
 
+  // --- LOGICA PER LE AGGIUNTE VELOCI ---
+  /// Calcola le 6 categorie più usate
+  List<Category> _getMostUsedCategories(MoneyModel model) {
+    if (model.transactions.isEmpty) return [];
+
+    // 1. Conta le occorrenze di ogni categoria
+    final Map<String, int> categoryCounts = {};
+    for (var tx in model.transactions) {
+      if (tx.categoryId != null) {
+        categoryCounts.update(
+          tx.categoryId!,
+          (value) => value + 1,
+          ifAbsent: () => 1,
+        );
+      }
+    }
+
+    // 2. Ordina le categorie per numero di occorrenze
+    final sortedCategories = categoryCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    // 3. Prendi le prime 6 e ottieni gli oggetti Category
+    final List<Category> mostUsed = [];
+    for (var entry in sortedCategories.take(6)) {
+      try {
+        final category =
+            model.categories.firstWhere((cat) => cat.id == entry.key);
+        mostUsed.add(category);
+      } catch (e) {
+        // Categoria non trovata (potrebbe essere stata eliminata), la ignoriamo
+      }
+    }
+
+    // 4. Se sono meno di 6, riempi con categorie generiche
+    if (mostUsed.length < 6) {
+      final remaining = model.categories
+          .where((cat) => !mostUsed.any((muc) => muc.id == cat.id))
+          .take(6 - mostUsed.length);
+      mostUsed.addAll(remaining);
+    }
+
+    return mostUsed.take(6).toList(); // Assicurati siano al massimo 6
+  }
+  // --- FINE LOGICA ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -17,7 +63,7 @@ class HomePageLiquidGlass extends StatelessWidget {
         children: [
           // Sfondo gradiente dinamico
           _buildAnimatedBackground(context),
-          
+
           // Contenuto con effetto liquid glass
           SafeArea(
             child: CustomScrollView(
@@ -32,7 +78,7 @@ class HomePageLiquidGlass extends StatelessWidget {
                       const SizedBox(height: 24),
                       _buildMonthlyStatsCard(context),
                       const SizedBox(height: 24),
-                      _buildQuickActionsCard(context),
+                      _buildQuickActionsCard(context), // <-- WIDGET MODIFICATO
                       const SizedBox(height: 24),
                       _buildRecentTransactionsCard(context),
                       const SizedBox(height: 100),
@@ -163,26 +209,11 @@ class HomePageLiquidGlass extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    balance >= 0 ? Icons.trending_up : Icons.trending_down,
-                    color: balance >= 0 ? Colors.greenAccent : Colors.redAccent,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    balance >= 0 ? 'In positivo' : 'In negativo',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: balance >= 0
-                              ? Colors.greenAccent
-                              : Colors.redAccent,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ],
-              ),
+              // --- MODIFICA ---
+              // Rimossa la Row "In positivo" / "In negativo" come da richiesta
+              // const SizedBox(height: 8),
+              // Row( ... )
+              // --- FINE MODIFICA ---
             ],
           ),
         );
@@ -304,7 +335,7 @@ class HomePageLiquidGlass extends StatelessWidget {
     );
   }
 
-  // Card azioni rapide con liquid glass
+  // --- WIDGET AZIONI RAPIDE MODIFICATO ---
   Widget _buildQuickActionsCard(BuildContext context) {
     return LiquidGlassContainer(
       borderRadius: 30,
@@ -315,53 +346,59 @@ class HomePageLiquidGlass extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Azioni Rapide',
+            'Aggiunte Veloci', // Titolo modificato
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
           ),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _buildQuickActionButton(
-                context,
-                'Aggiungi',
-                Icons.add_circle_outline,
-                Colors.greenAccent,
-                () {},
-              ),
-              _buildQuickActionButton(
-                context,
-                'Scansiona',
-                Icons.qr_code_scanner,
-                Colors.blueAccent,
-                () {},
-              ),
-              _buildQuickActionButton(
-                context,
-                'Obiettivi',
-                Icons.flag_rounded,
-                Colors.orangeAccent,
-                () {},
-              ),
-              _buildQuickActionButton(
-                context,
-                'Report',
-                Icons.analytics_rounded,
-                Colors.purpleAccent,
-                () {},
-              ),
-            ],
+          // Sostituiamo il Wrap con un Consumer e GridView
+          Consumer<MoneyModel>(
+            builder: (context, model, child) {
+              final mostUsed = _getMostUsedCategories(model);
+
+              if (mostUsed.isEmpty) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20.0),
+                    child: Text(
+                      'Aggiungi transazioni per vedere le azioni rapide',
+                      style: TextStyle(color: Colors.white60),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              }
+
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2, // 2 colonne (lati)
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 2.5, // Forma fissa (larga)
+                children: mostUsed.map((category) {
+                  return _buildQuickCategoryButton(
+                    context,
+                    category.name,
+                    IconData(category.icon, fontFamily: 'MaterialIcons'),
+                    Color(category.color),
+                    () {
+                      // TODO: Azione per aggiungere transazione con questa categoria
+                    },
+                  );
+                }).toList(),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickActionButton(
+  // Helper per i pulsanti della GRIGLIA
+  Widget _buildQuickCategoryButton(
     BuildContext context,
     String label,
     IconData icon,
@@ -375,21 +412,27 @@ class HomePageLiquidGlass extends StatelessWidget {
       blur: 6,
       onPressed: onTap,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.start, // Allinea a sinistra
         children: [
           Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
+          const SizedBox(width: 10),
+          // Expanded per mandare a capo il testo se è lungo
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
           ),
         ],
       ),
     );
   }
+  // --- FINE MODIFICHE ---
 
   // Card transazioni recenti con liquid glass
   Widget _buildRecentTransactionsCard(BuildContext context) {

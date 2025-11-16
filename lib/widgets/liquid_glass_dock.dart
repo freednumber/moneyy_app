@@ -46,7 +46,9 @@ class _LiquidGlassDockState extends State<LiquidGlassDock> {
               noise: 0.02,
               // ✅ PASSAGGIO DEL CHILD (ORA FUNZIONA)
               child: Container(
-                height: 82,
+                // --- MODIFICA ALTEZZA ---
+                height: 70, // MODIFICATO (era 82)
+                // --- FINE MODIFICA ---
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(26),
                   border: Border.all(
@@ -64,10 +66,12 @@ class _LiquidGlassDockState extends State<LiquidGlassDock> {
                       duration: const Duration(milliseconds: 400),
                       curve: Curves.easeOutCubic,
                       left: widget.currentIndex * slotWidth,
-                      top: 10,
+                      // Modificato per centrare in altezza (70 - 52) / 2 = 9
+                      top: 9,
                       child: Container(
                         width: slotWidth,
-                        height: 62,
+                        // Altezza ridotta per stare nel nuovo dock
+                        height: 52, // MODIFICATO (era 62)
                         decoration: BoxDecoration(
                           color: Colors.white
                               .withOpacity(isDark ? 0.20 : 0.50),

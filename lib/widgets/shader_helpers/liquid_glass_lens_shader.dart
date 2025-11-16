@@ -1,6 +1,6 @@
 // [Codice da lucasxu0/liquid_glass/lib/liquid_glass_lens_shader.dart, corretto]
-import 'package.flutter/material.dart';
-import 'dart:ui' as ui; // ✅ 1. AGGIUNTO IMPORT MANCANTE
+import 'package:flutter/material.dart'; // ✅ ERRORE CORRETTO (era un punto)
+import 'dart:ui' as ui;
 import 'base_shader.dart';
 
 class LiquidGlassLens extends BaseShader {
@@ -13,7 +13,7 @@ class LiquidGlassLens extends BaseShader {
   LiquidGlassLens({
     Key? key,
     required ui.Image? backgroundImage,
-    required Widget child, // ✅ 2. AGGIUNTO 'child'
+    required Widget child,
     this.distortion = 0.1,
     this.refraction = 0.2,
     this.reflectance = 0.3,
@@ -23,7 +23,7 @@ class LiquidGlassLens extends BaseShader {
           key: key,
           shaderAssetKey: 'shaders/liquid_glass_lens.frag',
           backgroundImage: backgroundImage,
-          child: child, // ✅ 3. PASSATO 'child' AL 'super'
+          child: child,
         );
 
   @override
