@@ -45,15 +45,5 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	
-	<!-- Camera and Photo Library Permissions for Receipt Scanning -->
-	<key>NSCameraUsageDescription</key>
-	<string>MoneyY usa la fotocamera per scansionare scontrini</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>MoneyY accede alla libreria foto per selezionare scontrini</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>MoneyY salva immagini elaborate solo quando richiesto</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>MoneyY potrebbe usare il microfono per acquisizioni video future</string>
 </dict>
 </plist>

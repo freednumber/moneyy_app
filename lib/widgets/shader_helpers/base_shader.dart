@@ -1,27 +1,30 @@
-//
+// [Codice da lucasxu0/liquid_glass/lib/base_shader.dart, corretto]
 import 'package:flutter/material.dart';
-import 'dart:ui' as ui;
+import 'dart:ui' as ui; // ✅ 1. AGGIUNTO IMPORT MANCANTE
 import 'shader_painter.dart';
 
 abstract class BaseShader extends StatefulWidget {
   final String shaderAssetKey;
   final ui.Image? backgroundImage;
+  final Widget child; // ✅ 2. AGGIUNTO 'child'
 
   const BaseShader({
     Key? key,
     required this.shaderAssetKey,
     this.backgroundImage,
+    required this.child, // ✅ 3. AGGIUNTO 'child' AL COSTRUTTORE
   }) : super(key: key);
 
   @override
   BaseShaderState createState() => BaseShaderState();
 
-  void updateUniforms(FragmentShader shader, Size size, double time);
+  void updateUniforms(ui.FragmentShader shader, Size size, double time);
 }
 
-class BaseShaderState extends State<BaseShader> with SingleTickerProviderStateMixin {
+class BaseShaderState extends State<BaseShader>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  FragmentShader? _shader;
+  ui.FragmentShader? _shader;
 
   @override
   void initState() {
@@ -41,7 +44,8 @@ class BaseShaderState extends State<BaseShader> with SingleTickerProviderStateMi
 
   void _loadShader() async {
     try {
-      final program = await ui.FragmentProgram.fromAsset(widget.shaderAssetKey);
+      final program =
+          await ui.FragmentProgram.fromAsset(widget.shaderAssetKey);
       _shader = program.fragmentShader();
       setState(() {});
     } catch (e) {
@@ -52,7 +56,9 @@ class BaseShaderState extends State<BaseShader> with SingleTickerProviderStateMi
   @override
   Widget build(BuildContext context) {
     if (_shader == null || widget.backgroundImage == null) {
-      return const SizedBox.shrink();
+      // Mostra il figlio anche se lo shader non è caricato
+      // per evitare che gli item spariscano
+      return widget.child;
     }
     return AnimatedBuilder(
       animation: _controller,
@@ -64,7 +70,8 @@ class BaseShaderState extends State<BaseShader> with SingleTickerProviderStateMi
             backgroundImage: widget.backgroundImage!,
             updateUniforms: widget.updateUniforms,
           ),
-          child: const SizedBox.expand(),
+          // ✅ 4. PASSA IL 'child' ALLA 'CustomPaint'
+          child: widget.child,
         );
       },
     );

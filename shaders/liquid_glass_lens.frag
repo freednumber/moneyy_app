@@ -1,5 +1,4 @@
 // File: shaders/liquid_glass_lens.frag
-// (Preso da lucasxu0/liquid_glass)
 #include <flutter/runtime_effect.glsl>
 
 precision mediump float;

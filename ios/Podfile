@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-platform :ios, '13.0'
+platform :ios, '26.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -10,17 +10,10 @@ project 'Runner', {
   'Release' => :release,
 }
 
+# ✅ CORREZIONE: Definisci flutter_root in modo semplice
 def flutter_root
-  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-  unless File.exist?(generated_xcode_build_settings_path)
-    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
-  end
-
-  File.foreach(generated_xcode_build_settings_path) do |line|
-    matches = line.match(/FLUTTER_ROOT\=(.*)/)  
-    return matches[1].strip if matches
-  end
-  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+  # Usa il percorso assoluto del tuo SDK Flutter
+  '/Users/emanueleantonazzo/dev/flutter'
 end
 
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
@@ -32,32 +25,17 @@ target 'Runner' do
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-  target 'RunnerTests' do
-    inherit! :search_paths
-  end
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     
-    # Fix per ML Kit su simulatore e dispositivi
     target.build_configurations.each do |config|
-      # Escludi arm64 dal simulatore (risolve il problema MLImage)
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+      # RIMUOVI questa riga che causa problemi
+      # config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
       
-      # Imposta minimum deployment target
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
-      
-      # Abilita solo architetture attive per velocizzare build
-      config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
-      
-      # Fix per Xcode 15+ compatibility
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
-        '$(inherited)',
-        'PERMISSION_CAMERA=1',
-        'PERMISSION_PHOTOS=1',
-      ]
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '26.0'
     end
   end
 end

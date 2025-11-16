@@ -1,14 +1,12 @@
-// [Codice adattato da 'widgets/liquid_glass_dock.dart' e 'lucasxu0/liquid_glass']
+// [Codice da 'widgets/liquid_glass_dock.dart', corretto]
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
-// ✅ 1. IMPORTA IL NUOVO WIDGET SHADER
 import 'shader_helpers/liquid_glass_lens_shader.dart';
 
 class LiquidGlassDock extends StatefulWidget {
   final int currentIndex;
   final ValueChanged<int> onIndexChanged;
   final List<DockItem> items;
-  // ✅ 2. ACCETTA IL NOTIFIER DELLO SFONDO
   final ValueNotifier<ui.Image?> backgroundImageNotifier;
 
   const LiquidGlassDock({
@@ -24,9 +22,6 @@ class LiquidGlassDock extends StatefulWidget {
 }
 
 class _LiquidGlassDockState extends State<LiquidGlassDock> {
-  // Le animazioni per lo scroll non sono più necessarie
-  // se il widget è sempre visibile in fondo.
-  
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -39,37 +34,32 @@ class _LiquidGlassDockState extends State<LiquidGlassDock> {
       padding: EdgeInsets.fromLTRB(16, 8, 16, padding.bottom > 0 ? 8 : 16),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(26),
-        // ✅ 3. USARE 'AnimatedBuilder' PER ASCOLTARE L'IMMAGINE DI SFONDO
         child: AnimatedBuilder(
           animation: widget.backgroundImageNotifier,
           builder: (context, child) {
-            // ✅ 4. SOSTITUIRE 'BackdropFilter' CON 'LiquidGlassLens'
             return LiquidGlassLens(
               backgroundImage: widget.backgroundImageNotifier.value,
-              // Parametri per l'effetto vetro
               distortion: 0.1,
               refraction: 0.15,
               reflectance: 0.2,
-              blur: isDark ? 2.0 : 1.0, // Sfocatura più forte in dark mode
+              blur: isDark ? 2.0 : 1.0,
               noise: 0.02,
+              // ✅ PASSAGGIO DEL CHILD (ORA FUNZIONA)
               child: Container(
                 height: 82,
-                // Rimuoviamo 'decoration' (gradient, border, shadow)
-                // perché lo shader ora disegna il vetro.
-                // Mettiamo solo un bordo sottile SOPRA lo shader.
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(26),
                   border: Border.all(
                     color: Colors.white.withOpacity(isDark ? 0.25 : 0.40),
                     width: 1.5,
                   ),
-                  // Colore di fallback se lo shader fallisce
-                  color: isDark ? Colors.black.withOpacity(0.1) : Colors.white.withOpacity(0.1),
+                  color: isDark
+                      ? Colors.black.withOpacity(0.1)
+                      : Colors.white.withOpacity(0.1),
                 ),
                 child: Stack(
                   children: [
                     // Indicatore item attivo
-                    // (Ora è un vetro-nel-vetro)
                     AnimatedPositioned(
                       duration: const Duration(milliseconds: 400),
                       curve: Curves.easeOutCubic,
@@ -79,16 +69,18 @@ class _LiquidGlassDockState extends State<LiquidGlassDock> {
                         width: slotWidth,
                         height: 62,
                         decoration: BoxDecoration(
-                          // Usiamo un vetro bianco standard
-                          color: Colors.white.withOpacity(isDark ? 0.20 : 0.50),
+                          color: Colors.white
+                              .withOpacity(isDark ? 0.20 : 0.50),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: Colors.white.withOpacity(isDark ? 0.40 : 0.70),
+                            color: Colors.white
+                                .withOpacity(isDark ? 0.40 : 0.70),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.white.withOpacity(isDark ? 0.15 : 0.30),
+                              color: Colors.white
+                                  .withOpacity(isDark ? 0.15 : 0.30),
                               blurRadius: 15,
                               offset: const Offset(0, 2),
                             ),
@@ -96,21 +88,21 @@ class _LiquidGlassDockState extends State<LiquidGlassDock> {
                         ),
                       ),
                     ),
-                    // Lista di items
-                    Row(
-                      children: List.generate(
-                        dockItemCount,
-                        (index) => SizedBox(
-                          width: slotWidth,
-                          child: _buildDockItem(
-                            item: widget.items[index],
-                            isSelected: widget.currentIndex == index,
-                            onTap: () => widget.onIndexChanged(index),
-                            isDark: isDark,
-                          ),
-                        ),
-                      ),
-                    ),
+                    // Lista di items (CORRETTA CON EXPANDED)
+Row(
+  children: List.generate(
+    dockItemCount,
+    (index) => Expanded( // <-- Sostituisci SizedBox con Expanded
+      // 'width' non è più necessario
+      child: _buildDockItem(
+        item: widget.items[index],
+        isSelected: widget.currentIndex == index,
+        onTap: () => widget.onIndexChanged(index),
+        isDark: isDark,
+      ),
+    ),
+  ),
+),
                   ],
                 ),
               ),
@@ -141,7 +133,6 @@ class _LiquidGlassDockState extends State<LiquidGlassDock> {
             item.icon,
             size: isSelected ? 30 : 26,
             color: isSelected
-                // Colore verde dall'item
                 ? item.activeColor
                 : (isDark ? Colors.grey[300] : Colors.grey[700]),
             shadows: isSelected
