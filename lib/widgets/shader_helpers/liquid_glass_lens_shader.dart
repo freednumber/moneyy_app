@@ -1,5 +1,5 @@
 // [Codice da lucasxu0/liquid_glass/lib/liquid_glass_lens_shader.dart, corretto]
-import 'package:flutter/material.dart';
+import 'package.flutter/material.dart';
 import 'dart:ui' as ui; // ✅ 1. AGGIUNTO IMPORT MANCANTE
 import 'base_shader.dart';
 
