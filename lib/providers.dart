@@ -332,6 +332,31 @@ class MoneyModel extends ChangeNotifier {
     await _repo.deleteGoal(id);
     await loadInitial();
   }
+  
+  Future<void> addMoneyToGoal(Goal goal, double amount) async {
+  final updatedGoal = goal.copyWith(
+    saved: goal.saved + amount,
+  );
+  
+  // Crea transazione per tracciare l'aggiunta
+  final tx = MoneyTx(
+    id: null,
+    isIncome: false,
+    category: 'Risparmio',
+    amount: amount,
+    date: DateTime.now(),
+    note: 'Aggiunto a obiettivo: ${goal.title}',
+    payment: PaymentMethod.contanti,
+  );
+  
+  await addTx(tx);
+  await updateGoal(updatedGoal);
+}
+
+Future<void> completeGoal(Goal goal) async {
+  final completedGoal = goal.copyWith(isPurchased: true);
+  await updateGoal(completedGoal);
+}
 
   Future<void> addRecurring(Recurring recurring) async {
     await _repo.insertRecurring(recurring);

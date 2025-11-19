@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+    <key>NSCameraUsageDescription</key>
+        <string>L'app ha bisogno di accedere alla fotocamera per scansionare gli scontrini</string>
+        <key>NSPhotoLibraryUsageDescription</key>
+        <string>L'app ha bisogno di accedere alla galleria per selezionare gli scontrini</string>
+        <key>NSPhotoLibraryAddUsageDescription</key>
+        <string>L'app ha bisogno di salvare le immagini nella galleria</string>
 </dict>
 </plist>

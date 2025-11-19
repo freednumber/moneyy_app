@@ -12,7 +12,7 @@ class MoneyTx {
   final DateTime date;
   final String? note;
   final PaymentMethod payment;
-  final bool isFromRecurring; // ✅ NUOVO: indica se proviene da ricorrente
+  final bool isFromRecurring;
 
   MoneyTx({
     this.id,
@@ -22,7 +22,7 @@ class MoneyTx {
     required this.date,
     this.note,
     required this.payment,
-    this.isFromRecurring = false, // ✅ NUOVO
+    this.isFromRecurring = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -34,7 +34,7 @@ class MoneyTx {
       'date': date.toIso8601String(),
       'note': note,
       'payment': payment.index,
-      'isFromRecurring': isFromRecurring ? 1 : 0, // ✅ NUOVO
+      'isFromRecurring': isFromRecurring ? 1 : 0,
     };
   }
 
@@ -47,12 +47,12 @@ class MoneyTx {
       date: DateTime.parse(m['date']),
       note: m['note'],
       payment: PaymentMethod.values[m['payment']],
-      isFromRecurring: (m['isFromRecurring'] ?? 0) == 1, // ✅ NUOVO
+      isFromRecurring: (m['isFromRecurring'] ?? 0) == 1,
     );
   }
 }
 
-// Obiettivo
+// Obiettivo (classe esistente - mantenuta per compatibilità)
 class Goal {
   final int? id;
   final String title;
@@ -90,15 +90,32 @@ class Goal {
       isPurchased: m['isPurchased'] == 1,
     );
   }
+
+  // NUOVO: Metodo copyWith per modifiche
+  Goal copyWith({
+    int? id,
+    String? title,
+    double? target,
+    double? saved,
+    bool? isPurchased,
+  }) {
+    return Goal(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      target: target ?? this.target,
+      saved: saved ?? this.saved,
+      isPurchased: isPurchased ?? this.isPurchased,
+    );
+  }
 }
 
-// ✅ TRANSAZIONE RICORRENTE CON ORARIO
+// Transazione Ricorrente
 class Recurring {
   final int? id;
   final String category;
   final double amount;
-  final int dayOfMonth; // Giorno del mese (1-31)
-  final TimeOfDay time; // ✅ NUOVO: Orario di esecuzione
+  final int dayOfMonth;
+  final TimeOfDay time;
   final PaymentMethod payment;
   final String? note;
   final DateTime? lastProcessed;
@@ -108,14 +125,13 @@ class Recurring {
     required this.category,
     required this.amount,
     required this.dayOfMonth,
-    required this.time, // ✅ NUOVO
+    required this.time,
     required this.payment,
     this.note,
     this.lastProcessed,
   });
 
-  // Getter per compatibilità
-  bool get isIncome => false; // Le ricorrenti sono sempre uscite
+  bool get isIncome => false;
 
   Map<String, dynamic> toMap() {
     return {
@@ -123,8 +139,8 @@ class Recurring {
       'category': category,
       'amount': amount,
       'dayOfMonth': dayOfMonth,
-      'timeHour': time.hour, // ✅ NUOVO
-      'timeMinute': time.minute, // ✅ NUOVO
+      'timeHour': time.hour,
+      'timeMinute': time.minute,
       'payment': payment.index,
       'note': note,
       'lastProcessed': lastProcessed?.toIso8601String(),
@@ -137,8 +153,8 @@ class Recurring {
       category: map['category'],
       amount: map['amount'],
       dayOfMonth: map['dayOfMonth'],
-      time: TimeOfDay( // ✅ NUOVO
-        hour: map['timeHour'] ?? 9, // Default 9:00 se non presente
+      time: TimeOfDay(
+        hour: map['timeHour'] ?? 9,
         minute: map['timeMinute'] ?? 0,
       ),
       payment: PaymentMethod.values[map['payment']],
@@ -149,33 +165,25 @@ class Recurring {
     );
   }
 
-  // ✅ MIGLIORATO: Verifica se deve essere processata considerando l'orario
   bool shouldProcessNow() {
     final now = DateTime.now();
     final thisMonthProcessDateTime = DateTime(
-      now.year, 
-      now.month, 
+      now.year,
+      now.month,
       dayOfMonth,
       time.hour,
       time.minute,
     );
-
-    // Se non è mai stata processata
     if (lastProcessed == null) {
       return now.isAfter(thisMonthProcessDateTime) || now.isAtSameMomentAs(thisMonthProcessDateTime);
     }
-
-    // Se è già stata processata questo mese, non processare
     final lastProcessedDate = lastProcessed!;
     if (lastProcessedDate.year == now.year && lastProcessedDate.month == now.month) {
       return false;
     }
-
-    // Processa solo se è il momento giusto
     return now.isAfter(thisMonthProcessDateTime) || now.isAtSameMomentAs(thisMonthProcessDateTime);
   }
 
-  // ✅ MIGLIORATO: Crea transazione con timestamp preciso
   MoneyTx toTransaction() {
     final now = DateTime.now();
     final transactionDateTime = DateTime(
@@ -185,7 +193,6 @@ class Recurring {
       time.hour,
       time.minute,
     );
-
     return MoneyTx(
       isIncome: false,
       category: category,
@@ -193,11 +200,10 @@ class Recurring {
       date: transactionDateTime,
       note: note != null ? '🔄 Ricorrente: $note' : '🔄 Pagamento ricorrente automatico',
       payment: payment,
-      isFromRecurring: true, // ✅ NUOVO: marca come proveniente da ricorrente
+      isFromRecurring: true,
     );
   }
 
-  // ✅ NUOVO: Formatta l'orario
   String get formattedTime {
     final hour = time.hour.toString().padLeft(2, '0');
     final minute = time.minute.toString().padLeft(2, '0');

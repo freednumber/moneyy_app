@@ -1,7 +1,5 @@
-// [Codice da 'widgets/liquid_glass_dock.dart', corretto]
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
-import 'shader_helpers/liquid_glass_lens_shader.dart';
 
 class LiquidGlassDock extends StatefulWidget {
   final int currentIndex;
@@ -27,91 +25,104 @@ class _LiquidGlassDockState extends State<LiquidGlassDock> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final padding = MediaQuery.of(context).padding;
     final dockItemCount = widget.items.length;
-    final dockFullWidth = MediaQuery.of(context).size.width - 32;
+    final dockFullWidth = MediaQuery.of(context).size.width * 0.85;
     final slotWidth = dockFullWidth / dockItemCount;
     
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, padding.bottom > 0 ? 8 : 16),
+      padding: EdgeInsets.fromLTRB(
+        MediaQuery.of(context).size.width * 0.075,
+        8,
+        MediaQuery.of(context).size.width * 0.075,
+        padding.bottom > 0 ? 8 : 16,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(26),
-        child: AnimatedBuilder(
-          animation: widget.backgroundImageNotifier,
-          builder: (context, child) {
-            return LiquidGlassLens(
-              backgroundImage: widget.backgroundImageNotifier.value,
-              distortion: 0.1,
-              refraction: 0.15,
-              reflectance: 0.2,
-              blur: isDark ? 2.0 : 1.0,
-              noise: 0.02,
-              // ✅ PASSAGGIO DEL CHILD (ORA FUNZIONA)
+        child: Stack(
+          children: [
+            // Effetto Liquid Glass con BackdropFilter
+            BackdropFilter(
+              filter: ui.ImageFilter.blur(
+                sigmaX: isDark ? 20.0 : 15.0,
+                sigmaY: isDark ? 20.0 : 15.0,
+              ),
               child: Container(
-                // --- MODIFICA ALTEZZA ---
-                height: 70, // MODIFICATO (era 82)
-                // --- FINE MODIFICA ---
+                height: 70,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(26),
                   border: Border.all(
-                    color: Colors.white.withOpacity(isDark ? 0.25 : 0.40),
-                    width: 1.5,
+                    color: Colors.white.withOpacity(isDark ? 0.3 : 0.5),
+                    width: 2.0,
                   ),
-                  color: isDark
-                      ? Colors.black.withOpacity(0.1)
-                      : Colors.white.withOpacity(0.1),
-                ),
-                child: Stack(
-                  children: [
-                    // Indicatore item attivo
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOutCubic,
-                      left: widget.currentIndex * slotWidth,
-                      // Modificato per centrare in altezza (70 - 52) / 2 = 9
-                      top: 9,
-                      child: Container(
-                        width: slotWidth,
-                        // Altezza ridotta per stare nel nuovo dock
-                        height: 52, // MODIFICATO (era 62)
-                        decoration: BoxDecoration(
-                          color: Colors.white
-                              .withOpacity(isDark ? 0.20 : 0.50),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white
-                                .withOpacity(isDark ? 0.40 : 0.70),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white
-                                  .withOpacity(isDark ? 0.15 : 0.30),
-                              blurRadius: 15,
-                              offset: const Offset(0, 2),
-                            ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark
+                        ? [
+                            Colors.white.withOpacity(0.1),
+                            Colors.black.withOpacity(0.15),
+                          ]
+                        : [
+                            Colors.white.withOpacity(0.35),
+                            Colors.white.withOpacity(0.2),
                           ],
-                        ),
-                      ),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 25,
+                      offset: Offset(0, 10),
                     ),
-                    // Lista di items (CORRETTA CON EXPANDED)
-Row(
-  children: List.generate(
-    dockItemCount,
-    (index) => Expanded( // <-- Sostituisci SizedBox con Expanded
-      // 'width' non è più necessario
-      child: _buildDockItem(
-        item: widget.items[index],
-        isSelected: widget.currentIndex == index,
-        onTap: () => widget.onIndexChanged(index),
-        isDark: isDark,
-      ),
-    ),
-  ),
-),
                   ],
                 ),
               ),
-            );
-          },
+            ),
+            // Contenuto dock
+            Container(
+              height: 70,
+              child: Stack(
+                children: [
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOutCubic,
+                    left: widget.currentIndex * slotWidth,
+                    top: 9,
+                    child: Container(
+                      width: slotWidth,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(isDark ? 0.25 : 0.60),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(isDark ? 0.5 : 0.8),
+                          width: 1.8,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withOpacity(isDark ? 0.2 : 0.4),
+                            blurRadius: 20,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: List.generate(
+                      dockItemCount,
+                      (index) => Expanded(
+                        child: _buildDockItem(
+                          item: widget.items[index],
+                          isSelected: widget.currentIndex == index,
+                          onTap: () => widget.onIndexChanged(index),
+                          isDark: isDark,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -126,7 +137,7 @@ Row(
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
-      splashColor: Colors.white.withOpacity(0.15),
+      splashColor: Colors.white.withOpacity(0.2),
       highlightColor: Colors.transparent,
       child: Center(
         child: AnimatedScale(
@@ -142,8 +153,8 @@ Row(
             shadows: isSelected
                 ? [
                     Shadow(
-                      color: item.activeColor.withOpacity(0.4),
-                      blurRadius: 8,
+                      color: item.activeColor.withOpacity(0.5),
+                      blurRadius: 12,
                     ),
                   ]
                 : null,
@@ -154,11 +165,11 @@ Row(
   }
 }
 
-// Classe Dati per gli items
 class DockItem {
   final IconData icon;
   final Color activeColor;
   final String? label;
+  
   DockItem({
     required this.icon,
     required this.activeColor,
