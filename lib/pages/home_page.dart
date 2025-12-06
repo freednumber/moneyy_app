@@ -92,7 +92,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                       builder: (context, model, _) => _buildNetWorthCardSWYPE(model, isDark, isCompact),
                     ),
                     
-                    // ✅ SEZIONE OBIETTIVI CON SCROLL ORIZZONTALE
+                    // ✅ SEZIONE OBIETTIVI - SOLO ATTIVI (NON COMPLETATI)
                     Consumer<MoneyModel>(
                       builder: (context, model, _) => _buildGoalsSection(context, model, isDark, isCompact),
                     ),
@@ -170,10 +170,10 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // ✅ SEZIONE OBIETTIVI CON SCROLL ORIZZONTALE (SOLO ATTIVI)
+  // ✅ SEZIONE OBIETTIVI - SOLO ATTIVI (NIENTE COMPLETATI)
   Widget _buildGoalsSection(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
-    // ✅ Mostra SOLO gli obiettivi attivi, NON quelli completati
-    final activeGoals = model.activeGoals;
+    // 🐛 FIX: Mostra SOLO obiettivi attivi NON completati
+    final activeGoals = model.goals.where((g) => g.progress < 100).toList();
     
     if (activeGoals.isEmpty) return const SizedBox.shrink();
     
@@ -220,7 +220,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           ),
         ),
         const SizedBox(height: 16),
-        // ✅ Scroll orizzontale con PageView
         SizedBox(
           height: 180,
           child: PageView.builder(
@@ -240,7 +239,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // ✅ NUOVO: Card obiettivo ottimizzata per scroll orizzontale
   Widget _buildHorizontalGoalCard(Goal goal, MoneyModel model, bool isDark) {
     final style = model.getGoalStyle(goal.title);
     
@@ -375,7 +373,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // ✅ NUOVO: Dialog opzioni obiettivo
   void _showGoalOptionsDialog(Goal goal, MoneyModel model, bool isDark) {
     showDialog(
       context: context,
@@ -465,7 +462,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // Aggiunte Veloci
+  // 🐷 AGGIUNTE VELOCI - ESCLUDI RISPARMIO
   Widget _buildQuickAddGrid(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
     final mostUsed = _getMostUsedCategories(model);
     return Column(
@@ -709,22 +706,31 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     return DateFormat('d MMM', 'it_IT').format(mostRecent.date);
   }
 
+  // 🐛 FIX: Escludi "Risparmio" e categorie obiettivi da quick add
   List<String> _getMostUsedCategories(MoneyModel model) {
     final now = DateTime.now();
     final lastMonth = DateTime(now.year, now.month - 1, now.day);
     final recentTxs = model.transactions.where((tx) => tx.date.isAfter(lastMonth)).toList();
+    
     final Map<String, int> count = {};
     for (final tx in recentTxs) {
-      if (!model.goalCategories.contains(tx.category)) {
+      // 🐛 ESCLUDI: Risparmio + tutte le categorie obiettivo
+      if (tx.category != 'Risparmio' && !model.goalCategories.contains(tx.category)) {
         count[tx.category] = (count[tx.category] ?? 0) + 1;
       }
     }
+    
     final sorted = count.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     final most = sorted.take(6).map((e) => e.key).toList();
+    
+    // Defaults che NON includono Risparmio
     final defaults = ['Stipendio', 'Spesa', 'Trasporti', 'Svago', 'Shopping', 'Casa'];
     for (final d in defaults) {
-      if (most.length < 6 && !most.contains(d)) most.add(d);
+      if (most.length < 6 && !most.contains(d) && d != 'Risparmio') {
+        most.add(d);
+      }
     }
+    
     return most;
   }
 
