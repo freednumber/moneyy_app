@@ -402,7 +402,7 @@ class _MainNavigationPageState extends State<MainNavigationPage>
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => AddTxPage(initialIsIncome: isIncome),
+            builder: (context) => AddTxPage(isIncome: isIncome),
           ),
         );
       },

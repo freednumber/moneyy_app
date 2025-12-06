@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui';
+import 'package:intl/intl.dart';
 import '../models.dart';
 import '../providers.dart';
 
 enum PlanningTab { obiettivi, ricorrenti }
 
-/// Pagina unificata: Obiettivi + Transazioni Ricorrenti
 class PlanningPage extends StatefulWidget {
   const PlanningPage({super.key});
 
@@ -18,7 +18,6 @@ class PlanningPage extends StatefulWidget {
 class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
-
   PlanningTab _selectedTab = PlanningTab.obiettivi;
 
   @override
@@ -60,6 +59,11 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
                 : _buildRecurringContent(model, isDark),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => showAddDialog(context),
+        backgroundColor: const Color(0xFF6366F1),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -243,7 +247,6 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
 
   Widget _buildGoalCard(Goal goal, MoneyModel model, bool isCompleted, bool isDark) {
     final style = model.getGoalStyle(goal.title);
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: ClipRRect(
@@ -424,33 +427,52 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
   }
 
   Widget _buildRecurringContent(MoneyModel model, bool isDark) {
+    if (model.loading) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)));
+    }
+
     if (model.recurringTransactions.isEmpty) {
       return _buildRecurringEmptyState(isDark);
     }
-    return ListView.builder(
-      padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 100),
-      itemCount: model.recurringTransactions.length,
-      itemBuilder: (context, index) {
-        final recurring = model.recurringTransactions[index];
-        return _buildRecurringCard(recurring, model, isDark);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        HapticFeedback.mediumImpact();
+        await model.loadInitial();
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 100),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: model.recurringTransactions.length,
+        itemBuilder: (context, index) {
+          final recurring = model.recurringTransactions[index];
+          return _buildRecurringCard(recurring, model, isDark);
+        },
+      ),
     );
   }
 
-  Widget _buildRecurringCard(Recurring recurring, MoneyModel model, bool isDark) {
-    final style = model.getTransactionStyle(recurring.category);
-
-    return Container(
+  // ✅ NUOVO: Card ricorrenti con long press per modificare
+Widget _buildRecurringCard(Recurring recurring, MoneyModel model, bool isDark) {
+  final style = model.getTransactionStyle(recurring.category);
+  
+  return InkWell(
+    onTap: () {  // ✅ CAMBIA DA onLongPress a onTap
+      HapticFeedback.lightImpact();
+      _showRecurringOptionsDialog(recurring, model, isDark);
+    },
+    borderRadius: BorderRadius.circular(20),
+    child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isDark ? Colors.white.withOpacity(0.15) : Colors.white,
                 width: 1.2,
@@ -459,17 +481,24 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
             child: Row(
               children: [
                 Container(
-                  width: 50,
-                  height: 50,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [style.color, style.color.withOpacity(0.7)],
+                      colors: [style.color, style.color.withOpacity(0.8)],
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: style.color.withOpacity(0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                  child: Icon(style.icon, color: Colors.white, size: 24),
+                  child: Icon(style.icon, color: Colors.white, size: 28),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,28 +506,28 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
                       Text(
                         recurring.category,
                         style: TextStyle(
+                          fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          fontSize: 15,
                           color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Giorno ${recurring.dayOfMonth} alle ${recurring.time.format(context)}',
+                        'Giorno ${recurring.dayOfMonth} alle ${recurring.time.hour.toString().padLeft(2, '0')}:${recurring.time.minute.toString().padLeft(2, '0')}',
                         style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          fontSize: 14,
+                          color: isDark ? Colors.white60 : Colors.grey[600],
                         ),
                       ),
                     ],
                   ),
                 ),
                 Text(
-                  '- ${model.format(recurring.amount)}',
+                  '${recurring.isIncome ? '+' : '-'} ${recurring.amount.toStringAsFixed(2)} €',
                   style: TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? const Color(0xFFFF6B6B) : Colors.red[700],
-                    fontSize: 16,
+                    color: recurring.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
                   ),
                 ),
               ],
@@ -506,8 +535,11 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
+
 
   Widget _buildRecurringEmptyState(bool isDark) {
     return Center(
@@ -549,7 +581,7 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Aggiungi bollette e abbonamenti',
+                    'Aggiungi transazioni che si ripetono ogni mese',
                     style: TextStyle(
                       fontSize: 13,
                       color: isDark ? Colors.grey[400] : Colors.grey[500],
@@ -565,217 +597,412 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     );
   }
 
+  // ✅ NUOVO: Dialog opzioni ricorrente (Modifica/Elimina)
+  void _showRecurringOptionsDialog(Recurring recurring, MoneyModel model, bool isDark) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+        title: Text(
+          recurring.category,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${recurring.isIncome ? 'Entrata' : 'Uscita'} ricorrente',
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '€ ${recurring.amount.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: recurring.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: 16,
+                  color: isDark ? Colors.white60 : Colors.grey[600],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Giorno ${recurring.dayOfMonth} di ogni mese',
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: isDark ? Colors.white60 : Colors.grey[600],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Ore ${recurring.time.hour.toString().padLeft(2, '0')}:${recurring.time.minute.toString().padLeft(2, '0')}',
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
+            if (recurring.note != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.note,
+                    size: 16,
+                    color: isDark ? Colors.white60 : Colors.grey[600],
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      recurring.note!,
+                      style: TextStyle(
+                        color: isDark ? Colors.white70 : Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Chiudi'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+                  title: Text(
+                    'Elimina Ricorrente',
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  ),
+                  content: Text(
+                    'Sei sicuro di voler eliminare questa transazione ricorrente?',
+                    style: TextStyle(color: isDark ? Colors.white70 : Colors.grey[700]),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Annulla'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Elimina'),
+                    ),
+                  ],
+                ),
+              );
+              
+              if (confirm == true && recurring.id != null) {
+                await model.deleteRecurring(recurring.id!);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Transazione ricorrente eliminata'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Elimina', style: TextStyle(color: Colors.red)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              _showEditRecurringDialog(recurring, model, isDark);
+            },
+            child: const Text('Modifica'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ NUOVO: Dialog modifica ricorrente
+  void _showEditRecurringDialog(Recurring recurring, MoneyModel model, bool isDark) {
+    final amountController = TextEditingController(text: recurring.amount.toStringAsFixed(2));
+    final noteController = TextEditingController(text: recurring.note ?? '');
+    int selectedDay = recurring.dayOfMonth;
+    TimeOfDay selectedTime = recurring.time;
+    PaymentMethod selectedPayment = recurring.payment;
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+          title: Text(
+            'Modifica ${recurring.category}',
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    labelText: 'Importo',
+                    prefixText: '€ ',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<int>(
+                  value: selectedDay,
+                  decoration: InputDecoration(
+                    labelText: 'Giorno del mese',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                  ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
+                  items: List.generate(28, (i) => i + 1).map((day) {
+                    return DropdownMenuItem(
+                      value: day,
+                      child: Text(
+                        'Giorno $day',
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => selectedDay = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Ora: ${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}',
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  ),
+                  trailing: const Icon(Icons.access_time),
+                  onTap: () async {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: selectedTime,
+                    );
+                    if (time != null) {
+                      setDialogState(() => selectedTime = time);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<PaymentMethod>(
+                  value: selectedPayment,
+                  decoration: InputDecoration(
+                    labelText: 'Metodo di pagamento',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                  ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
+                  items: PaymentMethod.values.map((method) {
+                    return DropdownMenuItem(
+                      value: method,
+                      child: Text(
+                        method.name.toUpperCase(),
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => selectedPayment = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: noteController,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    labelText: 'Note (opzionale)',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annulla'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final amount = double.tryParse(amountController.text);
+                if (amount == null || amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Inserisci un importo valido'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                
+                final updated = Recurring(
+  id: recurring.id,
+  category: recurring.category,
+  amount: amount,
+  dayOfMonth: selectedDay,
+  time: selectedTime,
+  payment: selectedPayment,
+  note: noteController.text.isEmpty ? null : noteController.text,
+  lastProcessed: recurring.lastProcessed,
+  // ✅ NON serve isIncome perché Recurring determina automaticamente se è entrata/uscita dalla categoria
+);
+
+                
+                await model.updateRecurring(updated);
+                
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Transazione ricorrente aggiornata!'),
+                      backgroundColor: Color(0xFF10B981),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Salva'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // DIALOGS
+
   void _showAddGoalDialog(BuildContext context, MoneyModel model) {
+    final titleController = TextEditingController();
     final targetController = TextEditingController();
     String selectedCategory = model.goalCategories.first;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
-      builder: (dialogContext) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: StatefulBuilder(
-          builder: (context, setState) {
-            return Dialog(
-              backgroundColor: Colors.transparent,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.black.withOpacity(0.75) : Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(isDark ? 0.2 : 0.5),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.flag, color: Color(0xFF6366F1)),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Nuovo Obiettivo',
-                              style: TextStyle(
-                                color: isDark ? Colors.white : Colors.black87,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        DropdownButtonFormField<String>(
-                          value: selectedCategory,
-                          decoration: InputDecoration(
-                            labelText: 'Categoria',
-                            prefixIcon: Icon(
-                              model.getGoalStyle(selectedCategory).icon,
-                              color: model.getGoalStyle(selectedCategory).color,
-                            ),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          dropdownColor: isDark ? Colors.grey[800] : Colors.white,
-                          items: model.goalCategories.map((cat) {
-                            final style = model.getGoalStyle(cat);
-                            return DropdownMenuItem(
-                              value: cat,
-                              child: Row(
-                                children: [
-                                  Icon(style.icon, color: style.color, size: 20),
-                                  const SizedBox(width: 12),
-                                  Text(cat),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() => selectedCategory = val);
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: targetController,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: InputDecoration(
-                            labelText: 'Importo obiettivo (€)',
-                            prefixIcon: const Icon(Icons.euro),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            hintText: '500.00',
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextButton(
-                                onPressed: () => Navigator.pop(dialogContext),
-                                child: const Text('Annulla'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  final target = double.tryParse(targetController.text);
-                                  if (target != null && target > 0) {
-                                    final goal = Goal(
-                                      id: null,
-                                      title: selectedCategory,
-                                      target: target,
-                                      saved: 0,
-                                      isPurchased: false,
-                                    );
-                                    await model.addGoal(goal);
-                                    Navigator.pop(dialogContext);
-                                    HapticFeedback.heavyImpact();
-                                    ScaffoldMessenger.of(this.context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('✅ Obiettivo creato!'),
-                                        backgroundColor: Colors.green,
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  }
-                                },
-                                icon: const Icon(Icons.save),
-                                label: const Text('Crea'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF6366F1),
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'Nuovo Obiettivo',
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: selectedCategory,
+                  decoration: InputDecoration(
+                    labelText: 'Categoria',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                  ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
+                  items: model.goalCategories.map((cat) {
+                    return DropdownMenuItem(
+                      value: cat,
+                      child: Text(cat, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => selectedCategory = val);
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleController,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    labelText: 'Titolo',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  void _showPurchaseDialog(Goal goal, MoneyModel model) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.black.withOpacity(0.75) : Colors.white.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(isDark ? 0.2 : 0.5),
-                    width: 1.5,
+                const SizedBox(height: 16),
+                TextField(
+                  controller: targetController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    labelText: 'Obiettivo (€)',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
                   ),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Salda Obiettivo',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Confermi di voler saldare "${goal.title}"?',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(dialogContext),
-                            child: const Text('Annulla'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              await model.purchaseGoal(goal.id!);
-                              Navigator.pop(dialogContext);
-                              ScaffoldMessenger.of(this.context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${goal.title} saldato!'),
-                                  backgroundColor: Colors.green,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                            child: const Text('Conferma'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annulla'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final target = double.tryParse(targetController.text);
+                if (target == null || target <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Inserisci un importo valido'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                final title = titleController.text.isEmpty ? selectedCategory : titleController.text;
+                final goal = Goal(title: title, target: target, saved: 0);
+                await model.addGoal(goal);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  HapticFeedback.heavyImpact();
+                }
+              },
+              child: const Text('Salva'),
+            ),
+          ],
         ),
       ),
     );
@@ -783,164 +1010,215 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
 
   void _showAddRecurringDialog(BuildContext context) {
     final model = Provider.of<MoneyModel>(context, listen: false);
-    final amountCtrl = TextEditingController();
-    final noteCtrl = TextEditingController();
-    String? selectedCategory;
-    PaymentMethod selectedPayment = PaymentMethod.carta;
-    int selectedDay = 1;
-    TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    bool isIncome = false;
+    String selectedCategory = model.expenseCats.first;
+    int selectedDay = DateTime.now().day;
+    TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
+    PaymentMethod selectedPayment = PaymentMethod.carta;
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (dialogContext) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: StatefulBuilder(
-          builder: (context, setState) => Dialog(
-            backgroundColor: Colors.transparent,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                child: Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.black.withOpacity(0.75) : Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(isDark ? 0.2 : 0.5),
-                      width: 1.5,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'Nuova Ricorrente',
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<bool>(
+                        title: const Text('Uscita'),
+                        value: false,
+                        groupValue: isIncome,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            isIncome = val!;
+                            selectedCategory = isIncome ? model.incomeCats.first : model.expenseCats.first;
+                          });
+                        },
+                      ),
                     ),
+                    Expanded(
+                      child: RadioListTile<bool>(
+                        title: const Text('Entrata'),
+                        value: true,
+                        groupValue: isIncome,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            isIncome = val!;
+                            selectedCategory = isIncome ? model.incomeCats.first : model.expenseCats.first;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedCategory,
+                  decoration: InputDecoration(
+                    labelText: 'Categoria',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
                   ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.repeat, color: Color(0xFF10B981)),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Nuova Ricorrente',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        DropdownButtonFormField<String>(
-                          value: selectedCategory,
-                          decoration: InputDecoration(
-                            labelText: 'Categoria',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          hint: const Text('Seleziona categoria'),
-                          dropdownColor: isDark ? Colors.grey[800] : Colors.white,
-                          items: model.expenseCats.map((cat) {
-                            final style = model.getTransactionStyle(cat);
-                            return DropdownMenuItem(
-                              value: cat,
-                              child: Row(
-                                children: [
-                                  Icon(style.icon, color: style.color, size: 20),
-                                  const SizedBox(width: 12),
-                                  Text(cat),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) => setState(() => selectedCategory = val),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: amountCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: InputDecoration(
-                            labelText: 'Importo (€)',
-                            prefixIcon: const Icon(Icons.euro),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        DropdownButtonFormField<int>(
-                          value: selectedDay,
-                          decoration: InputDecoration(
-                            labelText: 'Giorno del mese',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          dropdownColor: isDark ? Colors.grey[800] : Colors.white,
-                          items: List.generate(28, (i) => i + 1).map((day) {
-                            return DropdownMenuItem(
-                              value: day,
-                              child: Text('Giorno $day'),
-                            );
-                          }).toList(),
-                          onChanged: (val) => setState(() => selectedDay = val!),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: noteCtrl,
-                          decoration: InputDecoration(
-                            labelText: 'Nota (opzionale)',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          maxLines: 2,
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextButton(
-                                onPressed: () => Navigator.pop(dialogContext),
-                                child: const Text('Annulla'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () async {
-                                  if (selectedCategory == null) return;
-                                  final amount = double.tryParse(amountCtrl.text);
-                                  if (amount == null || amount <= 0) return;
-
-                                  final recurring = Recurring(
-                                    category: selectedCategory!,
-                                    amount: amount,
-                                    dayOfMonth: selectedDay,
-                                    time: selectedTime,
-                                    payment: selectedPayment,
-                                    note: noteCtrl.text.isEmpty ? null : noteCtrl.text.trim(),
-                                  );
-
-                                  await model.addRecurring(recurring);
-                                  Navigator.pop(dialogContext);
-                                  HapticFeedback.heavyImpact();
-                                  ScaffoldMessenger.of(this.context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('✅ Ricorrente creata!'),
-                                      backgroundColor: Colors.green,
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.save),
-                                label: const Text('Salva'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF10B981),
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
+                  items: (isIncome ? model.allIncomeCats : model.allExpenseCats).map((cat) {
+                    return DropdownMenuItem(
+                      value: cat,
+                      child: Text(cat, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setDialogState(() => selectedCategory = val);
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    labelText: 'Importo (€)',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
                   ),
                 ),
-              ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<int>(
+                  value: selectedDay,
+                  decoration: InputDecoration(
+                    labelText: 'Giorno del mese',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                  ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
+                  items: List.generate(28, (i) => i + 1).map((day) {
+                    return DropdownMenuItem(
+                      value: day,
+                      child: Text('Giorno $day', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setDialogState(() => selectedDay = val);
+                  },
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Ora: ${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}',
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  ),
+                  trailing: const Icon(Icons.access_time),
+                  onTap: () async {
+                    final time = await showTimePicker(context: context, initialTime: selectedTime);
+                    if (time != null) setDialogState(() => selectedTime = time);
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<PaymentMethod>(
+                  value: selectedPayment,
+                  decoration: InputDecoration(
+                    labelText: 'Metodo di pagamento',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                  ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
+                  items: PaymentMethod.values.map((method) {
+                    return DropdownMenuItem(
+                      value: method,
+                      child: Text(method.name.toUpperCase(), style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setDialogState(() => selectedPayment = val);
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: noteController,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    labelText: 'Note (opzionale)',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                  ),
+                ),
+              ],
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annulla'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final amount = double.tryParse(amountController.text);
+                if (amount == null || amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Inserisci un importo valido'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                
+                final recurring = Recurring(
+  category: selectedCategory,
+  amount: amount,
+  dayOfMonth: selectedDay,
+  time: selectedTime,
+  payment: selectedPayment,
+  note: noteController.text.isEmpty ? null : noteController.text,
+  // ✅ isIncome NON serve - Recurring non ha questo parametro
+);
+
+                
+                await model.addRecurring(recurring);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  HapticFeedback.heavyImpact();
+                }
+              },
+              child: const Text('Salva'),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  void _showPurchaseDialog(Goal goal, MoneyModel model) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Salda Obiettivo'),
+        content: Text('Vuoi saldare "${goal.title}"?\nVerrà creata una transazione di €${goal.target.toStringAsFixed(2)}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
+            onPressed: () async {
+              await model.purchaseGoal(goal.id!);
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                HapticFeedback.heavyImpact();
+              }
+            },
+            child: const Text('Salda'),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

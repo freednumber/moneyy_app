@@ -19,18 +19,16 @@ class ReportsPage extends StatefulWidget {
 class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
-
+  
   PeriodType selectedPeriod = PeriodType.mese;
   ChartMode chartMode = ChartMode.overview;
   DateTime selectedDate = DateTime.now();
-
-  // slider stile dock: track larga dietro il period selezionato
   late ValueNotifier<PeriodType> _periodNotifier;
 
   @override
   void initState() {
     super.initState();
-    _periodNotifier = ValueNotifier<PeriodType>(selectedPeriod);
+    _periodNotifier = ValueNotifier(selectedPeriod);
   }
 
   @override
@@ -62,7 +60,6 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     setState(() {
       DateTime newDate;
       final now = DateTime.now();
-      
       switch (selectedPeriod) {
         case PeriodType.giorno:
           newDate = selectedDate.add(const Duration(days: 1));
@@ -105,10 +102,8 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     }
   }
 
-  // Velocità animazioni uniformata a 300ms
   static const _sliderDuration = Duration(milliseconds: 300);
 
-  // Day picker semplice (calendario) per selezionare un singolo giorno
   Future<void> _showDayPicker() async {
     final picked = await showDatePicker(
       context: context,
@@ -155,7 +150,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) {
-        final months = List<DateTime>.generate(36, (i) => DateTime(cursor.year, cursor.month - i, 1));
+        final months = List.generate(36, (i) => DateTime(cursor.year, cursor.month - i, 1));
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: Column(
@@ -198,8 +193,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
   Future<void> _showWeekPicker() async {
     DateTime startOfWeek(DateTime d) => d.subtract(Duration(days: d.weekday - 1));
     final start = startOfWeek(DateTime.now());
-    final weeks = List<DateTime>.generate(52, (i) => start.subtract(Duration(days: 7 * i)));
-
+    final weeks = List.generate(52, (i) => start.subtract(Duration(days: 7 * i)));
     await showModalBottomSheet(
       context: context,
       useSafeArea: true,
@@ -261,9 +255,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     final filteredTransactions = _getFilteredTransactions(model);
     
     return Scaffold(
-      backgroundColor: isDarkMode 
-        ? const Color(0xFF0F172A)
-        : Colors.grey[50],
+      backgroundColor: isDarkMode ? const Color(0xFF0F172A) : Colors.grey[50],
       appBar: AppBar(
         title: Text(
           'Report Finanziario',
@@ -275,9 +267,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
         automaticallyImplyLeading: false,
         elevation: 0,
         centerTitle: true,
-        backgroundColor: isDarkMode 
-          ? const Color(0xFF1E293B)
-          : Colors.white,
+        backgroundColor: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -296,20 +286,16 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontal = 16.0;
     final itemWidth = (screenWidth - horizontal * 2) / 4;
-
+    
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Container(
         height: 58,
         decoration: BoxDecoration(
-          color: isDarkMode 
-            ? Colors.grey[900]!.withOpacity(0.9)
-            : Colors.white.withOpacity(0.95),
+          color: isDarkMode ? Colors.grey[900]!.withOpacity(0.9) : Colors.white.withOpacity(0.95),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isDarkMode
-              ? Colors.white.withOpacity(0.12)
-              : Colors.black.withOpacity(0.08),
+            color: isDarkMode ? Colors.white.withOpacity(0.12) : Colors.black.withOpacity(0.08),
           ),
           boxShadow: [
             BoxShadow(
@@ -321,7 +307,6 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
         ),
         child: Stack(
           children: [
-            // track animata larga come il dock ripristinato
             ValueListenableBuilder<PeriodType>(
               valueListenable: _periodNotifier,
               builder: (context, period, _) {
@@ -379,11 +364,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: isSelected
-                              ? const Color(0xFF6366F1)
-                              : isDarkMode
-                                ? Colors.grey[300]
-                                : Colors.grey[700],
+                            color: isSelected ? const Color(0xFF6366F1) : isDarkMode ? Colors.grey[300] : Colors.grey[700],
                             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                             fontSize: 13,
                             letterSpacing: 0.2,
@@ -408,10 +389,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            icon: Icon(
-              Icons.chevron_left,
-              color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-            ),
+            icon: Icon(Icons.chevron_left, color: isDarkMode ? Colors.grey[300] : Colors.grey[700]),
             onPressed: _navigatePrevious,
             iconSize: 28,
           ),
@@ -422,13 +400,9 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
-                color: isDarkMode
-                  ? const Color(0xFF10B981).withOpacity(0.15)
-                  : const Color(0xFF10B981).withOpacity(0.1),
+                color: isDarkMode ? const Color(0xFF10B981).withOpacity(0.15) : const Color(0xFF10B981).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFF10B981).withOpacity(0.4),
-                ),
+                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -453,10 +427,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
           ),
           const SizedBox(width: 16),
           IconButton(
-            icon: Icon(
-              Icons.chevron_right,
-              color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-            ),
+            icon: Icon(Icons.chevron_right, color: isDarkMode ? Colors.grey[300] : Colors.grey[700]),
             onPressed: _navigateNext,
             iconSize: 28,
           ),
@@ -474,14 +445,10 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDarkMode 
-          ? Colors.grey[900]!.withOpacity(0.8)
-          : Colors.white,
+        color: isDarkMode ? Colors.grey[900]!.withOpacity(0.8) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDarkMode
-            ? Colors.white.withOpacity(0.1)
-            : Colors.black.withOpacity(0.05),
+          color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
         ),
         boxShadow: [
           BoxShadow(
@@ -611,14 +578,10 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: isDark
-          ? color.withOpacity(0.15)
-          : color.withOpacity(0.1),
+        color: isDark ? color.withOpacity(0.15) : color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark
-            ? color.withOpacity(0.4)
-            : color.withOpacity(0.3),
+          color: isDark ? color.withOpacity(0.4) : color.withOpacity(0.3),
         ),
         boxShadow: [
           BoxShadow(
@@ -630,11 +593,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: isDark ? color.withOpacity(0.9) : color,
-            size: 28,
-          ),
+          Icon(icon, color: isDark ? color.withOpacity(0.9) : color, size: 28),
           const SizedBox(height: 10),
           Text(
             label,
@@ -666,14 +625,10 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
         margin: const EdgeInsets.all(16),
         padding: const EdgeInsets.all(40),
         decoration: BoxDecoration(
-          color: isDarkMode 
-            ? Colors.grey[900]!.withOpacity(0.6)
-            : Colors.white,
+          color: isDarkMode ? Colors.grey[900]!.withOpacity(0.6) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isDarkMode
-              ? Colors.white.withOpacity(0.1)
-              : Colors.grey.withOpacity(0.2),
+            color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.2),
           ),
         ),
         child: Center(
@@ -702,14 +657,10 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDarkMode 
-          ? Colors.grey[900]!.withOpacity(0.8)
-          : Colors.white,
+        color: isDarkMode ? Colors.grey[900]!.withOpacity(0.8) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDarkMode
-            ? Colors.white.withOpacity(0.1)
-            : Colors.grey.withOpacity(0.2),
+          color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.2),
         ),
         boxShadow: [
           BoxShadow(
@@ -754,11 +705,12 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
             itemBuilder: (context, index) {
               final tx = transactions[index];
               final style = model.getTransactionStyle(tx.category);
-              final isRecurring = tx.note?.startsWith('🔄') ?? false;
+              final isRecurring = tx.isFromRecurring ?? false;
+              final isGoalSaving = tx.category == 'Risparmio' && tx.note != null && tx.note!.contains('Aggiunto a obiettivo:');
 
               return Dismissible(
-                key: Key('${tx.id}_${tx.date.millisecondsSinceEpoch}'),
-                direction: isRecurring ? DismissDirection.none : DismissDirection.endToStart,
+                key: Key('${tx.id}_${tx.date.millisecondsSinceEpoch}_${tx.category}'),
+                direction: DismissDirection.endToStart,
                 background: Container(
                   margin: EdgeInsets.only(
                     left: 16,
@@ -777,166 +729,339 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                   child: const Icon(Icons.delete, color: Colors.white, size: 28),
                 ),
                 confirmDismiss: (direction) async {
-                  if (isRecurring) return false;
-                  return await showDialog(
+                  HapticFeedback.mediumImpact();
+                  
+                  if (isRecurring) {
+                    return await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+                        title: Text('Elimina Ricorrente', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black87)),
+                        content: Text('Vuoi eliminare questa transazione ricorrente? Non apparirà più nei report futuri.', style: TextStyle(color: isDarkMode ? Colors.grey[300] : Colors.black87)),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Elimina'),
+                          ),
+                        ],
+                      ),
+                    ) ?? false;
+                  }
+                  
+                  if (isGoalSaving) {
+                    return await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+                        title: Text('Elimina Risparmio', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black87)),
+                        content: Text('Eliminando questo risparmio, l\'importo sarà rimosso dall\'obiettivo e tornerà sul saldo netto.', style: TextStyle(color: isDarkMode ? Colors.grey[300] : Colors.black87)),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Elimina'),
+                          ),
+                        ],
+                      ),
+                    ) ?? false;
+                  }
+                  
+                  return await showDialog<bool>(
                     context: context,
-                    builder: (ctx) => AlertDialog(
+                    builder: (context) => AlertDialog(
                       backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
-                      title: Text(
-                        'Elimina Transazione',
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      content: Text(
-                        'Sei sicuro di voler eliminare questa transazione?',
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.grey[300] : Colors.black87,
-                        ),
-                      ),
+                      title: Text('Elimina Transazione', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black87)),
+                      content: Text('Sei sicuro di voler eliminare questa transazione?', style: TextStyle(color: isDarkMode ? Colors.grey[300] : Colors.black87)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: Text(
-                            'Annulla',
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                            ),
-                          ),
-                        ),
+                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
                         ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx, true),
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          onPressed: () => Navigator.pop(context, true),
                           child: const Text('Elimina', style: TextStyle(color: Colors.white)),
                         ),
                       ],
                     ),
-                  );
+                  ) ?? false;
                 },
-                onDismissed: (direction) {
-                  model.deleteTransaction(tx.id!);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Transazione eliminata'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  );
+                onDismissed: (direction) async {
+                  if (isRecurring) {
+                    final recurring = model.recurringTransactions.firstWhere(
+                      (r) => r.category == tx.category && r.amount == tx.amount && r.isIncome == tx.isIncome,
+                    );
+                    if (recurring.id != null) {
+                      await model.deleteRecurring(recurring.id!);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Transazione ricorrente eliminata'), backgroundColor: Colors.red),
+                        );
+                      }
+                    }
+                  } else if (isGoalSaving && tx.note != null) {
+                    final goalTitle = tx.note!.replaceAll('Aggiunto a obiettivo: ', '');
+                    final goal = model.goals.firstWhere((g) => g.title == goalTitle, orElse: () => model.goals.first);
+                    
+                    if (goal.id != null) {
+                      final updatedGoal = goal.copyWith(saved: goal.saved - tx.amount);
+                      await model.updateGoal(updatedGoal);
+                    }
+                    
+                    if (tx.id != null) {
+                      await model.deleteTransaction(tx.id!);
+                    }
+                    
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Risparmio eliminato. €${tx.amount.toStringAsFixed(2)} rimossi dall\'obiettivo'), backgroundColor: Colors.orange),
+                      );
+                    }
+                  } else {
+                    if (tx.id != null) {
+                      await model.deleteTransaction(tx.id!);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Transazione eliminata'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+                        );
+                      }
+                    }
+                  }
                 },
-                child: Container(
-                  margin: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: index == 0 ? 0 : 4,
-                    bottom: index == transactions.length - 1 ? 16 : 4,
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDarkMode 
-                      ? Colors.grey[850]!.withOpacity(0.5)
-                      : Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isRecurring
-                          ? const Color(0xFF6366F1).withOpacity(isDarkMode ? 0.4 : 0.3)
-                          : isDarkMode
-                            ? Colors.white.withOpacity(0.08)
-                            : Colors.grey.withOpacity(0.2),
+                child: InkWell(
+                  onTap: !isRecurring && !isGoalSaving ? () {
+                    _showEditTransactionDialog(tx, model, isDarkMode);
+                  } : null,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    margin: EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      top: index == 0 ? 0 : 4,
+                      bottom: index == transactions.length - 1 ? 16 : 4,
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      if (isRecurring)
-                        Container(
-                          margin: const EdgeInsets.only(right: 12),
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withOpacity(0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.repeat, color: Color(0xFF6366F1), size: 16),
-                        ),
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [style.color, style.color.withOpacity(0.8)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: style.color.withOpacity(0.3),
-                              blurRadius: 6,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Icon(style.icon, color: Colors.white, size: 24),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDarkMode ? Colors.grey[850]!.withOpacity(0.5) : Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isRecurring
+                            ? const Color(0xFF6366F1).withOpacity(isDarkMode ? 0.4 : 0.3)
+                            : isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey.withOpacity(0.2),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    ),
+                    child: Row(
+                      children: [
+                        if (isRecurring)
+                          Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1).withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.repeat, color: Color(0xFF6366F1), size: 16),
+                          ),
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [style.color, style.color.withOpacity(0.8)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: style.color.withOpacity(0.3),
+                                blurRadius: 6,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Icon(style.icon, color: Colors.white, size: 24),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                tx.category,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                  color: isDarkMode ? Colors.white : Colors.black87,
+                                  letterSpacing: 0.1,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                tx.note ?? DateFormat('d MMMM yyyy', 'it_IT').format(tx.date),
+                                style: TextStyle(
+                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                  fontSize: 13,
+                                  letterSpacing: 0.1,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              tx.category,
+                              '${tx.isIncome ? '+' : '-'} ${model.format(tx.amount)}',
                               style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                                color: isDarkMode ? Colors.white : Colors.black87,
-                                letterSpacing: 0.1,
+                                color: tx.isIncome
+                                    ? (isDarkMode ? const Color(0xFF34D399) : Colors.green.shade700)
+                                    : (isDarkMode ? const Color(0xFFFF6B6B) : Colors.red.shade700),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                letterSpacing: 0.2,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              tx.note ?? DateFormat('d MMMM yyyy', 'it_IT').format(tx.date),
+                              DateFormat('HH:mm', 'it_IT').format(tx.date),
                               style: TextStyle(
-                                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                                fontSize: 13,
-                                letterSpacing: 0.1,
+                                color: isDarkMode ? Colors.grey[500] : Colors.grey[500],
+                                fontSize: 11,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${tx.isIncome ? '+' : '-'} ${model.format(tx.amount)}',
-                            style: TextStyle(
-                              color: tx.isIncome 
-                                ? (isDarkMode ? const Color(0xFF34D399) : Colors.green.shade700)
-                                : (isDarkMode ? const Color(0xFFFF6B6B) : Colors.red.shade700),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            DateFormat('HH:mm', 'it_IT').format(tx.date),
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.grey[500] : Colors.grey[500],
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );
             },
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEditTransactionDialog(MoneyTx tx, MoneyModel model, bool isDark) {
+    final amountController = TextEditingController(text: tx.amount.toStringAsFixed(2));
+    final noteController = TextEditingController(text: tx.note ?? '');
+    DateTime selectedDate = tx.date;
+    PaymentMethod selectedPayment = tx.payment;
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+          title: Text('Modifica ${tx.category}', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    labelText: 'Importo',
+                    prefixText: '€ ',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Data: ${DateFormat('d MMMM yyyy', 'it_IT').format(selectedDate)}',
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  ),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setDialogState(() => selectedDate = date);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<PaymentMethod>(
+                  value: selectedPayment,
+                  decoration: InputDecoration(
+                    labelText: 'Metodo di pagamento',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                  ),
+                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
+                  items: PaymentMethod.values.map((method) {
+                    return DropdownMenuItem(
+                      value: method,
+                      child: Text(method.name.toUpperCase(), style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => selectedPayment = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: noteController,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  decoration: InputDecoration(
+                    labelText: 'Note (opzionale)',
+                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
+              onPressed: () async {
+                final amount = double.tryParse(amountController.text);
+                if (amount == null || amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Inserisci un importo valido'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+                
+                final updated = MoneyTx(
+                  id: tx.id,
+                  isIncome: tx.isIncome,
+                  category: tx.category,
+                  amount: amount,
+                  date: selectedDate,
+                  payment: selectedPayment,
+                  note: noteController.text.isEmpty ? null : noteController.text,
+                );
+                
+                await model.updateTransaction(updated);
+                
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Transazione aggiornata!'), backgroundColor: Color(0xFF10B981)),
+                  );
+                }
+              },
+              child: const Text('Salva'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -992,7 +1117,6 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     }).toList();
     
     final recurringTxs = model.getRecurringTransactionsForPeriod(start, end);
-    
     final allTxs = [...normalTxs, ...recurringTxs];
     allTxs.sort((a, b) => b.date.compareTo(a.date));
     
