@@ -197,10 +197,15 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     }
   }
 
+  // 🐷 FIX: Separato "In Corso" e "Completati"
   Widget _buildGoalsContent(MoneyModel model, bool isDark) {
     if (model.loading) {
       return const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)));
     }
+
+    // 🐛 Separa obiettivi attivi e completati
+    final activeGoals = model.goals.where((g) => g.progress < 100).toList();
+    final completedGoals = model.goals.where((g) => g.progress >= 100).toList();
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -213,30 +218,43 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (model.activeGoals.isNotEmpty) ...[
-              Text(
-                'In Corso',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
+            if (activeGoals.isNotEmpty) ...[
+              Row(
+                children: [
+                  const Icon(Icons.flag, color: Color(0xFF6366F1), size: 24),
+                  const SizedBox(width: 10),
+                  Text(
+                    'In Corso',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
-              ...model.activeGoals.map((goal) => _buildGoalCard(goal, model, false, isDark)),
+              ...activeGoals.map((goal) => _buildGoalCard(goal, model, false, isDark)),
               const SizedBox(height: 20),
             ],
-            if (model.completedGoals.isNotEmpty) ...[
-              Text(
-                'Completati',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
+            if (completedGoals.isNotEmpty) ...[
+              Row(
+                children: [
+                  // 🐷 ICONA SALVADANAIO per obiettivi completati
+                  const Text('🐷', style: TextStyle(fontSize: 24)),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Completati',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
-              ...model.completedGoals.map((goal) => _buildGoalCard(goal, model, true, isDark)),
+              ...completedGoals.map((goal) => _buildGoalCard(goal, model, true, isDark)),
             ],
             if (model.goals.isEmpty) _buildGoalsEmptyState(isDark),
           ],
@@ -245,9 +263,10 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     );
   }
 
-  // ✅ AGGIUNTO: Tap su card obiettivo per mostrare opzioni
+  // 🐷 Card obiettivo con salvadanaio per completati
   Widget _buildGoalCard(Goal goal, MoneyModel model, bool isCompleted, bool isDark) {
     final style = model.getGoalStyle(goal.title);
+    
     return InkWell(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -291,7 +310,12 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
                             ),
                           ],
                         ),
-                        child: Icon(style.icon, color: Colors.white, size: 24),
+                        // 🐷 Mostra salvadanaio se completato, altrimenti icona normale
+                        child: Center(
+                          child: isCompleted
+                              ? const Text('🐷', style: TextStyle(fontSize: 28))
+                              : Icon(style.icon, color: Colors.white, size: 24),
+                        ),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -337,7 +361,7 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
                       value: goal.progress / 100,
                       minHeight: 8,
                       backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[200],
-                      valueColor: AlwaysStoppedAnimation<Color>(style.color),
+                      valueColor: AlwaysStoppedAnimation<Color>(isCompleted ? const Color(0xFF10B981) : style.color),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -347,24 +371,43 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: style.color.withOpacity(0.15),
+                          color: isCompleted 
+                              ? const Color(0xFF10B981).withOpacity(0.15)
+                              : style.color.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Text(
-                          '${goal.progress.toStringAsFixed(1)}%',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : style.color,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isCompleted) const Text('✅ ', style: TextStyle(fontSize: 10)),
+                            Text(
+                              '${goal.progress.toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isCompleted 
+                                    ? const Color(0xFF10B981)
+                                    : (isDark ? Colors.white : style.color),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      if (!goal.isPurchased)
+                      if (!isCompleted)
                         Text(
                           'Mancano ${model.format(goal.target - goal.saved)}',
                           style: TextStyle(
                             fontSize: 11,
                             color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          ),
+                        )
+                      else
+                        Text(
+                          '🎉 Raggiunto!',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF10B981),
                           ),
                         ),
                     ],
@@ -378,7 +421,6 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     );
   }
 
-  // ✅ NUOVO: Dialog opzioni obiettivo
   void _showGoalOptionsDialog(Goal goal, MoneyModel model, bool isDark) {
     showDialog(
       context: context,
@@ -516,7 +558,6 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     );
   }
 
-  // ✅ NUOVO: Dialog per aggiungere denaro
   void _showAddMoneyToGoalDialog(Goal goal, MoneyModel model, bool isDark) {
     final controller = TextEditingController();
     
@@ -572,7 +613,6 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     );
   }
 
-  // ✅ NUOVO: Dialog per modificare obiettivo
   void _showEditGoalDialog(Goal goal, MoneyModel model, bool isDark) {
     final nameController = TextEditingController(text: goal.title);
     final targetController = TextEditingController(text: goal.target.toString());
