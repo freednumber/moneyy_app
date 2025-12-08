@@ -170,9 +170,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // ✅ SEZIONE OBIETTIVI - SOLO ATTIVI (NIENTE COMPLETATI)
+  // 🐷 SEZIONE OBIETTIVI - ICONA SALVADANAIO
   Widget _buildGoalsSection(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
-    // 🐛 FIX: Mostra SOLO obiettivi attivi NON completati
     final activeGoals = model.goals.where((g) => g.progress < 100).toList();
     
     if (activeGoals.isEmpty) return const SizedBox.shrink();
@@ -188,7 +187,8 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
             children: [
               Row(
                 children: [
-                  Icon(Icons.flag, color: Color(0xFF6366F1), size: 26),
+                  // 🐷 SALVADANAIO invece di bandiera
+                  const Text('🐷', style: TextStyle(fontSize: 28)),
                   SizedBox(width: 10),
                   Text(
                     'I tuoi Obiettivi',
@@ -462,7 +462,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // 🐷 AGGIUNTE VELOCI - ESCLUDI RISPARMIO
+  // 🐷 AGGIUNTE VELOCI - ESCLUDI RISPARMIO E OBIETTIVI COMPLETATI
   Widget _buildQuickAddGrid(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
     final mostUsed = _getMostUsedCategories(model);
     return Column(
@@ -706,16 +706,24 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     return DateFormat('d MMM', 'it_IT').format(mostRecent.date);
   }
 
-  // 🐛 FIX: Escludi "Risparmio" e categorie obiettivi da quick add
+  // 🐛 FIX: Escludi "Risparmio" + categorie obiettivi + obiettivi COMPLETATI
   List<String> _getMostUsedCategories(MoneyModel model) {
     final now = DateTime.now();
     final lastMonth = DateTime(now.year, now.month - 1, now.day);
     final recentTxs = model.transactions.where((tx) => tx.date.isAfter(lastMonth)).toList();
     
+    // 🚫 Ottieni titoli obiettivi COMPLETATI
+    final completedGoalTitles = model.goals
+        .where((g) => g.progress >= 100)
+        .map((g) => g.title)
+        .toSet();
+    
     final Map<String, int> count = {};
     for (final tx in recentTxs) {
-      // 🐛 ESCLUDI: Risparmio + tutte le categorie obiettivo
-      if (tx.category != 'Risparmio' && !model.goalCategories.contains(tx.category)) {
+      // 🐛 ESCLUDI: Risparmio + categorie base obiettivi + obiettivi completati
+      if (tx.category != 'Risparmio' && 
+          !model.goalCategories.contains(tx.category) &&
+          !completedGoalTitles.contains(tx.category)) {
         count[tx.category] = (count[tx.category] ?? 0) + 1;
       }
     }
@@ -822,11 +830,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // DIALOG OBIETTIVI
+  // ⚠️ DIALOG OBIETTIVI - LIMITA IMPORTO AL MASSIMO MANCANTE
   
   void _showAddMoneyDialog(BuildContext context, Goal goal, MoneyModel model) {
     final controller = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final remaining = goal.target - goal.saved;
     
     showDialog(
       context: context,
@@ -836,16 +845,30 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           'Aggiungi a "${goal.title}"',
           style: TextStyle(color: isDark ? Colors.white : Colors.black87),
         ),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-          decoration: InputDecoration(
-            labelText: 'Importo',
-            prefixText: '€ ',
-            labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
-          ),
-          autofocus: true,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Mancano ancora €${remaining.toStringAsFixed(2)}',
+              style: TextStyle(
+                color: Color(0xFF6366F1),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              decoration: InputDecoration(
+                labelText: 'Importo (max €${remaining.toStringAsFixed(2)})',
+                prefixText: '€ ',
+                labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+              ),
+              autofocus: true,
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -859,18 +882,39 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
             ),
             onPressed: () async {
               final amount = double.tryParse(controller.text);
-              if (amount != null && amount > 0) {
-                await model.addMoneyToGoal(goal, amount);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  HapticFeedback.heavyImpact();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('€${amount.toStringAsFixed(2)} aggiunti a ${goal.title}!'),
-                      backgroundColor: const Color(0xFF10B981),
-                    ),
-                  );
-                }
+              
+              // ⚠️ VALIDAZIONE: controlla importo
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('⚠️ Inserisci un importo valido'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+              
+              // ⚠️ LIMITA importo al massimo mancante
+              if (amount > remaining) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('⚠️ Puoi aggiungere max €${remaining.toStringAsFixed(2)}'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+              
+              await model.addMoneyToGoal(goal, amount);
+              if (context.mounted) {
+                Navigator.pop(context);
+                HapticFeedback.heavyImpact();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('€${amount.toStringAsFixed(2)} aggiunti a ${goal.title}!'),
+                    backgroundColor: const Color(0xFF10B981),
+                  ),
+                );
               }
             },
             child: const Text('Aggiungi'),
@@ -878,19 +922,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
         ],
       ),
     );
-  }
-
-  void _completeGoal(BuildContext context, Goal goal, MoneyModel model) async {
-    await model.completeGoal(goal);
-    HapticFeedback.heavyImpact();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('🎉 Obiettivo "${goal.title}" completato!'),
-          backgroundColor: const Color(0xFF10B981),
-        ),
-      );
-    }
   }
 
   void _showEditGoalDialog(BuildContext context, Goal goal, MoneyModel model) {
