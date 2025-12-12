@@ -197,10 +197,15 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     }
   }
 
+  // 🐷 FIX: Separato "In Corso" e "Completati"
   Widget _buildGoalsContent(MoneyModel model, bool isDark) {
     if (model.loading) {
       return const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)));
     }
+
+    // 🐛 Separa obiettivi attivi e completati
+    final activeGoals = model.goals.where((g) => g.progress < 100).toList();
+    final completedGoals = model.goals.where((g) => g.progress >= 100).toList();
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -213,30 +218,43 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (model.activeGoals.isNotEmpty) ...[
-              Text(
-                'In Corso',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
+            if (activeGoals.isNotEmpty) ...[
+              Row(
+                children: [
+                  const Icon(Icons.flag, color: Color(0xFF6366F1), size: 24),
+                  const SizedBox(width: 10),
+                  Text(
+                    'In Corso',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
-              ...model.activeGoals.map((goal) => _buildGoalCard(goal, model, false, isDark)),
+              ...activeGoals.map((goal) => _buildGoalCard(goal, model, false, isDark)),
               const SizedBox(height: 20),
             ],
-            if (model.completedGoals.isNotEmpty) ...[
-              Text(
-                'Completati',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
+            if (completedGoals.isNotEmpty) ...[
+              Row(
+                children: [
+                  // 🐷 ICONA SALVADANAIO per obiettivi completati
+                  const Text('🐷', style: TextStyle(fontSize: 24)),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Completati',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
-              ...model.completedGoals.map((goal) => _buildGoalCard(goal, model, true, isDark)),
+              ...completedGoals.map((goal) => _buildGoalCard(goal, model, true, isDark)),
             ],
             if (model.goals.isEmpty) _buildGoalsEmptyState(isDark),
           ],
@@ -245,127 +263,429 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     );
   }
 
+  // 🐷 Card obiettivo con salvadanaio per completati
   Widget _buildGoalCard(Goal goal, MoneyModel model, bool isCompleted, bool isDark) {
     final style = model.getGoalStyle(goal.title);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.15) : Colors.white,
-                width: 1.2,
+    
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        _showGoalOptionsDialog(goal, model, isDark);
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDark ? Colors.white.withOpacity(0.15) : Colors.white,
+                  width: 1.2,
+                ),
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [style.color, style.color.withOpacity(0.8)],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: style.color.withOpacity(0.3),
-                            blurRadius: 6,
-                            offset: const Offset(0, 3),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [style.color, style.color.withOpacity(0.8)],
                           ),
-                        ],
-                      ),
-                      child: Icon(style.icon, color: Colors.white, size: 24),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            goal.title,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : Colors.black87,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: style.color.withOpacity(0.3),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${model.format(goal.saved)} / ${model.format(goal.target)}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? Colors.grey[300] : Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (isCompleted && !goal.isPurchased)
-                      ElevatedButton(
-                        onPressed: () => _showPurchaseDialog(goal, model),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ],
                         ),
-                        child: const Text('Salda', style: TextStyle(fontSize: 13)),
+                        // 🐷 Mostra salvadanaio se completato, altrimenti icona normale
+                        child: Center(
+                          child: isCompleted
+                              ? const Text('🐷', style: TextStyle(fontSize: 28))
+                              : Icon(style.icon, color: Colors.white, size: 24),
+                        ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: goal.progress / 100,
-                    minHeight: 8,
-                    backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[200],
-                    valueColor: AlwaysStoppedAnimation<Color>(style.color),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              goal.title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${model.format(goal.saved)} / ${model.format(goal.target)}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.grey[300] : Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isCompleted && !goal.isPurchased)
+                        ElevatedButton(
+                          onPressed: () => _showPurchaseDialog(goal, model),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Salda', style: TextStyle(fontSize: 13)),
+                        ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: style.color.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${goal.progress.toStringAsFixed(1)}%',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : style.color,
-                        ),
-                      ),
+                  const SizedBox(height: 14),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: goal.progress / 100,
+                      minHeight: 8,
+                      backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[200],
+                      valueColor: AlwaysStoppedAnimation<Color>(isCompleted ? const Color(0xFF10B981) : style.color),
                     ),
-                    if (!goal.isPurchased)
-                      Text(
-                        'Mancano ${model.format(goal.target - goal.saved)}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isCompleted 
+                              ? const Color(0xFF10B981).withOpacity(0.15)
+                              : style.color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isCompleted) const Text('✅ ', style: TextStyle(fontSize: 10)),
+                            Text(
+                              '${goal.progress.toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isCompleted 
+                                    ? const Color(0xFF10B981)
+                                    : (isDark ? Colors.white : style.color),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                  ],
-                ),
-              ],
+                      if (!isCompleted)
+                        Text(
+                          'Mancano ${model.format(goal.target - goal.saved)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          ),
+                        )
+                      else
+                        Text(
+                          '🎉 Raggiunto!',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showGoalOptionsDialog(Goal goal, MoneyModel model, bool isDark) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+        title: Text(
+          goal.title,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Obiettivo di risparmio',
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  '€ ${goal.saved.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+                Text(
+                  ' / € ${goal.target.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: isDark ? Colors.white70 : Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: goal.progress / 100,
+              minHeight: 6,
+              backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300],
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${goal.progress.toStringAsFixed(1)}% completato',
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.grey[700],
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Chiudi'),
+          ),
+          if (!goal.isPurchased) ...[
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+                    title: Text(
+                      'Elimina Obiettivo',
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                    ),
+                    content: Text(
+                      'Sei sicuro di voler eliminare "${goal.title}"?',
+                      style: TextStyle(color: isDark ? Colors.white70 : Colors.grey[700]),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Annulla'),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Elimina'),
+                      ),
+                    ],
+                  ),
+                );
+                
+                if (confirm == true && goal.id != null) {
+                  await model.deleteGoal(goal.id!);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Obiettivo eliminato'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Elimina', style: TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                _showAddMoneyToGoalDialog(goal, model, isDark);
+              },
+              child: const Text('Aggiungi Denaro'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                _showEditGoalDialog(goal, model, isDark);
+              },
+              child: const Text('Modifica'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showAddMoneyToGoalDialog(Goal goal, MoneyModel model, bool isDark) {
+    final controller = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+        title: Text(
+          'Aggiungi a "${goal.title}"',
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+        ),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          decoration: InputDecoration(
+            labelText: 'Importo',
+            prefixText: '€ ',
+            labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final amount = double.tryParse(controller.text);
+              if (amount != null && amount > 0) {
+                await model.addMoneyToGoal(goal, amount);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  HapticFeedback.heavyImpact();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('€${amount.toStringAsFixed(2)} aggiunti a ${goal.title}!'),
+                      backgroundColor: const Color(0xFF10B981),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Aggiungi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditGoalDialog(Goal goal, MoneyModel model, bool isDark) {
+    final nameController = TextEditingController(text: goal.title);
+    final targetController = TextEditingController(text: goal.target.toString());
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+        title: Text(
+          'Modifica Obiettivo',
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                decoration: InputDecoration(
+                  labelText: 'Nome obiettivo',
+                  labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: targetController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                decoration: InputDecoration(
+                  labelText: 'Importo target',
+                  prefixText: '€ ',
+                  labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annulla'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final name = nameController.text.trim();
+              final target = double.tryParse(targetController.text);
+              
+              if (name.isNotEmpty && target != null && target > 0) {
+                final updatedGoal = goal.copyWith(
+                  title: name,
+                  target: target,
+                );
+                await model.updateGoal(updatedGoal);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  HapticFeedback.mediumImpact();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Obiettivo aggiornato!'),
+                      backgroundColor: Color(0xFF10B981),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Salva'),
+          ),
+        ],
       ),
     );
   }
@@ -452,94 +772,91 @@ class _PlanningPageState extends State<PlanningPage> with AutomaticKeepAliveClie
     );
   }
 
-  // ✅ NUOVO: Card ricorrenti con long press per modificare
-Widget _buildRecurringCard(Recurring recurring, MoneyModel model, bool isDark) {
-  final style = model.getTransactionStyle(recurring.category);
-  
-  return InkWell(
-    onTap: () {  // ✅ CAMBIA DA onLongPress a onTap
-      HapticFeedback.lightImpact();
-      _showRecurringOptionsDialog(recurring, model, isDark);
-    },
-    borderRadius: BorderRadius.circular(20),
-    child: Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.15) : Colors.white,
-                width: 1.2,
+  Widget _buildRecurringCard(Recurring recurring, MoneyModel model, bool isDark) {
+    final style = model.getTransactionStyle(recurring.category);
+    
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        _showRecurringOptionsDialog(recurring, model, isDark);
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isDark ? Colors.white.withOpacity(0.15) : Colors.white,
+                  width: 1.2,
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [style.color, style.color.withOpacity(0.8)],
+              child: Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [style.color, style.color.withOpacity(0.8)],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: style.color.withOpacity(0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: style.color.withOpacity(0.3),
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
+                    child: Icon(style.icon, color: Colors.white, size: 28),
                   ),
-                  child: Icon(style.icon, color: Colors.white, size: 28),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        recurring.category,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : Colors.black87,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          recurring.category,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Giorno ${recurring.dayOfMonth} alle ${recurring.time.hour.toString().padLeft(2, '0')}:${recurring.time.minute.toString().padLeft(2, '0')}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isDark ? Colors.white60 : Colors.grey[600],
+                        const SizedBox(height: 4),
+                        Text(
+                          'Giorno ${recurring.dayOfMonth} alle ${recurring.time.hour.toString().padLeft(2, '0')}:${recurring.time.minute.toString().padLeft(2, '0')}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark ? Colors.white60 : Colors.grey[600],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                Text(
-                  '${recurring.isIncome ? '+' : '-'} ${recurring.amount.toStringAsFixed(2)} €',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: recurring.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                  Text(
+                    '${recurring.isIncome ? '+' : '-'} ${recurring.amount.toStringAsFixed(2)} €',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: recurring.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
-
-
+    );
+  }
 
   Widget _buildRecurringEmptyState(bool isDark) {
     return Center(
@@ -597,7 +914,6 @@ Widget _buildRecurringCard(Recurring recurring, MoneyModel model, bool isDark) {
     );
   }
 
-  // ✅ NUOVO: Dialog opzioni ricorrente (Modifica/Elimina)
   void _showRecurringOptionsDialog(Recurring recurring, MoneyModel model, bool isDark) {
     showDialog(
       context: context,
@@ -751,7 +1067,6 @@ Widget _buildRecurringCard(Recurring recurring, MoneyModel model, bool isDark) {
     );
   }
 
-  // ✅ NUOVO: Dialog modifica ricorrente
   void _showEditRecurringDialog(Recurring recurring, MoneyModel model, bool isDark) {
     final amountController = TextEditingController(text: recurring.amount.toStringAsFixed(2));
     final noteController = TextEditingController(text: recurring.note ?? '');
@@ -881,17 +1196,15 @@ Widget _buildRecurringCard(Recurring recurring, MoneyModel model, bool isDark) {
                 }
                 
                 final updated = Recurring(
-  id: recurring.id,
-  category: recurring.category,
-  amount: amount,
-  dayOfMonth: selectedDay,
-  time: selectedTime,
-  payment: selectedPayment,
-  note: noteController.text.isEmpty ? null : noteController.text,
-  lastProcessed: recurring.lastProcessed,
-  // ✅ NON serve isIncome perché Recurring determina automaticamente se è entrata/uscita dalla categoria
-);
-
+                  id: recurring.id,
+                  category: recurring.category,
+                  amount: amount,
+                  dayOfMonth: selectedDay,
+                  time: selectedTime,
+                  payment: selectedPayment,
+                  note: noteController.text.isEmpty ? null : noteController.text,
+                  lastProcessed: recurring.lastProcessed,
+                );
                 
                 await model.updateRecurring(updated);
                 
@@ -1173,15 +1486,13 @@ Widget _buildRecurringCard(Recurring recurring, MoneyModel model, bool isDark) {
                 }
                 
                 final recurring = Recurring(
-  category: selectedCategory,
-  amount: amount,
-  dayOfMonth: selectedDay,
-  time: selectedTime,
-  payment: selectedPayment,
-  note: noteController.text.isEmpty ? null : noteController.text,
-  // ✅ isIncome NON serve - Recurring non ha questo parametro
-);
-
+                  category: selectedCategory,
+                  amount: amount,
+                  dayOfMonth: selectedDay,
+                  time: selectedTime,
+                  payment: selectedPayment,
+                  note: noteController.text.isEmpty ? null : noteController.text,
+                );
                 
                 await model.addRecurring(recurring);
                 if (context.mounted) {
@@ -1221,4 +1532,3 @@ Widget _buildRecurringCard(Recurring recurring, MoneyModel model, bool isDark) {
     );
   }
 }
-
