@@ -1,10 +1,12 @@
-// [Codice adattato da 'main.dart' e 'lucasxu0/liquid_glass/lib/main.dart']
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as path_package; // ✅ CAMBIATO: usa alias
 import 'theme_provider.dart';
 import 'pages/home_page.dart';
 import 'pages/planning_page.dart';
@@ -14,44 +16,72 @@ import 'pages/splash_page.dart';
 import 'pages/add_tx_page.dart';
 import 'pages/scan_receipt_page.dart';
 import 'widgets/liquid_glass_dock.dart';
+
 // ✅ 1. IMPORTA I NUOVI WIDGET
 import 'widgets/shader_helpers/background_capture_widget.dart';
 import 'dart:ui' as ui;
 
-void main() {
-  runApp(const MoneyYApp());
-}
-
-class MoneyYApp extends StatelessWidget {
-  const MoneyYApp({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
+// ✅ CORRETTO: async aggiunto + dbPath definito
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // ✅ CANCELLA IL DATABASE VECCHIO
+  final dbPath = await getDatabasesPath();
+  final dbFilePath = path_package.join(dbPath, 'moneyy.db');
+  await deleteDatabase(dbFilePath);
+  print('🗑️ Database cancellato: $dbFilePath');
+  
+  runApp(
+    MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => MoneyModel()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
-          return MaterialApp(
-            title: 'MoneyY',
-            debugShowCheckedModeBanner: false,
-            theme: ThemeProvider.lightTheme,
-            darkTheme: ThemeProvider.darkTheme,
-            themeMode: themeProvider.themeMode,
-            locale: const Locale('it', 'IT'),
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: const [
-              Locale('it', 'IT'),
-            ],
-            home: const SplashPage(child: MainNavigationPage()),
-          );
-        },
-      ),
+      child: const MoneyYApp(),
+    ),
+  );
+}
+
+class MoneyYApp extends StatefulWidget {
+  const MoneyYApp({super.key});
+
+  @override
+  State<MoneyYApp> createState() => _MoneyYAppState();
+}
+
+class _MoneyYAppState extends State<MoneyYApp> {
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Ora il Provider è disponibile
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final model = Provider.of<MoneyModel>(context, listen: false);
+      model.loadInitial().then((_) {
+        model.processRecurringTransactions();
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          title: 'MoneyY',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeProvider.lightTheme,
+          darkTheme: ThemeProvider.darkTheme,
+          themeMode: themeProvider.themeMode,
+          locale: const Locale('it', 'IT'),
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('it', 'IT')],
+          home: const SplashPage(child: MainNavigationPage()),
+        );
+      },
     );
   }
 }
@@ -116,7 +146,6 @@ class _MainNavigationPageState extends State<MainNavigationPage>
 
   Future _initModel() async {
     _model = Provider.of(context, listen: false);
-    await _model!.loadInitial();
   }
 
   void _onNavigate(int index, [bool? isIncome]) {

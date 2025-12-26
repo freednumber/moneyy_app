@@ -92,7 +92,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                       builder: (context, model, _) => _buildNetWorthCardSWYPE(model, isDark, isCompact),
                     ),
                     
-                    // SEZIONE OBIETTIVI (NUOVA)
                     Consumer<MoneyModel>(
                       builder: (context, model, _) => _buildGoalsSection(context, model, isDark, isCompact),
                     ),
@@ -115,7 +114,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // Saldo Netto
   Widget _buildNetWorthCardSWYPE(MoneyModel model, bool isDark, bool isCompact) {
     return Center(
       child: Container(
@@ -150,7 +148,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
             ),
             SizedBox(height: 12),
             Text(
-              model.format(model.netWorth),
+              model.format(model.netBalance),
               style: TextStyle(
                 fontSize: 40,
                 fontWeight: FontWeight.bold,
@@ -170,9 +168,9 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // SEZIONE OBIETTIVI (NUOVA)
+  // 🐷 SEZIONE OBIETTIVI - ICONA SALVADANAIO
   Widget _buildGoalsSection(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
-    final activeGoals = model.activeGoals.take(3).toList();
+    final activeGoals = model.goals.where((g) => g.progress < 100).toList();
     
     if (activeGoals.isEmpty) return const SizedBox.shrink();
     
@@ -180,45 +178,289 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(height: isCompact ? 20 : 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.flag, color: Color(0xFF6366F1), size: 26),
-                SizedBox(width: 10),
-                Text(
-                  'I tuoi Obiettivi',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Color(0xFF1E293B),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: isCompact ? 0 : 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  // 🐷 SALVADANAIO OUTLINED
+                  Icon(Icons.savings_outlined, color: Color(0xFF6366F1), size: 28),
+                  SizedBox(width: 10),
+                  Text(
+                    'I tuoi Obiettivi',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
+              ),
+              if (activeGoals.length > 1)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Color(0xFF6366F1).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${activeGoals.length} attivi',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6366F1),
+                    ),
                   ),
                 ),
-              ],
-            ),
-            if (model.goals.length > 3)
-              TextButton(
-                onPressed: () {
-                  // TODO: Naviga a pagina tutti obiettivi
-                },
-                child: const Text('Vedi tutti'),
-              ),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: 12),
-        ...activeGoals.map((goal) => GoalCard(
-          goal: goal,
-          isDark: isDark,
-          onAddMoney: () => _showAddMoneyDialog(context, goal, model),
-          onComplete: () => _completeGoal(context, goal, model),
-          onEdit: () => _showEditGoalDialog(context, goal, model),
-        )),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 180,
+          child: PageView.builder(
+            controller: PageController(viewportFraction: 0.9),
+            itemCount: activeGoals.length,
+            physics: const BouncingScrollPhysics(),
+            itemBuilder: (context, index) {
+              final goal = activeGoals[index];
+              return Padding(
+                padding: EdgeInsets.only(right: 12, left: index == 0 ? 0 : 0),
+                child: _buildHorizontalGoalCard(goal, model, isDark),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
 
-  // Aggiunte Veloci
+  Widget _buildHorizontalGoalCard(Goal goal, MoneyModel model, bool isDark) {
+    final style = model.getGoalStyle(goal.title);
+    
+    return InkWell(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        _showGoalOptionsDialog(goal, model, isDark);
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              style.color.withOpacity(0.15),
+              style.color.withOpacity(0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: style.color.withOpacity(0.3),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: style.color.withOpacity(0.1),
+              blurRadius: 8,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [style.color, style.color.withOpacity(0.7)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: style.color.withOpacity(0.3),
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(style.icon, color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        goal.title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${model.format(goal.saved)} / ${model.format(goal.target)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Column(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: goal.progress / 100,
+                    minHeight: 10,
+                    backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation<Color>(style.color),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: style.color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${goal.progress.toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : style.color,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Mancano ${model.format(goal.target - goal.saved)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGoalOptionsDialog(Goal goal, MoneyModel model, bool isDark) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+        title: Text(
+          goal.title,
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Obiettivo di risparmio',
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  '€ ${goal.saved.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+                Text(
+                  ' / € ${goal.target.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: isDark ? Colors.white70 : Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: goal.progress / 100,
+              minHeight: 6,
+              backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300],
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${goal.progress.toStringAsFixed(1)}% completato',
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.grey[700],
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Chiudi'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              _showAddMoneyDialog(context, goal, model);
+            },
+            child: const Text('Aggiungi Denaro'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              _showEditGoalDialog(context, goal, model);
+            },
+            child: const Text('Modifica'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🐷 AGGIUNTE VELOCI - ESCLUDI RISPARMIO E OBIETTIVI COMPLETATI
   Widget _buildQuickAddGrid(BuildContext context, MoneyModel model, bool isDark, bool isCompact) {
     final mostUsed = _getMostUsedCategories(model);
     return Column(
@@ -354,7 +596,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // Transazioni Recenti
   Widget _buildRecentTransactions(MoneyModel model, bool isDark, bool isCompact) {
     final recent = model.recent.take(6).toList();
     if (recent.isEmpty) {
@@ -449,7 +690,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // Helper Methods
   String _getLastUsedDate(MoneyModel model, String category) {
     final txForCategory = model.transactions.where((tx) => tx.category == category).toList();
     if (txForCategory.isEmpty) return 'Mai usato';
@@ -462,22 +702,36 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     return DateFormat('d MMM', 'it_IT').format(mostRecent.date);
   }
 
+  // 🐛 FIX: Escludi "Risparmio" + categorie obiettivi + obiettivi COMPLETATI
   List<String> _getMostUsedCategories(MoneyModel model) {
     final now = DateTime.now();
     final lastMonth = DateTime(now.year, now.month - 1, now.day);
     final recentTxs = model.transactions.where((tx) => tx.date.isAfter(lastMonth)).toList();
+    
+    final completedGoalTitles = model.goals
+        .where((g) => g.progress >= 100)
+        .map((g) => g.title)
+        .toSet();
+    
     final Map<String, int> count = {};
     for (final tx in recentTxs) {
-      if (!model.goalCategories.contains(tx.category)) {
+      if (tx.category != 'Risparmio' &&
+          !model.goalCategories.contains(tx.category) &&
+          !completedGoalTitles.contains(tx.category)) {
         count[tx.category] = (count[tx.category] ?? 0) + 1;
       }
     }
+    
     final sorted = count.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     final most = sorted.take(6).map((e) => e.key).toList();
+    
     final defaults = ['Stipendio', 'Spesa', 'Trasporti', 'Svago', 'Shopping', 'Casa'];
     for (final d in defaults) {
-      if (most.length < 6 && !most.contains(d)) most.add(d);
+      if (most.length < 6 && !most.contains(d) && d != 'Risparmio') {
+        most.add(d);
+      }
     }
+    
     return most;
   }
 
@@ -569,11 +823,10 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
     );
   }
 
-  // DIALOG OBIETTIVI (NUOVI)
-  
   void _showAddMoneyDialog(BuildContext context, Goal goal, MoneyModel model) {
     final controller = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final remaining = goal.target - goal.saved;
     
     showDialog(
       context: context,
@@ -583,16 +836,30 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           'Aggiungi a "${goal.title}"',
           style: TextStyle(color: isDark ? Colors.white : Colors.black87),
         ),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-          decoration: InputDecoration(
-            labelText: 'Importo',
-            prefixText: '€ ',
-            labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
-          ),
-          autofocus: true,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Mancano ancora €${remaining.toStringAsFixed(2)}',
+              style: TextStyle(
+                color: Color(0xFF6366F1),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              decoration: InputDecoration(
+                labelText: 'Importo (max €${remaining.toStringAsFixed(2)})',
+                prefixText: '€ ',
+                labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+              ),
+              autofocus: true,
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -606,8 +873,29 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
             ),
             onPressed: () async {
               final amount = double.tryParse(controller.text);
-              if (amount != null && amount > 0) {
-                await model.addMoneyToGoal(goal, amount);
+              
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('⚠️ Inserisci un importo valido'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+              
+              if (amount > remaining) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('⚠️ Puoi aggiungere max €${remaining.toStringAsFixed(2)}'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+              
+              await model.addMoneyToGoal(goal, amount);
+              if (context.mounted) {
                 Navigator.pop(context);
                 HapticFeedback.heavyImpact();
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -621,17 +909,6 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
             child: const Text('Aggiungi'),
           ),
         ],
-      ),
-    );
-  }
-
-  void _completeGoal(BuildContext context, Goal goal, MoneyModel model) async {
-    await model.completeGoal(goal);
-    HapticFeedback.heavyImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('🎉 Obiettivo "${goal.title}" completato!'),
-        backgroundColor: const Color(0xFF10B981),
       ),
     );
   }
@@ -698,10 +975,12 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
               );
               if (confirm == true && goal.id != null) {
                 await model.deleteGoal(goal.id!);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Obiettivo eliminato')),
-                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Obiettivo eliminato')),
+                  );
+                }
               }
             },
             child: const Text('Elimina', style: TextStyle(color: Colors.red)),
@@ -725,14 +1004,16 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
                   target: target,
                 );
                 await model.updateGoal(updatedGoal);
-                Navigator.pop(context);
-                HapticFeedback.mediumImpact();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Obiettivo aggiornato!'),
-                    backgroundColor: Color(0xFF10B981),
-                  ),
-                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  HapticFeedback.mediumImpact();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Obiettivo aggiornato!'),
+                      backgroundColor: Color(0xFF10B981),
+                    ),
+                  );
+                }
               }
             },
             child: const Text('Salva'),

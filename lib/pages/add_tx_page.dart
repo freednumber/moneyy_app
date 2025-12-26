@@ -1,31 +1,51 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../models.dart';
 import '../providers.dart';
+import '../models.dart';
+import 'category_manager_page.dart';
 
 class AddTxPage extends StatefulWidget {
   final bool isIncome;
-  
-  const AddTxPage({super.key, required this.isIncome});
-  
+  final MoneyTx? existingTx;
+
+  const AddTxPage({
+    super.key,
+    required this.isIncome,
+    this.existingTx,
+  });
+
   @override
   State<AddTxPage> createState() => _AddTxPageState();
 }
 
 class _AddTxPageState extends State<AddTxPage> {
-  late bool _isIncome;
-  String? _selectedCategory;
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
+
+  String? _selectedCategory;
+  PaymentMethod _selectedPayment = PaymentMethod.carta;
   DateTime _selectedDate = DateTime.now();
-  PaymentMethod _selectedPayment = PaymentMethod.contanti;
+  late bool _isIncome;
+  
+  bool _showAllCategories = false;
 
   @override
   void initState() {
     super.initState();
     _isIncome = widget.isIncome;
+
+    if (widget.existingTx != null) {
+      final tx = widget.existingTx!;
+      _amountController.text = tx.amount.toStringAsFixed(2);
+      _noteController.text = tx.note ?? '';
+      _selectedCategory = tx.category;
+      _selectedPayment = tx.payment;
+      _selectedDate = tx.date;
+      _isIncome = tx.isIncome;
+    }
   }
 
   @override
@@ -35,304 +55,242 @@ class _AddTxPageState extends State<AddTxPage> {
     super.dispose();
   }
 
+  void _save() async {
+    if (_selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Seleziona una categoria')),
+      );
+      return;
+    }
+
+    final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inserisci un importo valido')),
+      );
+      return;
+    }
+
+    final model = Provider.of<MoneyModel>(context, listen: false);
+    final tx = MoneyTx(
+      id: widget.existingTx?.id,
+      isIncome: _isIncome,
+      category: _selectedCategory!,
+      amount: amount,
+      date: _selectedDate,
+      note: _noteController.text.isEmpty ? null : _noteController.text,
+      payment: _selectedPayment,
+    );
+
+    try {
+      if (widget.existingTx == null) {
+        await model.addTx(tx);
+      } else {
+        await model.updateTransaction(tx);
+      }
+
+      if (mounted) {
+        HapticFeedback.mediumImpact();
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Errore: $e')),
+        );
+      }
+    }
+  }
+
+  String _getPaymentLabel(PaymentMethod method) {
+    switch (method) {
+      case PaymentMethod.contanti:
+        return 'Contanti';
+      case PaymentMethod.carta:
+        return 'Carta';
+      case PaymentMethod.bancomat:
+        return 'Bancomat';
+      case PaymentMethod.bonifico:
+        return 'Bonifico';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final model = context.watch<MoneyModel>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final categories = _isIncome ? model.allIncomeCats : model.allExpenseCats;
+    final model = Provider.of<MoneyModel>(context);
+
+    final categories = _isIncome
+        ? model.allIncomeCats
+        : model.allExpenseCats.where((c) => c != 'Altro').toList();
+
+    final visibleCategories = _showAllCategories
+        ? categories
+        : categories.take(6).toList();
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        elevation: 0,
-        title: Text(
-          'Nuova Transazione',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
-          ),
-        ),
-        centerTitle: true,
-      ),
+      appBar: _buildAppBar(isDark),
       body: Stack(
         children: [
+          // ✅ CONTENUTO SCROLLABILE
           SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildAnimatedToggle(isDark),
-                const SizedBox(height: 20),
-                
+                if (widget.existingTx == null) _buildToggle(isDark),
+                const SizedBox(height: 24),
                 _buildAmountField(isDark),
-                const SizedBox(height: 20),
-                
-                Text(
-                  'Categoria',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : const Color(0xFF1E293B),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                
-                _buildCategoriesGrid(categories, model, isDark),
-                
-                if (categories.length > 9)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: _buildAltroButton(categories, model, isDark),
-                  ),
-                
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
+                _buildCategorySection(isDark, visibleCategories, categories),
+                const SizedBox(height: 24),
                 _buildDateField(isDark),
-                const SizedBox(height: 16),
-                _buildPaymentMethodField(isDark),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
+                _buildPaymentMethod(isDark),
+                const SizedBox(height: 24),
                 _buildNoteField(isDark),
               ],
             ),
           ),
-          
+
+          // ✅ BOTTONE IN SOVRIMPRESSIONE
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: _buildStickyButton(isDark, model),
+            child: _buildSaveButton(isDark),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAnimatedToggle(bool isDark) {
-    return Center(
-      child: Container(
-        width: 280,
-        height: 50,
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200],
-          borderRadius: BorderRadius.circular(25),
-        ),
-        child: Stack(
-          children: [
-            AnimatedAlign(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeInOut,
-              alignment: _isIncome ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                width: 140,
-                height: 46,
-                margin: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: _isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                  borderRadius: BorderRadius.circular(23),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+  PreferredSizeWidget _buildAppBar(bool isDark) {
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(60),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+          child: AppBar(
+            title: Text(
+              widget.existingTx == null
+                  ? 'Nuova Transazione'
+                  : 'Modifica Transazione',
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            Row(
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.pop(context);
+              },
+            ),
+            elevation: 0,
+            centerTitle: true,
+            backgroundColor: isDark
+                ? Colors.white.withOpacity(0.08)
+                : Colors.white.withOpacity(0.85),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToggle(bool isDark) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildToggleButton(
+            label: 'Uscita',
+            icon: Icons.arrow_downward,
+            isSelected: !_isIncome,
+            color: Colors.red,
+            onTap: () => setState(() => _isIncome = false),
+            isDark: isDark,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildToggleButton(
+            label: 'Entrata',
+            icon: Icons.arrow_upward,
+            isSelected: _isIncome,
+            color: Colors.green,
+            onTap: () => setState(() => _isIncome = true),
+            isDark: isDark,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildToggleButton({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required Color color,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isSelected
+                    ? [color.withOpacity(0.3), color.withOpacity(0.15)]
+                    : [
+                        (isDark ? Colors.white : Colors.black).withOpacity(0.06),
+                        (isDark ? Colors.white : Colors.black).withOpacity(0.03),
+                      ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isSelected
+                    ? color.withOpacity(0.5)
+                    : (isDark ? Colors.white : Colors.black).withOpacity(0.12),
+                width: isSelected ? 2.0 : 1.0,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isIncome = false;
-                        _selectedCategory = null;
-                      });
-                      HapticFeedback.lightImpact();
-                    },
-                    child: Container(
-                      color: Colors.transparent,
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.arrow_downward,
-                              color: !_isIncome ? Colors.white : (isDark ? Colors.white54 : Colors.grey[600]),
-                              size: 18,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Uscita',
-                              style: TextStyle(
-                                color: !_isIncome ? Colors.white : (isDark ? Colors.white54 : Colors.grey[600]),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                Icon(
+                  icon,
+                  color: isSelected
+                      ? color
+                      : (isDark ? Colors.white70 : Colors.black54),
+                  size: 20,
                 ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isIncome = true;
-                        _selectedCategory = null;
-                      });
-                      HapticFeedback.lightImpact();
-                    },
-                    child: Container(
-                      color: Colors.transparent,
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.arrow_upward,
-                              color: _isIncome ? Colors.white : (isDark ? Colors.white54 : Colors.grey[600]),
-                              size: 18,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Entrata',
-                              style: TextStyle(
-                                color: _isIncome ? Colors.white : (isDark ? Colors.white54 : Colors.grey[600]),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                    color: isSelected
+                        ? color
+                        : (isDark ? Colors.white70 : Colors.black87),
+                    fontSize: 15,
                   ),
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoriesGrid(List<String> categories, MoneyModel model, bool isDark) {
-    final displayedCategories = categories.take(9).toList();
-    
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 1.15,
-      ),
-      itemCount: displayedCategories.length,
-      itemBuilder: (context, index) {
-        final cat = displayedCategories[index];
-        final style = model.getTransactionStyle(cat);
-        final isSelected = _selectedCategory == cat;
-        
-        return _buildCategoryCard(
-          icon: style.icon,
-          label: cat,
-          color: style.color,
-          isSelected: isSelected,
-          isDark: isDark,
-          onTap: () {
-            setState(() => _selectedCategory = cat);
-            HapticFeedback.lightImpact();
-          },
-          onLongPress: () {
-            if (model.customExpenseCats.contains(cat) || model.customIncomeCats.contains(cat)) {
-              _showEditCategoryDialog(model, cat, style.icon, style.color, isDark);
-            }
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildAltroButton(List<String> categories, MoneyModel model, bool isDark) {
-    return InkWell(
-      onTap: () {
-        _showAllCategoriesDialog(categories, model, isDark);
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey[200],
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isDark ? Colors.white.withOpacity(0.2) : Colors.grey[400]!,
-            width: 1,
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.more_horiz, color: isDark ? Colors.white70 : Colors.grey[700], size: 22),
-            const SizedBox(width: 8),
-            Text(
-              'Altre Categorie',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white70 : Colors.grey[700],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryCard({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required bool isSelected,
-    required bool isDark,
-    required VoidCallback onTap,
-    VoidCallback? onLongPress,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.15) : (isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100]),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? color : (isDark ? Colors.white.withOpacity(0.1) : Colors.grey[300]!),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: isSelected ? color : (isDark ? Colors.white70 : Colors.grey[700]), size: 24),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? color : (isDark ? Colors.white70 : Colors.grey[700]),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -345,33 +303,229 @@ class _AddTxPageState extends State<AddTxPage> {
         Text(
           'Importo',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _amountController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
             color: isDark ? Colors.white : Colors.black87,
           ),
-          decoration: InputDecoration(
-            prefixText: '€ ',
-            prefixStyle: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white70 : Colors.grey[700],
+        ),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.12),
+                ),
+              ),
+              child: TextField(
+                controller: _amountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                decoration: InputDecoration(
+                  hintText: '0.00',
+                  hintStyle: TextStyle(
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.3),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(20),
+                  suffixText: '€',
+                  suffixStyle: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                ),
+              ),
             ),
-            hintText: '0.00',
-            filled: true,
-            fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategorySection(bool isDark, List<String> visibleCategories, List<String> allCategories) {
+    final model = Provider.of<MoneyModel>(context, listen: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Categoria',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.0,
+          ),
+          itemCount: visibleCategories.length,
+          itemBuilder: (context, index) {
+            final cat = visibleCategories[index];
+            final style = model.getTransactionStyle(cat);
+            final isSelected = _selectedCategory == cat;
+
+            return GestureDetector(
+              onTap: () => setState(() => _selectedCategory = cat),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isSelected
+                            ? [
+                                style.color.withOpacity(0.4),
+                                style.color.withOpacity(0.25),
+                              ]
+                            : [
+                                (isDark ? Colors.white : Colors.black).withOpacity(0.06),
+                                (isDark ? Colors.white : Colors.black).withOpacity(0.03),
+                              ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected
+                            ? style.color.withOpacity(0.6)
+                            : (isDark ? Colors.white : Colors.black).withOpacity(0.12),
+                        width: isSelected ? 2.0 : 1.0,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          style.icon,
+                          color: isSelected
+                              ? style.color
+                              : (isDark ? Colors.white70 : Colors.black54),
+                          size: 28,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          cat,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected
+                                ? style.color
+                                : (isDark ? Colors.white70 : Colors.black87),
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+
+        if (allCategories.length > 6) ...[
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _showAllCategories = !_showAllCategories;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _showAllCategories ? Icons.expand_less : Icons.expand_more,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _showAllCategories ? 'Mostra meno' : 'Altre categorie...',
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.black54,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 12),
+GestureDetector(
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CategoryManagerPage(),
+      ),
+    );
+  },
+  child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF6366F1).withOpacity(0.15),
+                  const Color(0xFF6366F1).withOpacity(0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFF6366F1).withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.settings,
+                  color: Color(0xFF6366F1),
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Gestisci Categorie',
+                  style: TextStyle(
+                    color: const Color(0xFF6366F1),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -386,43 +540,56 @@ class _AddTxPageState extends State<AddTxPage> {
         Text(
           'Data',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            color: isDark ? Colors.white : Colors.black87,
           ),
         ),
-        const SizedBox(height: 8),
-        InkWell(
+        const SizedBox(height: 10),
+        GestureDetector(
           onTap: () async {
-            final date = await showDatePicker(
+            final picked = await showDatePicker(
               context: context,
               initialDate: _selectedDate,
-              firstDate: DateTime(2020),
-              lastDate: DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
             );
-            if (date != null) {
-              setState(() => _selectedDate = date);
+            if (picked != null) {
+              setState(() => _selectedDate = picked);
             }
           },
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.calendar_today, color: isDark ? Colors.white70 : Colors.grey[700]),
-                const SizedBox(width: 12),
-                Text(
-                  DateFormat('d MMMM yyyy', 'it_IT').format(_selectedDate),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: isDark ? Colors.white : Colors.black87,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.12),
                   ),
                 ),
-              ],
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      DateFormat('dd MMMM yyyy', 'it').format(_selectedDate),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -430,49 +597,98 @@ class _AddTxPageState extends State<AddTxPage> {
     );
   }
 
-  Widget _buildPaymentMethodField(bool isDark) {
+  Widget _buildPaymentMethod(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Metodo di pagamento',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            color: isDark ? Colors.white : Colors.black87,
           ),
         ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: DropdownButtonFormField<PaymentMethod>(
-            value: _selectedPayment,
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              prefixIcon: Icon(Icons.payment),
-            ),
-            dropdownColor: isDark ? Colors.grey[800] : Colors.white,
-            items: PaymentMethod.values.map((method) {
-              return DropdownMenuItem(
-                value: method,
-                child: Text(
-                  method.name.toUpperCase(),
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            for (final method in PaymentMethod.values)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _buildPaymentOption(method, isDark),
                 ),
-              );
-            }).toList(),
-            onChanged: (val) {
-              if (val != null) {
-                setState(() => _selectedPayment = val);
-              }
-            },
-          ),
+              ),
+          ],
         ),
       ],
+    );
+  }
+
+  Widget _buildPaymentOption(PaymentMethod method, bool isDark) {
+    final isSelected = _selectedPayment == method;
+    final icons = {
+      PaymentMethod.carta: Icons.credit_card,
+      PaymentMethod.contanti: Icons.payments,
+      PaymentMethod.bancomat: Icons.account_balance_wallet,
+      PaymentMethod.bonifico: Icons.account_balance,
+    };
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedPayment = method),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isSelected
+                    ? [
+                        const Color(0xFF6366F1).withOpacity(0.3),
+                        const Color(0xFF6366F1).withOpacity(0.15),
+                      ]
+                    : [
+                        (isDark ? Colors.white : Colors.black).withOpacity(0.06),
+                        (isDark ? Colors.white : Colors.black).withOpacity(0.03),
+                      ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected
+                    ? const Color(0xFF6366F1).withOpacity(0.5)
+                    : (isDark ? Colors.white : Colors.black).withOpacity(0.12),
+                width: isSelected ? 2.0 : 1.0,
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  icons[method],
+                  color: isSelected
+                      ? const Color(0xFF6366F1)
+                      : (isDark ? Colors.white70 : Colors.black54),
+                  size: 24,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _getPaymentLabel(method),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected
+                        ? const Color(0xFF6366F1)
+                        : (isDark ? Colors.white70 : Colors.black87),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -483,384 +699,102 @@ class _AddTxPageState extends State<AddTxPage> {
         Text(
           'Note (opzionale)',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            color: isDark ? Colors.white : Colors.black87,
           ),
         ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _noteController,
-          maxLines: 3,
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-          decoration: InputDecoration(
-            hintText: 'Aggiungi una nota...',
-            hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey),
-            filled: true,
-            fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: (isDark ? Colors.white : Colors.black).withOpacity(0.12),
+                ),
+              ),
+              child: TextField(
+                controller: _noteController,
+                maxLines: 3,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Aggiungi una nota...',
+                  hintStyle: TextStyle(
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.4),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+              ),
             ),
-            prefixIcon: Icon(Icons.note, color: isDark ? Colors.white70 : Colors.grey[700]),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStickyButton(bool isDark, MoneyModel model) {
+  Widget _buildSaveButton(bool isDark) {
     return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
       padding: const EdgeInsets.all(20),
-      child: SafeArea(
-        top: false,
-        child: ElevatedButton(
-          onPressed: () => _saveTransaction(model),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            elevation: 0,
-          ),
-          child: const Text(
-            'Salva Transazione',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _saveTransaction(MoneyModel model) {
-    if (_selectedCategory == null) {
-      _showSnackBar('Seleziona una categoria', Colors.red);
-      return;
-    }
-    
-    final amount = double.tryParse(_amountController.text);
-    if (amount == null || amount <= 0) {
-      _showSnackBar('Inserisci un importo valido', Colors.red);
-      return;
-    }
-    
-    final tx = MoneyTx(
-      id: null,
-      isIncome: _isIncome,
-      category: _selectedCategory!,
-      amount: amount,
-      date: _selectedDate,
-      note: _noteController.text.isEmpty ? null : _noteController.text,
-      payment: _selectedPayment,
-    );
-    
-    model.addTx(tx);
-    HapticFeedback.heavyImpact();
-    Navigator.pop(context);
-    _showSnackBar('Transazione salvata!', const Color(0xFF10B981));
-  }
-
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _showAllCategoriesDialog(List<String> categories, MoneyModel model, bool isDark) {
-    final remainingCategories = categories.skip(9).toList();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-        title: Text(
-          'Tutte le Categorie',
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: Column(
-            children: [
-              Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.1,
-                  ),
-                  itemCount: remainingCategories.length,
-                  itemBuilder: (context, index) {
-                    final cat = remainingCategories[index];
-                    final style = model.getTransactionStyle(cat);
-                    final isSelected = _selectedCategory == cat;
-                    
-                    return _buildCategoryCard(
-                      icon: style.icon,
-                      label: cat,
-                      color: style.color,
-                      isSelected: isSelected,
-                      isDark: isDark,
-                      onTap: () {
-                        setState(() => _selectedCategory = cat);
-                        Navigator.pop(context);
-                        HapticFeedback.lightImpact();
-                      },
-                      onLongPress: () {
-                        if (model.customExpenseCats.contains(cat) || model.customIncomeCats.contains(cat)) {
-                          Navigator.pop(context);
-                          _showEditCategoryDialog(model, cat, style.icon, style.color, isDark);
-                        }
-                      },
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('Aggiungi Categoria'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showAddCategoryDialog(model, isDark);
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Chiudi'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddCategoryDialog(MoneyModel model, bool isDark) {
-    final nameController = TextEditingController();
-    IconData selectedIcon = Icons.category;
-    Color selectedColor = const Color(0xFF6366F1);
-    
-    final availableIcons = [
-      Icons.category, Icons.shopping_bag, Icons.restaurant, Icons.local_cafe,
-      Icons.directions_car, Icons.local_gas_station, Icons.flight, Icons.hotel,
-      Icons.fitness_center, Icons.sports_soccer, Icons.book, Icons.school,
-      Icons.movie, Icons.music_note, Icons.pets, Icons.child_care,
-      Icons.medical_services, Icons.local_pharmacy, Icons.spa, Icons.brush,
-      Icons.laptop, Icons.phone_android, Icons.headphones, Icons.camera,
-      Icons.home, Icons.weekend, Icons.lightbulb, Icons.build,
-      Icons.card_giftcard, Icons.celebration, Icons.favorite, Icons.star,
-    ];
-    
-    final availableColors = [
-      const Color(0xFF6366F1), const Color(0xFF8B5CF6), const Color(0xFFEC4899),
-      const Color(0xFFEF4444), const Color(0xFFF59E0B), const Color(0xFF10B981),
-      const Color(0xFF06B6D4), const Color(0xFF3B82F6), const Color(0xFF14B8A6),
-      const Color(0xFF84CC16), const Color(0xFFF97316), const Color(0xFF6B7280),
-    ];
-    
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-          title: Text(
-            'Aggiungi Categoria',
-            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 450,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                    decoration: InputDecoration(
-                      labelText: 'Nome categoria',
-                      labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  Text(
-                    'Scegli un colore',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: availableColors.map((color) {
-                      final isSelected = selectedColor == color;
-                      return InkWell(
-                        onTap: () {
-                          setDialogState(() => selectedColor = color);
-                        },
-                        child: Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: isSelected ? Colors.white : Colors.transparent,
-                              width: 3,
-                            ),
-                          ),
-                          child: isSelected ? const Icon(Icons.check, color: Colors.white) : null,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  
-                  const SizedBox(height: 20),
-                  Text(
-                    'Scegli un\'icona',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 200,
-                    child: GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 6,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                      ),
-                      itemCount: availableIcons.length,
-                      itemBuilder: (context, index) {
-                        final icon = availableIcons[index];
-                        final isSelected = selectedIcon == icon;
-                        return InkWell(
-                          onTap: () {
-                            setDialogState(() => selectedIcon = icon);
-                          },
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: isSelected ? selectedColor.withOpacity(0.2) : Colors.transparent,
-                              border: Border.all(
-                                color: isSelected ? selectedColor : Colors.grey,
-                                width: isSelected ? 2 : 1,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              icon,
-                              color: isSelected ? selectedColor : (isDark ? Colors.white70 : Colors.grey),
-                              size: 24,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annulla'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: selectedColor,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                final name = nameController.text.trim();
-                if (name.isNotEmpty) {
-                  model.addCustomCategory(name, selectedIcon, _isIncome, selectedColor);
-                  setState(() => _selectedCategory = name);
-                  Navigator.pop(context);
-                  _showSnackBar('Categoria "$name" aggiunta!', const Color(0xFF10B981));
-                }
-              },
-              child: const Text('Aggiungi'),
-            ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [
+            isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)).withOpacity(0),
           ],
         ),
       ),
-    );
-  }
-
-  void _showEditCategoryDialog(MoneyModel model, String categoryName, IconData currentIcon, Color currentColor, bool isDark) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-        title: Text(
-          'Modifica "$categoryName"',
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-        ),
-        content: Text(
-          'Vuoi eliminare questa categoria?',
-          style: TextStyle(color: isDark ? Colors.white70 : Colors.grey[700]),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annulla'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+      child: GestureDetector(
+        onTap: _save,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    (_isIncome ? Colors.green : Colors.red).withOpacity(0.8),
+                    (_isIncome ? Colors.green : Colors.red).withOpacity(0.6),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: (_isIncome ? Colors.green : Colors.red).withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: const Text(
+                'Salva Transazione',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-            onPressed: () {
-              Navigator.pop(context);
-              model.deleteCustomCategory(categoryName, _isIncome);
-              if (_selectedCategory == categoryName) {
-                setState(() => _selectedCategory = null);
-              }
-              _showSnackBar('Categoria "$categoryName" eliminata', Colors.red);
-            },
-            child: const Text('Elimina'),
           ),
-        ],
+        ),
       ),
     );
   }

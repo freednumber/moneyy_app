@@ -16,28 +16,29 @@ class ReportsPage extends StatefulWidget {
   State<ReportsPage> createState() => _ReportsPageState();
 }
 
-class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClientMixin {
+class _ReportsPageState extends State<ReportsPage>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
-  
+
   PeriodType selectedPeriod = PeriodType.mese;
   ChartMode chartMode = ChartMode.overview;
   DateTime selectedDate = DateTime.now();
-  late ValueNotifier<PeriodType> _periodNotifier;
+  late ValueNotifier<PeriodType> periodNotifier;
 
   @override
   void initState() {
     super.initState();
-    _periodNotifier = ValueNotifier(selectedPeriod);
+    periodNotifier = ValueNotifier(selectedPeriod);
   }
 
   @override
   void dispose() {
-    _periodNotifier.dispose();
+    periodNotifier.dispose();
     super.dispose();
   }
 
-  void _navigatePrevious() {
+  void navigatePrevious() {
     setState(() {
       switch (selectedPeriod) {
         case PeriodType.giorno:
@@ -56,10 +57,11 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     });
   }
 
-  void _navigateNext() {
+  void navigateNext() {
     setState(() {
       DateTime newDate;
       final now = DateTime.now();
+
       switch (selectedPeriod) {
         case PeriodType.giorno:
           newDate = selectedDate.add(const Duration(days: 1));
@@ -85,26 +87,26 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     });
   }
 
-  Future<void> _pickPeriod() async {
+  Future<void> pickPeriod() async {
     switch (selectedPeriod) {
       case PeriodType.giorno:
-        await _showDayPicker();
+        await showDayPicker();
         break;
       case PeriodType.settimana:
-        await _showWeekPicker();
+        await showWeekPicker();
         break;
       case PeriodType.mese:
-        await _showMonthPicker();
+        await showMonthPicker();
         break;
       case PeriodType.anno:
-        await _showYearPicker();
+        await showYearPicker();
         break;
     }
   }
 
-  static const _sliderDuration = Duration(milliseconds: 300);
+  static const sliderDuration = Duration(milliseconds: 300);
 
-  Future<void> _showDayPicker() async {
+  Future<void> showDayPicker() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: selectedDate,
@@ -112,12 +114,13 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
       lastDate: DateTime.now(),
       locale: const Locale('it', 'IT'),
     );
+
     if (picked != null) {
       setState(() => selectedDate = picked);
     }
   }
 
-  Future<void> _showYearPicker() async {
+  Future<void> showYearPicker() async {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -139,9 +142,10 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     );
   }
 
-  Future<void> _showMonthPicker() async {
+  Future<void> showMonthPicker() async {
     final now = DateTime.now();
     DateTime cursor = DateTime(now.year, now.month, 1);
+
     await showModalBottomSheet(
       context: context,
       useSafeArea: true,
@@ -151,6 +155,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
       ),
       builder: (ctx) {
         final months = List.generate(36, (i) => DateTime(cursor.year, cursor.month - i, 1));
+
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: Column(
@@ -190,10 +195,11 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     );
   }
 
-  Future<void> _showWeekPicker() async {
+  Future<void> showWeekPicker() async {
     DateTime startOfWeek(DateTime d) => d.subtract(Duration(days: d.weekday - 1));
     final start = startOfWeek(DateTime.now());
     final weeks = List.generate(52, (i) => start.subtract(Duration(days: 7 * i)));
+
     await showModalBottomSheet(
       context: context,
       useSafeArea: true,
@@ -247,13 +253,13 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     super.build(context);
     final model = Provider.of<MoneyModel>(context);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     if (model.loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final filteredTransactions = _getFilteredTransactions(model);
-    
+    final filteredTransactions = getFilteredTransactions(model);
+
     return Scaffold(
       backgroundColor: isDarkMode ? const Color(0xFF0F172A) : Colors.grey[50],
       appBar: AppBar(
@@ -272,21 +278,21 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildPeriodSelector(isDarkMode),
-            _buildPeriodNavigator(isDarkMode),
-            _buildChartSection(filteredTransactions, model, isDarkMode),
-            _buildTransactionsList(filteredTransactions, model, isDarkMode),
+            buildPeriodSelector(isDarkMode),
+            buildPeriodNavigator(isDarkMode),
+            buildChartSection(filteredTransactions, model, isDarkMode),
+            buildTransactionsList(filteredTransactions, model, isDarkMode),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPeriodSelector(bool isDarkMode) {
+  Widget buildPeriodSelector(bool isDarkMode) {
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontal = 16.0;
     final itemWidth = (screenWidth - horizontal * 2) / 4;
-    
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Container(
@@ -308,11 +314,11 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
         child: Stack(
           children: [
             ValueListenableBuilder<PeriodType>(
-              valueListenable: _periodNotifier,
+              valueListenable: periodNotifier,
               builder: (context, period, _) {
                 final idx = PeriodType.values.indexOf(period);
                 return AnimatedPositioned(
-                  duration: _sliderDuration,
+                  duration: sliderDuration,
                   curve: Curves.easeInOut,
                   left: 8 + idx * itemWidth,
                   top: 4,
@@ -349,7 +355,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                         } else {
                           selectedDate = DateTime.now();
                         }
-                        _periodNotifier.value = period;
+                        periodNotifier.value = period;
                       });
                     },
                     radius: 28,
@@ -360,11 +366,13 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                         child: Text(
-                          _getPeriodName(period),
+                          getPeriodName(period),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: isSelected ? const Color(0xFF6366F1) : isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                            color: isSelected
+                                ? const Color(0xFF6366F1)
+                                : (isDarkMode ? Colors.grey[300] : Colors.grey[700]),
                             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                             fontSize: 13,
                             letterSpacing: 0.2,
@@ -382,25 +390,28 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     );
   }
 
-  Widget _buildPeriodNavigator(bool isDarkMode) {
+  Widget buildPeriodNavigator(bool isDarkMode) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           IconButton(
-            icon: Icon(Icons.chevron_left, color: isDarkMode ? Colors.grey[300] : Colors.grey[700]),
-            onPressed: _navigatePrevious,
+            icon: const Icon(Icons.chevron_left),
+            color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+            onPressed: navigatePrevious,
             iconSize: 28,
           ),
           const SizedBox(width: 16),
           InkWell(
-            onTap: _pickPeriod,
+            onTap: pickPeriod,
             borderRadius: BorderRadius.circular(12),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
-                color: isDarkMode ? const Color(0xFF10B981).withOpacity(0.15) : const Color(0xFF10B981).withOpacity(0.1),
+                color: isDarkMode
+                    ? const Color(0xFF10B981).withOpacity(0.15)
+                    : const Color(0xFF10B981).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
               ),
@@ -408,7 +419,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _getSelectedPeriodText(),
+                    getSelectedPeriodText(),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -427,8 +438,9 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
           ),
           const SizedBox(width: 16),
           IconButton(
-            icon: Icon(Icons.chevron_right, color: isDarkMode ? Colors.grey[300] : Colors.grey[700]),
-            onPressed: _navigateNext,
+            icon: const Icon(Icons.chevron_right),
+            color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+            onPressed: navigateNext,
             iconSize: 28,
           ),
         ],
@@ -436,7 +448,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     );
   }
 
-  Widget _buildChartSection(List<MoneyTx> transactions, MoneyModel model, bool isDarkMode) {
+  Widget buildChartSection(List<MoneyTx> transactions, MoneyModel model, bool isDarkMode) {
     final totalIncome = transactions.where((tx) => tx.isIncome).fold(0.0, (sum, tx) => sum + tx.amount);
     final totalExpense = transactions.where((tx) => !tx.isIncome).fold(0.0, (sum, tx) => sum + tx.amount);
     final netBalance = totalIncome - totalExpense;
@@ -492,11 +504,11 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
             Row(
               children: [
                 Expanded(
-                  child: _buildTotalCard('Entrate', totalIncome, Colors.green.shade600, model, Icons.arrow_upward, isDarkMode),
+                  child: buildTotalCard('Entrate', totalIncome, Colors.green.shade600, model, Icons.arrow_upward, isDarkMode),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildTotalCard('Uscite', totalExpense, Colors.red.shade600, model, Icons.arrow_downward, isDarkMode),
+                  child: buildTotalCard('Uscite', totalExpense, Colors.red.shade600, model, Icons.arrow_downward, isDarkMode),
                 ),
               ],
             ),
@@ -574,7 +586,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     );
   }
 
-  Widget _buildTotalCard(String label, double amount, Color color, MoneyModel model, IconData icon, bool isDark) {
+  Widget buildTotalCard(String label, double amount, Color color, MoneyModel model, IconData icon, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -619,7 +631,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     );
   }
 
-  Widget _buildTransactionsList(List<MoneyTx> transactions, MoneyModel model, bool isDarkMode) {
+  Widget buildTransactionsList(List<MoneyTx> transactions, MoneyModel model, bool isDarkMode) {
     if (transactions.isEmpty) {
       return Container(
         margin: const EdgeInsets.all(16),
@@ -689,7 +701,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                 ),
                 if (transactions.isNotEmpty)
                   Text(
-                    'Swipe ← elimina',
+                    'Swipe → elimina',
                     style: TextStyle(
                       fontSize: 12,
                       color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
@@ -706,10 +718,10 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
               final tx = transactions[index];
               final style = model.getTransactionStyle(tx.category);
               final isRecurring = tx.isFromRecurring ?? false;
-              final isGoalSaving = tx.category == 'Risparmio' && tx.note != null && tx.note!.contains('Aggiunto a obiettivo:');
+              final isGoalSaving = tx.category == 'Risparmio' && tx.note != null && tx.note!.contains('Aggiunto a obiettivo');
 
               return Dismissible(
-                key: Key('${tx.id}_${tx.date.millisecondsSinceEpoch}_${tx.category}'),
+                key: Key('${tx.id}-${tx.date.millisecondsSinceEpoch}-${tx.category}'),
                 direction: DismissDirection.endToStart,
                 background: Container(
                   margin: EdgeInsets.only(
@@ -730,7 +742,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                 ),
                 confirmDismiss: (direction) async {
                   HapticFeedback.mediumImpact();
-                  
+
                   if (isRecurring) {
                     return await showDialog<bool>(
                       context: context,
@@ -749,7 +761,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                       ),
                     ) ?? false;
                   }
-                  
+
                   if (isGoalSaving) {
                     return await showDialog<bool>(
                       context: context,
@@ -768,7 +780,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                       ),
                     ) ?? false;
                   }
-                  
+
                   return await showDialog<bool>(
                     context: context,
                     builder: (context) => AlertDialog(
@@ -794,25 +806,25 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                     );
                     if (recurring.id != null) {
                       await model.deleteRecurring(recurring.id!);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Transazione ricorrente eliminata'), backgroundColor: Colors.red),
-                        );
-                      }
+                    }
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Transazione ricorrente eliminata'), backgroundColor: Colors.red),
+                      );
                     }
                   } else if (isGoalSaving && tx.note != null) {
                     final goalTitle = tx.note!.replaceAll('Aggiunto a obiettivo: ', '');
                     final goal = model.goals.firstWhere((g) => g.title == goalTitle, orElse: () => model.goals.first);
-                    
+
                     if (goal.id != null) {
                       final updatedGoal = goal.copyWith(saved: goal.saved - tx.amount);
                       await model.updateGoal(updatedGoal);
                     }
-                    
+
                     if (tx.id != null) {
                       await model.deleteTransaction(tx.id!);
                     }
-                    
+
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Risparmio eliminato. €${tx.amount.toStringAsFixed(2)} rimossi dall\'obiettivo'), backgroundColor: Colors.orange),
@@ -821,18 +833,16 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                   } else {
                     if (tx.id != null) {
                       await model.deleteTransaction(tx.id!);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Transazione eliminata'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
-                        );
-                      }
+                    }
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Transazione eliminata'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
+                      );
                     }
                   }
                 },
                 child: InkWell(
-                  onTap: !isRecurring && !isGoalSaving ? () {
-                    _showEditTransactionDialog(tx, model, isDarkMode);
-                  } : null,
+                  onTap: (!isRecurring && !isGoalSaving) ? () => showEditTransactionDialog(tx, model, isDarkMode) : null,
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     margin: EdgeInsets.only(
@@ -848,7 +858,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                       border: Border.all(
                         color: isRecurring
                             ? const Color(0xFF6366F1).withOpacity(isDarkMode ? 0.4 : 0.3)
-                            : isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey.withOpacity(0.2),
+                            : (isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey.withOpacity(0.2)),
                       ),
                     ),
                     child: Row(
@@ -915,7 +925,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              '${tx.isIncome ? '+' : '-'} ${model.format(tx.amount)}',
+                              tx.isIncome ? '+${model.format(tx.amount)}' : '-${model.format(tx.amount)}',
                               style: TextStyle(
                                 color: tx.isIncome
                                     ? (isDarkMode ? const Color(0xFF34D399) : Colors.green.shade700)
@@ -947,12 +957,12 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     );
   }
 
-  void _showEditTransactionDialog(MoneyTx tx, MoneyModel model, bool isDark) {
+  void showEditTransactionDialog(MoneyTx tx, MoneyModel model, bool isDark) {
     final amountController = TextEditingController(text: tx.amount.toStringAsFixed(2));
     final noteController = TextEditingController(text: tx.note ?? '');
     DateTime selectedDate = tx.date;
     PaymentMethod selectedPayment = tx.payment;
-    
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -976,10 +986,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                 const SizedBox(height: 16),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    'Data: ${DateFormat('d MMMM yyyy', 'it_IT').format(selectedDate)}',
-                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                  ),
+                  title: Text('Data: ${DateFormat('d MMMM yyyy', 'it_IT').format(selectedDate)}', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
                     final date = await showDatePicker(
@@ -1038,7 +1045,7 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                   );
                   return;
                 }
-                
+
                 final updated = MoneyTx(
                   id: tx.id,
                   isIncome: tx.isIncome,
@@ -1048,9 +1055,9 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
                   payment: selectedPayment,
                   note: noteController.text.isEmpty ? null : noteController.text,
                 );
-                
+
                 await model.updateTransaction(updated);
-                
+
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1066,16 +1073,21 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     );
   }
 
-  String _getPeriodName(PeriodType period) {
+  // ✅ FUNZIONI AGGIUNTE
+  String getPeriodName(PeriodType period) {
     switch (period) {
-      case PeriodType.giorno: return 'Giorno';
-      case PeriodType.settimana: return 'Settimana';
-      case PeriodType.mese: return 'Mese';
-      case PeriodType.anno: return 'Anno';
+      case PeriodType.giorno:
+        return 'Giorno';
+      case PeriodType.settimana:
+        return 'Settimana';
+      case PeriodType.mese:
+        return 'Mese';
+      case PeriodType.anno:
+        return 'Anno';
     }
   }
 
-  String _getSelectedPeriodText() {
+  String getSelectedPeriodText() {
     switch (selectedPeriod) {
       case PeriodType.giorno:
         return DateFormat('d MMMM yyyy', 'it_IT').format(selectedDate);
@@ -1090,9 +1102,9 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
     }
   }
 
-  List<MoneyTx> _getFilteredTransactions(MoneyModel model) {
+  List<MoneyTx> getFilteredTransactions(MoneyModel model) {
     DateTime start, end;
-    
+
     switch (selectedPeriod) {
       case PeriodType.giorno:
         start = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
@@ -1112,14 +1124,16 @@ class _ReportsPageState extends State<ReportsPage> with AutomaticKeepAliveClient
         break;
     }
 
-    final normalTxs = model.transactions.where((tx) {
-      return tx.date.isAfter(start.subtract(const Duration(milliseconds: 1))) && tx.date.isBefore(end);
-    }).toList();
+    // ✅ CORRETTO: Solo transazioni reali, NO ricorrenti
+    final monthTxs = model.transactions
+        .where((tx) =>
+            tx.date.isAfter(start.subtract(const Duration(days: 1))) &&
+            tx.date.isBefore(end))
+        .toList();
+
+    // Ordina per data decrescente
+    monthTxs.sort((a, b) => b.date.compareTo(a.date));
     
-    final recurringTxs = model.getRecurringTransactionsForPeriod(start, end);
-    final allTxs = [...normalTxs, ...recurringTxs];
-    allTxs.sort((a, b) => b.date.compareTo(a.date));
-    
-    return allTxs;
+    return monthTxs;
   }
 }

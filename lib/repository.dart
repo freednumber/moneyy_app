@@ -2,106 +2,104 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'models.dart';
 
-class Repository {
+class MoneyRepository {
   static Database? _database;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDatabase();
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'moneyy.db');
+    _database = await openDatabase(
+      path,
+      version: 4,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
     return _database!;
   }
 
-  Future<Database> _initDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'moneyy.db');
-    return await openDatabase(
-      path,
-      version: 3,  // ✅ Versione aggiornata per i nuovi campi
-      onCreate: _createDb,
-      onUpgrade: _onUpgrade,
-    );
-  }
-
-  // ✅ Gestisce aggiornamenti database
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 3) {
-      // Aggiunge i nuovi campi alla tabella transactions
-      try {
-        await db.execute('ALTER TABLE transactions ADD COLUMN isFromRecurring INTEGER DEFAULT 0');
-      } catch (e) {
-        // Campo già presente, ignora l'errore
-      }
-
-      // Aggiunge i nuovi campi alla tabella recurring
-      try {
-        await db.execute('ALTER TABLE recurring ADD COLUMN timeHour INTEGER DEFAULT 9');
-        await db.execute('ALTER TABLE recurring ADD COLUMN timeMinute INTEGER DEFAULT 0');
-      } catch (e) {
-        // Campi già presenti, ignora l'errore
-      }
-    }
-  }
-
-  Future<void> _createDb(Database db, int version) async {
+  Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE transactions(
+      CREATE TABLE transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         isIncome INTEGER NOT NULL,
         category TEXT NOT NULL,
         amount REAL NOT NULL,
         date TEXT NOT NULL,
         note TEXT,
-        payment INTEGER NOT NULL,
-        isFromRecurring INTEGER DEFAULT 0
+        payment TEXT NOT NULL
       )
     ''');
 
     await db.execute('''
-      CREATE TABLE goals(
+      CREATE TABLE goals (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         target REAL NOT NULL,
         saved REAL NOT NULL,
-        isPurchased INTEGER NOT NULL DEFAULT 0
+        isPurchased INTEGER NOT NULL DEFAULT 0,
+        category TEXT,
+        iconCodePoint INTEGER,
+        iconFontFamily TEXT
       )
     ''');
 
     await db.execute('''
-      CREATE TABLE recurring(
+      CREATE TABLE recurring (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        isIncome INTEGER NOT NULL,
         category TEXT NOT NULL,
         amount REAL NOT NULL,
         dayOfMonth INTEGER NOT NULL,
-        timeHour INTEGER DEFAULT 9,
-        timeMinute INTEGER DEFAULT 0,
-        payment INTEGER NOT NULL,
+        timeHour INTEGER NOT NULL,
+        timeMinute INTEGER NOT NULL,
+        payment TEXT NOT NULL,
         note TEXT,
         lastProcessed TEXT
       )
     ''');
   }
 
-  // ✅ NUOVO: Reset completo del database
-  Future<void> resetDatabase() async {
-    final db = await database;
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      try {
+        await db.execute('ALTER TABLE goals ADD COLUMN iconCodePoint INTEGER');
+        await db.execute('ALTER TABLE goals ADD COLUMN iconFontFamily TEXT');
+      } catch (e) {
+        // Columns might already exist
+      }
+    }
     
-    // Elimina tutte le tabelle
-    await db.execute('DROP TABLE IF EXISTS transactions');
-    await db.execute('DROP TABLE IF EXISTS goals');
-    await db.execute('DROP TABLE IF EXISTS recurring');
-    
-    // Ricrea le tabelle vuote
-    await _createDb(db, 3);
-    
-    // Forza la chiusura e riapertura del database
-    await db.close();
-    _database = null;
+    if (oldVersion < 3) {
+    try {
+      await db.execute('ALTER TABLE goals ADD COLUMN category TEXT');
+    } catch (e) {
+      // Column might already exist
+    }
   }
 
-  // TRANSACTIONS
+  // 🔥 AGGIUNGI QUESTA NUOVA MIGRAZIONE
+  if (oldVersion < 4) {
+    try {
+      await db.execute('ALTER TABLE goals ADD COLUMN iconCodePoint INTEGER');
+      await db.execute('ALTER TABLE goals ADD COLUMN iconFontFamily TEXT');
+    } catch (e) {
+      // Columns might already exist - that's OK
+      print('Icon columns already exist or error: $e');
+    }
+  }
+}
+
+  // ✅ TRANSACTIONS
+  Future<List<MoneyTx>> getAllTx() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('transactions', orderBy: 'date DESC');
+    return List.generate(maps.length, (i) => MoneyTx.fromMap(maps[i]));
+  }
+
   Future<void> insertTx(MoneyTx tx) async {
     final db = await database;
-    await db.insert('transactions', tx.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('transactions', tx.toMap());
   }
 
   Future<void> updateTx(MoneyTx tx) async {
@@ -114,21 +112,26 @@ class Repository {
     await db.delete('transactions', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<List<MoneyTx>> getAllTx() async {
+  Future<void> renameCategoryInTransactions(String oldName, String newName) async {
     final db = await database;
-    final maps = await db.query('transactions', orderBy: 'date DESC');
-    return maps.map((m) => MoneyTx.fromMap(m)).toList();
+    await db.update('transactions', {'category': newName}, where: 'category = ?', whereArgs: [oldName]);
   }
 
-  // GOALS
-  Future<void> insertGoal(Goal g) async {
+  // ✅ GOALS
+  Future<List<Goal>> getAllGoals() async {
     final db = await database;
-    await db.insert('goals', g.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    final List<Map<String, dynamic>> maps = await db.query('goals');
+    return List.generate(maps.length, (i) => Goal.fromMap(maps[i]));
   }
 
-  Future<void> updateGoal(Goal g) async {
+  Future<void> insertGoal(Goal goal) async {
     final db = await database;
-    await db.update('goals', g.toMap(), where: 'id = ?', whereArgs: [g.id]);
+    await db.insert('goals', goal.toMap());
+  }
+
+  Future<void> updateGoal(Goal goal) async {
+    final db = await database;
+    await db.update('goals', goal.toMap(), where: 'id = ?', whereArgs: [goal.id]);
   }
 
   Future<void> deleteGoal(int id) async {
@@ -136,21 +139,21 @@ class Repository {
     await db.delete('goals', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<List<Goal>> getAllGoals() async {
+  // ✅ RECURRING
+  Future<List<Recurring>> getRecurring() async {
     final db = await database;
-    final maps = await db.query('goals');
-    return maps.map((m) => Goal.fromMap(m)).toList();
+    final List<Map<String, dynamic>> maps = await db.query('recurring');
+    return List.generate(maps.length, (i) => Recurring.fromMap(maps[i]));
   }
 
-  // RECURRING
-  Future<void> insertRecurring(Recurring r) async {
+  Future<void> insertRecurring(Recurring recurring) async {
     final db = await database;
-    await db.insert('recurring', r.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('recurring', recurring.toMap());
   }
 
-  Future<void> updateRecurring(Recurring r) async {
+  Future<void> updateRecurring(Recurring recurring) async {
     final db = await database;
-    await db.update('recurring', r.toMap(), where: 'id = ?', whereArgs: [r.id]);
+    await db.update('recurring', recurring.toMap(), where: 'id = ?', whereArgs: [recurring.id]);
   }
 
   Future<void> deleteRecurring(int id) async {
@@ -158,9 +161,16 @@ class Repository {
     await db.delete('recurring', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<List<Recurring>> getRecurring() async {
+  Future<void> renameCategoryInRecurrings(String oldName, String newName) async {
     final db = await database;
-    final maps = await db.query('recurring', orderBy: 'dayOfMonth ASC');
-    return maps.map((m) => Recurring.fromMap(m)).toList();
+    await db.update('recurring', {'category': newName}, where: 'category = ?', whereArgs: [oldName]);
+  }
+
+  // ✅ RESET
+  Future<void> resetDatabase() async {
+    final db = await database;
+    await db.delete('transactions');
+    await db.delete('goals');
+    await db.delete('recurring');
   }
 }

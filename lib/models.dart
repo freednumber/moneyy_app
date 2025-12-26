@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
-// Enumerazioni
-enum PaymentMethod { contanti, carta, bancomat }
+enum PaymentMethod {
+  contanti,
+  carta,
+  bancomat,
+  bonifico,
+}
 
-// Transazione
 class MoneyTx {
   final int? id;
   final bool isIncome;
@@ -33,32 +36,34 @@ class MoneyTx {
       'amount': amount,
       'date': date.toIso8601String(),
       'note': note,
-      'payment': payment.index,
-      'isFromRecurring': isFromRecurring ? 1 : 0,
+      'payment': payment.name,
     };
   }
 
-  factory MoneyTx.fromMap(Map<String, dynamic> m) {
+  factory MoneyTx.fromMap(Map<String, dynamic> map) {
     return MoneyTx(
-      id: m['id'],
-      isIncome: m['isIncome'] == 1,
-      category: m['category'],
-      amount: m['amount'],
-      date: DateTime.parse(m['date']),
-      note: m['note'],
-      payment: PaymentMethod.values[m['payment']],
-      isFromRecurring: (m['isFromRecurring'] ?? 0) == 1,
+      id: map['id'],
+      isIncome: map['isIncome'] == 1,
+      category: map['category'],
+      amount: map['amount'],
+      date: DateTime.parse(map['date']),
+      note: map['note'],
+      payment: PaymentMethod.values.firstWhere(
+        (e) => e.name == map['payment'],
+        orElse: () => PaymentMethod.contanti,
+      ),
     );
   }
 }
 
-// Obiettivo (classe esistente - mantenuta per compatibilità)
+// ✨ CLASSE GOAL CON SUPPORTO ICONE (SENZA CATEGORIA)
 class Goal {
   final int? id;
   final String title;
   final double target;
   final double saved;
   final bool isPurchased;
+  final IconData? icon; // 🔥 Campo icona
 
   Goal({
     this.id,
@@ -66,9 +71,10 @@ class Goal {
     required this.target,
     required this.saved,
     this.isPurchased = false,
+    this.icon, // 🔥 Icona opzionale
   });
 
-  bool get isCompleted => saved >= target;
+  bool get isCompleted => progress >= 100;
   double get progress => (saved / target * 100).clamp(0, 100);
 
   Map<String, dynamic> toMap() {
@@ -78,26 +84,36 @@ class Goal {
       'target': target,
       'saved': saved,
       'isPurchased': isPurchased ? 1 : 0,
+      'iconCodePoint': icon?.codePoint, // 🔥 Salva codePoint
     };
   }
 
-  factory Goal.fromMap(Map<String, dynamic> m) {
-    return Goal(
-      id: m['id'],
-      title: m['title'],
-      target: m['target'],
-      saved: m['saved'],
-      isPurchased: m['isPurchased'] == 1,
+  factory Goal.fromMap(Map map) {
+  IconData? iconData;
+  if (map['iconCodePoint'] != null) {
+    iconData = IconData(
+      map['iconCodePoint'],
+      fontFamily: 'MaterialIcons',
     );
-  }
+  } // ← Aggiungi questa parentesi
+  
+  return Goal(
+    id: map['id'],
+    title: map['title'],
+    target: map['target'],
+    saved: map['saved'],
+    isPurchased: map['isPurchased'] == 1,
+    icon: iconData,
+  );
+}
 
-  // NUOVO: Metodo copyWith per modifiche
   Goal copyWith({
     int? id,
     String? title,
     double? target,
     double? saved,
     bool? isPurchased,
+    IconData? icon, // 🔥 Supporto modifica icona
   }) {
     return Goal(
       id: id ?? this.id,
@@ -105,13 +121,14 @@ class Goal {
       target: target ?? this.target,
       saved: saved ?? this.saved,
       isPurchased: isPurchased ?? this.isPurchased,
+      icon: icon ?? this.icon,
     );
   }
 }
 
-// Transazione Ricorrente
 class Recurring {
   final int? id;
+  final bool isIncome;
   final String category;
   final double amount;
   final int dayOfMonth;
@@ -122,6 +139,7 @@ class Recurring {
 
   Recurring({
     this.id,
+    required this.isIncome,
     required this.category,
     required this.amount,
     required this.dayOfMonth,
@@ -131,17 +149,48 @@ class Recurring {
     this.lastProcessed,
   });
 
-  bool get isIncome => false;
+  bool shouldProcessNow() {
+    final now = DateTime.now();
+    if (lastProcessed != null) {
+      final lastMonth = DateTime(lastProcessed!.year, lastProcessed!.month);
+      final currentMonth = DateTime(now.year, now.month);
+      if (!currentMonth.isAfter(lastMonth)) {
+        return false;
+      }
+    }
+    return now.day >= dayOfMonth;
+  }
+
+  MoneyTx toTransaction() {
+    final now = DateTime.now();
+    final txDate = DateTime(
+      now.year,
+      now.month,
+      dayOfMonth > 28 ? 28 : dayOfMonth,
+      time.hour,
+      time.minute,
+    );
+    return MoneyTx(
+      isIncome: isIncome,
+      category: category,
+      amount: amount,
+      date: txDate,
+      note: note,
+      payment: payment,
+      isFromRecurring: true,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'isIncome': isIncome ? 1 : 0,
       'category': category,
       'amount': amount,
       'dayOfMonth': dayOfMonth,
       'timeHour': time.hour,
       'timeMinute': time.minute,
-      'payment': payment.index,
+      'payment': payment.name,
       'note': note,
       'lastProcessed': lastProcessed?.toIso8601String(),
     };
@@ -150,70 +199,19 @@ class Recurring {
   factory Recurring.fromMap(Map<String, dynamic> map) {
     return Recurring(
       id: map['id'],
+      isIncome: map['isIncome'] == 1,
       category: map['category'],
       amount: map['amount'],
       dayOfMonth: map['dayOfMonth'],
-      time: TimeOfDay(
-        hour: map['timeHour'] ?? 9,
-        minute: map['timeMinute'] ?? 0,
+      time: TimeOfDay(hour: map['timeHour'], minute: map['timeMinute']),
+      payment: PaymentMethod.values.firstWhere(
+        (e) => e.name == map['payment'],
+        orElse: () => PaymentMethod.contanti,
       ),
-      payment: PaymentMethod.values[map['payment']],
       note: map['note'],
       lastProcessed: map['lastProcessed'] != null
           ? DateTime.parse(map['lastProcessed'])
           : null,
     );
   }
-
-  bool shouldProcessNow() {
-    final now = DateTime.now();
-    final thisMonthProcessDateTime = DateTime(
-      now.year,
-      now.month,
-      dayOfMonth,
-      time.hour,
-      time.minute,
-    );
-    if (lastProcessed == null) {
-      return now.isAfter(thisMonthProcessDateTime) || now.isAtSameMomentAs(thisMonthProcessDateTime);
-    }
-    final lastProcessedDate = lastProcessed!;
-    if (lastProcessedDate.year == now.year && lastProcessedDate.month == now.month) {
-      return false;
-    }
-    return now.isAfter(thisMonthProcessDateTime) || now.isAtSameMomentAs(thisMonthProcessDateTime);
-  }
-
-  MoneyTx toTransaction() {
-    final now = DateTime.now();
-    final transactionDateTime = DateTime(
-      now.year,
-      now.month,
-      dayOfMonth,
-      time.hour,
-      time.minute,
-    );
-    return MoneyTx(
-      isIncome: false,
-      category: category,
-      amount: amount,
-      date: transactionDateTime,
-      note: note != null ? '🔄 Ricorrente: $note' : '🔄 Pagamento ricorrente automatico',
-      payment: payment,
-      isFromRecurring: true,
-    );
-  }
-
-  String get formattedTime {
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
-}
-
-// Style per categoria
-class CategoryStyle {
-  final IconData icon;
-  final Color color;
-  CategoryStyle(this.icon, this.color);
 }

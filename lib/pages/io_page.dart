@@ -41,25 +41,25 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _dragAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300), 
+      duration: const Duration(milliseconds: 300),
       vsync: this
     );
     _dragAnimation = Tween<double>(
-      begin: 1.0, 
+      begin: 1.0,
       end: 1.05
     ).animate(CurvedAnimation(
-      parent: _dragAnimationController, 
+      parent: _dragAnimationController,
       curve: Curves.easeInOut
     ));
     _previewAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 500), 
+      duration: const Duration(milliseconds: 500),
       vsync: this
     );
     _previewAnimation = Tween<double>(
-      begin: 0.0, 
+      begin: 0.0,
       end: 1.0
     ).animate(CurvedAnimation(
-      parent: _previewAnimationController, 
+      parent: _previewAnimationController,
       curve: Curves.easeOutCubic
     ));
   }
@@ -81,8 +81,8 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
         actions: [
           if (_showPreview)
             IconButton(
-              icon: const Icon(Icons.close), 
-              onPressed: _closePreview, 
+              icon: const Icon(Icons.close),
+              onPressed: _closePreview,
               tooltip: 'Chiudi anteprima'
             ),
         ],
@@ -96,7 +96,7 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
 
   Widget _buildMainContent(MoneyModel model) {
     return ListView(
-      padding: const EdgeInsets.all(16), 
+      padding: const EdgeInsets.all(16),
       children: [
         _buildDragDropZone(model),
         const SizedBox(height: 16),
@@ -228,7 +228,7 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text('-€${tx['importo'] ?? '0.00'}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
-                        if (tx['nota']?.isNotEmpty == true) 
+                        if (tx['nota']?.isNotEmpty == true)
                           Text(tx['nota']!, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
                       ]
                     ),
@@ -243,8 +243,8 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  Text('Mostrate $itemsToShow di $totalItems transazioni', 
-                    textAlign: TextAlign.center, 
+                  Text('Mostrate $itemsToShow di $totalItems transazioni',
+                    textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500)
                   ),
                   const SizedBox(height: 8),
@@ -309,7 +309,7 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: _isDragging 
+                  colors: _isDragging
                     ? [const Color(0xFF6366F1).withOpacity(0.08), const Color(0xFF8B5CF6).withOpacity(0.08)]
                     : [Colors.grey.withOpacity(0.04), Colors.grey.withOpacity(0.02)]
                 ),
@@ -395,7 +395,6 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
       _fileName = fileName;
       _fileBytes = fileBytes;
       _fileExtension = extension;
-      // FIX PRINCIPALE: Converti i bytes in stringa CSV per analisi diretta
       if (extension == 'csv' || extension == 'txt') {
         _csvContent = utf8.decode(fileBytes, allowMalformed: true);
       }
@@ -440,9 +439,8 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
   }
 
   List<Map<String, String>> _generateCSVPreview() {
-    // FIX: Usa _csvContent che ora è impostato correttamente dal drag&drop
-    final csvContent = _csvContent.isNotEmpty 
-        ? _csvContent 
+    final csvContent = _csvContent.isNotEmpty
+        ? _csvContent
         : utf8.decode(_fileBytes!, allowMalformed: true);
     
     final lines = csvContent.split('\n');
@@ -561,7 +559,6 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
           _fileName = file.name;
           _fileBytes = file.bytes;
           _fileExtension = file.extension?.toLowerCase() ?? '';
-          // FIX: Anche per FilePicker, converti in CSV string se necessario
           if ((_fileExtension == 'csv' || _fileExtension == 'txt') && file.bytes != null) {
             _csvContent = utf8.decode(file.bytes!, allowMalformed: true);
           }
@@ -600,9 +597,8 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
         final jsonContent = utf8.decode(_fileBytes!, allowMalformed: true);
         _unrecognizedCategories = model.getUnrecognizedCategoriesFromMMBackup(jsonContent);
       } else if (_fileExtension == 'csv' || _fileExtension == 'txt') {
-        // FIX: Usa lo stesso contenuto CSV dell'incolla manuale
-        final csvContent = _csvContent.isNotEmpty 
-            ? _csvContent 
+        final csvContent = _csvContent.isNotEmpty
+            ? _csvContent
             : utf8.decode(_fileBytes!, allowMalformed: true);
         _unrecognizedCategories = model.getUnrecognizedCategories(csvContent.replaceAll(';', ','));
       } else {
@@ -637,9 +633,8 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
         await model.importFromMMBackup(jsonContent, {});
         _showResultSnack(imported: null, skipped: null);
       } else if (_fileExtension == 'csv' || _fileExtension == 'txt') {
-        // FIX: USA LO STESSO PARSER DELL'INCOLLA MANUALE
-        final csvContent = _csvContent.isNotEmpty 
-            ? _csvContent 
+        final csvContent = _csvContent.isNotEmpty
+            ? _csvContent
             : utf8.decode(_fileBytes!, allowMalformed: true);
         final res = await model.importFromCSV(csvContent.replaceAll(';', ','), {});
         _showResultSnack(imported: res['imported'], skipped: res['skipped']);
@@ -694,7 +689,7 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
           ),
           ElevatedButton.icon(
             onPressed: _isAnalyzing ? null : () => _analyzeCSV(dialogContext, csvController.text, model),
-            icon: _isAnalyzing 
+            icon: _isAnalyzing
               ? const SizedBox(
                   width: 16,
                   height: 16,
@@ -746,132 +741,157 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
     }
   }
 
+  // 🐛 FIX: Wrappato in Card con SingleChildScrollView per evitare overflow
   Widget _buildCategoryMappingStep(MoneyModel model) {
     final allCategories = [...model.expenseCats, ...model.incomeCats];
     
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12)
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12)
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Trovate categorie non riconosciute',
+                      style: TextStyle(fontWeight: FontWeight.bold)
+                    )
+                  )
+                ]
+              )
             ),
-            child: const Row(
+            const SizedBox(height: 16),
+            Row(
               children: [
-                Icon(Icons.warning, color: Colors.orange),
-                SizedBox(width: 8),
+                Icon(_getFileIcon(), color: const Color(0xFF6366F1), size: 20),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Trovate categorie non riconosciute',
-                    style: TextStyle(fontWeight: FontWeight.bold)
-                  )
-                )
+                    'File: $_fileName',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ]
-            )
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Icon(_getFileIcon(), color: const Color(0xFF6366F1), size: 20),
-              const SizedBox(width: 8),
-              Text('File: $_fileName', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))
-            ]
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Associa le categorie del file a quelle dell\'app:',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)
-          ),
-          const SizedBox(height: 12),
-          
-          ..._unrecognizedCategories.map((unknownCategory) => Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Categoria trovata: "$unknownCategory"',
-                    style: const TextStyle(fontWeight: FontWeight.bold)
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: 'Associa a',
-                      prefixIcon: Icon(Icons.category),
-                      border: OutlineInputBorder()
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Associa le categorie del file a quelle dell\'app:',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)
+            ),
+            const SizedBox(height: 12),
+            
+            // 🐛 FIX: Aggiunto Flexible + SingleChildScrollView per scroll verticale
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: _unrecognizedCategories.map((unknownCategory) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Categoria trovata: "$unknownCategory"',
+                            style: const TextStyle(fontWeight: FontWeight.bold)
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            decoration: const InputDecoration(
+                              labelText: 'Associa a',
+                              prefixIcon: Icon(Icons.category),
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            value: _categoryMapping[unknownCategory],
+                            items: [
+                              const DropdownMenuItem(value: null, child: Text('-- Seleziona categoria --')),
+                              ...allCategories.map((cat) {
+                                final style = model.getTransactionStyle(cat);
+                                return DropdownMenuItem(
+                                  value: cat,
+                                  child: Row(
+                                    children: [
+                                      Icon(style.icon, color: style.color, size: 16),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          cat,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (model.incomeCats.contains(cat))
+                                        const Text(
+                                          ' (E)',
+                                          style: TextStyle(color: Colors.green, fontSize: 10)
+                                        )
+                                    ]
+                                  )
+                                );
+                              })
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                if (value != null) {
+                                  _categoryMapping[unknownCategory] = value;
+                                } else {
+                                  _categoryMapping.remove(unknownCategory);
+                                }
+                              });
+                            },
+                          ),
+                        ]
+                      ),
                     ),
-                    value: _categoryMapping[unknownCategory],
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('-- Seleziona categoria --')),
-                      ...allCategories.map((cat) {
-                        final style = model.getTransactionStyle(cat);
-                        return DropdownMenuItem(
-                          value: cat,
-                          child: Row(
-                            children: [
-                              Icon(style.icon, color: style.color, size: 16),
-                              const SizedBox(width: 8),
-                              Text(cat),
-                              if (model.incomeCats.contains(cat))
-                                const Text(
-                                  ' (Entrata)',
-                                  style: TextStyle(color: Colors.green, fontSize: 10)
-                                )
-                            ]
-                          )
-                        );
-                      })
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        if (value != null) {
-                          _categoryMapping[unknownCategory] = value;
-                        } else {
-                          _categoryMapping.remove(unknownCategory);
-                        }
-                      });
-                    },
-                  ),
-                ]
+                  )).toList(),
+                ),
               ),
             ),
-          )),
-          
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    setState(() {
-                      _showMappingStep = false;
-                      _unrecognizedCategories.clear();
-                      _categoryMapping.clear();
-                      _resetFileSelection();
-                    });
-                  },
-                  child: const Text('Annulla')
-                )
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _categoryMapping.length == _unrecognizedCategories.length
-                    ? () => _performMappedImport(model)
-                    : null,
-                  icon: const Icon(Icons.import_export),
-                  label: const Text('Importa')
-                )
-              ),
-            ]
-          ),
-        ]
+            
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        _showMappingStep = false;
+                        _unrecognizedCategories.clear();
+                        _categoryMapping.clear();
+                        _resetFileSelection();
+                      });
+                    },
+                    child: const Text('Annulla')
+                  )
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _categoryMapping.length == _unrecognizedCategories.length
+                      ? () => _performMappedImport(model)
+                      : null,
+                    icon: const Icon(Icons.import_export),
+                    label: const Text('Importa')
+                  )
+                ),
+              ]
+            ),
+          ]
+        ),
       ),
     );
   }
@@ -888,9 +908,8 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
         await model.importFromMMBackup(jsonContent, _categoryMapping);
         _showResultSnack(imported: null, skipped: null);
       } else if (_fileExtension == 'csv' || _fileExtension == 'txt') {
-        // FIX: USA LO STESSO PARSER ANCHE QUI
-        final csvContent = _csvContent.isNotEmpty 
-            ? _csvContent 
+        final csvContent = _csvContent.isNotEmpty
+            ? _csvContent
             : utf8.decode(_fileBytes!, allowMalformed: true);
         final res = await model.importFromCSV(csvContent.replaceAll(';', ','), _categoryMapping);
         _showResultSnack(imported: res['imported'], skipped: res['skipped']);
@@ -1064,7 +1083,7 @@ class _IOPageState extends State<IOPage> with TickerProviderStateMixin {
       _fileName = '';
       _fileBytes = null;
       _fileExtension = '';
-      _csvContent = ''; // FIX: Reset anche il contenuto CSV
+      _csvContent = '';
     });
   }
 
