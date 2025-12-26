@@ -277,26 +277,30 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
             Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [style.color, style.color.withOpacity(0.7)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: style.color.withOpacity(0.3),
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(style.icon, color: Colors.white, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
+  width: 44,
+  height: 44,
+  decoration: BoxDecoration(
+    gradient: LinearGradient(
+      colors: [style.color, style.color.withOpacity(0.7)],
+    ),
+    borderRadius: BorderRadius.circular(12),
+    boxShadow: [
+      BoxShadow(
+        color: style.color.withOpacity(0.3),
+        blurRadius: 6,
+        offset: Offset(0, 2),
+      ),
+    ],
+  ),
+  child: Icon(
+    goal.icon ?? style.icon,
+    color: Colors.white,
+    size: 22,
+  ),
+),  // ← CHIUDI QUI IL CONTAINER!
+const SizedBox(width: 12),
+Expanded(
+  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(

@@ -5,6 +5,8 @@ import 'dart:ui';
 import '../theme_provider.dart';
 import '../providers.dart';
 import 'io_page.dart';
+import '../services/biometric_service.dart';
+import '../services/notifications_service.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -32,7 +34,9 @@ class SettingsPage extends StatelessWidget {
               automaticallyImplyLeading: false,
               elevation: 0,
               centerTitle: true,
-              backgroundColor: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
+              backgroundColor: isDark
+                  ? Colors.white.withOpacity(0.08)
+                  : Colors.white.withOpacity(0.85),
             ),
           ),
         ),
@@ -43,6 +47,7 @@ class SettingsPage extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // SEZIONE ASPETTO
                 _buildGlassCard(
                   context,
                   'Aspetto',
@@ -81,7 +86,140 @@ class SettingsPage extends StatelessWidget {
                     ),
                   ],
                 ),
+                
                 const SizedBox(height: 16),
+
+                // 🔐 SEZIONE SICUREZZA
+                _buildGlassCard(
+                  context,
+                  'Sicurezza',
+                  Icons.security,
+                  isDark,
+                  [
+                    FutureBuilder<bool>(
+                      future: BiometricService.isAvailable(),
+                      builder: (context, snapshot) {
+                        final isAvailable = snapshot.data ?? false;
+                        
+                        return Consumer<ThemeProvider>(
+                          builder: (context, themeProvider, _) {
+                            return SwitchListTile(
+                              title: FutureBuilder<String>(
+                                future: BiometricService.getBiometricTypeName(),
+                                builder: (context, nameSnapshot) {
+                                  return Text(
+                                    'Sblocco con ${nameSnapshot.data ?? "biometria"}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                  );
+                                },
+                              ),
+                              subtitle: Text(
+                                isAvailable
+                                    ? 'Proteggi i tuoi dati con autenticazione biometrica'
+                                    : 'Non disponibile su questo dispositivo',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                ),
+                              ),
+                              value: themeProvider.isBiometricEnabled,
+                              onChanged: isAvailable
+                                  ? (value) async {
+                                      if (value) {
+                                        final authenticated = await BiometricService.authenticate(
+                                          reason: 'Verifica la tua identità per abilitare lo sblocco biometrico',
+                                        );
+                                        
+                                        if (authenticated) {
+                                          themeProvider.setBiometricEnabled(true);
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('✅ Sblocco biometrico attivato'),
+                                                backgroundColor: Colors.green,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      } else {
+                                        themeProvider.setBiometricEnabled(false);
+                                      }
+                                    }
+                                  : null,
+                              secondary: Icon(
+                                Icons.fingerprint,
+                                color: isAvailable
+                                    ? (isDark ? const Color(0xFF38F9D7) : const Color(0xFF10B981))
+                                    : Colors.grey,
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // 🔔 SEZIONE NOTIFICHE
+_buildGlassCard(
+  context,
+  'Notifiche',
+  Icons.notifications,
+  isDark,
+  [
+    ListTile(
+      leading: Icon(
+        Icons.notifications_active,
+        color: isDark ? const Color(0xFF38F9D7) : const Color(0xFF10B981),
+      ),
+      title: Text(
+        'Test notifica immediata',
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: isDark ? Colors.white : Colors.black87,
+        ),
+      ),
+      subtitle: Text(
+        'Verifica che le notifiche funzionino',
+        style: TextStyle(
+          fontSize: 12,
+          color: isDark ? Colors.grey[400] : Colors.grey[600],
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+      onTap: () async {
+        HapticFeedback.lightImpact();
+        
+        // Test notifica immediata
+        await NotificationsService.notifyMonthlySummary(
+          income: 2500.00,
+          expense: 1800.00,
+          balance: 700.00,
+        );
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Notifica di test inviata!'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+    ),
+  ],
+),
+
+
+                const SizedBox(height: 16),
+
+                // SEZIONE GESTIONE DATI
                 _buildGlassCard(
                   context,
                   'Gestione Dati',
@@ -145,7 +283,10 @@ class SettingsPage extends StatelessWidget {
                     ),
                   ],
                 ),
+                
                 const SizedBox(height: 16),
+
+                // SEZIONE INFORMAZIONI
                 _buildGlassCard(
                   context,
                   'Informazioni',
@@ -234,7 +375,9 @@ class SettingsPage extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           decoration: BoxDecoration(
-            color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
+            color: isDark
+                ? Colors.white.withOpacity(0.08)
+                : Colors.white.withOpacity(0.85),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isDark ? Colors.white.withOpacity(0.15) : Colors.white,
@@ -303,7 +446,9 @@ class SettingsPage extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.black.withOpacity(0.75) : Colors.white.withOpacity(0.9),
+                  color: isDark
+                      ? Colors.black.withOpacity(0.75)
+                      : Colors.white.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: Colors.white.withOpacity(isDark ? 0.2 : 0.5),
@@ -387,7 +532,7 @@ class _FooterCredit extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 48),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: BackdropFilter(
@@ -395,7 +540,9 @@ class _FooterCredit extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
+                color: isDark
+                    ? Colors.white.withOpacity(0.08)
+                    : Colors.white.withOpacity(0.85),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isDark ? Colors.white.withOpacity(0.18) : Colors.white,
@@ -464,13 +611,15 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
   @override
   Widget build(BuildContext context) {
     final model = Provider.of<MoneyModel>(context, listen: false);
-
+    
     return Column(
       children: [
         TextField(
           controller: _controller,
           style: TextStyle(
-            color: _isValid ? Colors.red : (widget.isDark ? Colors.white : Colors.black87),
+            color: _isValid
+                ? Colors.red
+                : (widget.isDark ? Colors.white : Colors.black87),
             fontWeight: _isValid ? FontWeight.bold : FontWeight.normal,
           ),
           decoration: InputDecoration(
@@ -479,11 +628,15 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
               color: widget.isDark ? Colors.grey[500] : Colors.grey[400],
             ),
             filled: true,
-            fillColor: widget.isDark ? Colors.grey[800]!.withOpacity(0.6) : Colors.grey[100],
+            fillColor: widget.isDark
+                ? Colors.grey[800]!.withOpacity(0.6)
+                : Colors.grey[100],
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: _isValid ? Colors.red : (widget.isDark ? Colors.grey[600]! : Colors.grey[300]!),
+                color: _isValid
+                    ? Colors.red
+                    : (widget.isDark ? Colors.grey[600]! : Colors.grey[300]!),
                 width: 2,
               ),
             ),
@@ -528,7 +681,7 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
 
   Future<void> _performReset(BuildContext context, MoneyModel model) async {
     Navigator.pop(context);
-
+    
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -543,7 +696,9 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: widget.isDark ? Colors.black.withOpacity(0.75) : Colors.white.withOpacity(0.9),
+                  color: widget.isDark
+                      ? Colors.black.withOpacity(0.75)
+                      : Colors.white.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: Colors.white.withOpacity(widget.isDark ? 0.2 : 0.5),
@@ -581,26 +736,30 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
 
     try {
       await model.resetAllData();
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Reset completato! L\'app è stata ripulita.'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      HapticFeedback.heavyImpact();
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Reset completato! L\'app è stata ripulita.'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        HapticFeedback.heavyImpact();
+      }
     } catch (e) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Errore durante il reset: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Errore durante il reset: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 }

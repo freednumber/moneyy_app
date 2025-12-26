@@ -6,6 +6,7 @@ import 'package:excel/excel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
 import 'repository.dart';
+import 'services/notifications_service.dart';
 
 class CategoryStyle {
   final IconData icon;
@@ -14,14 +15,18 @@ class CategoryStyle {
   CategoryStyle(this.icon, this.color);
 
   Map<String, dynamic> toJson() => {
-        'icon': icon.codePoint,
-        'color': color.value,
-      };
+    'icon': icon.codePoint,
+    'color': color.value,
+  };
 
-  factory CategoryStyle.fromJson(Map<String, dynamic> json) => CategoryStyle(
-        IconData(json['icon'], fontFamily: 'MaterialIcons'),
-        Color(json['color']),
-      );
+  factory CategoryStyle.fromJson(Map json) {
+  final iconCodePoint = json['icon'] as int;  // ✅ FIX
+  final colorValue = json['color'] as int;
+  return CategoryStyle(
+    IconData(iconCodePoint, fontFamily: 'MaterialIcons'),
+    Color(colorValue),
+  );
+}
 }
 
 class MoneyModel extends ChangeNotifier {
@@ -32,49 +37,87 @@ class MoneyModel extends ChangeNotifier {
   bool loading = true;
   String currency = '€';
 
-  // ✅ MODIFICATO: Liste di default (possono essere modificate)
   List<String> expenseCats = [
-    'Spesa',
-    'Trasporti',
-    'Svago',
-    'Shopping',
-    'Bollette',
-    'Ricariche',
-    'Casa',
-    'Salute',
-    'Sport',
-    'Regali',
-    'Viaggi',
-    'Investimenti',
-    'Altro'
+    'Spesa', 'Trasporti', 'Svago', 'Shopping', 'Bollette',
+    'Ricariche', 'Casa', 'Salute', 'Sport', 'Regali',
+    'Viaggi', 'Investimenti', 'Altro'
   ];
 
   List<String> incomeCats = [
-    'Stipendio',
-    'Freelance',
-    'Investimenti',
-    'Regalo',
-    'Rimborso',
-    'Altro'
+    'Stipendio', 'Freelance', 'Investimenti',
+    'Regalo', 'Rimborso', 'Altro'
   ];
 
   final List<String> goalCategories = [
-    'COMPUTER',
-    'SMARTPHONE',
-    'VIAGGIO',
-    'AUTO',
-    'CASA',
-    'INVESTIMENTI',
-    'ALTRO'
+    'COMPUTER', 'SMARTPHONE', 'VIAGGIO', 'AUTO',
+    'CASA', 'INVESTIMENTI', 'ALTRO'
   ];
 
   List<String> customExpenseCats = [];
   List<String> customIncomeCats = [];
   Map<String, IconData> customCategoryIcons = {};
   Map<String, Color> customCategoryColors = {};
-
   List<String> _expenseCatsOrder = [];
   List<String> _incomeCatsOrder = [];
+
+  // 💾 NUOVO: Backup automatico su SharedPreferences
+  Future<void> _backupToPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      final txList = transactions.map((tx) => tx.toMap()).toList();
+      await prefs.setString('backup_transactions', jsonEncode(txList));
+      
+      final goalsList = goals.map((g) => g.toMap()).toList();
+      await prefs.setString('backup_goals', jsonEncode(goalsList));
+      
+      final recurringList = recurringTransactions.map((r) => r.toMap()).toList();
+      await prefs.setString('backup_recurring', jsonEncode(recurringList));
+      
+      debugPrint('💾 Backup salvato: ${transactions.length} tx, ${goals.length} goals, ${recurringTransactions.length} recurring');
+    } catch (e) {
+      debugPrint('❌ Errore backup: $e');
+    }
+  }
+
+  // 📂 NUOVO: Ripristino da backup
+  Future<void> _restoreFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      final txJson = prefs.getString('backup_transactions');
+      if (txJson != null) {
+        final List<dynamic> decoded = jsonDecode(txJson);
+        for (var map in decoded) {
+          final tx = MoneyTx.fromMap(map);
+          await _repo.insertTx(tx);
+        }
+        debugPrint('📂 Ripristinate ${decoded.length} transazioni');
+      }
+      
+      final goalsJson = prefs.getString('backup_goals');
+      if (goalsJson != null) {
+        final List<dynamic> decoded = jsonDecode(goalsJson);
+        for (var map in decoded) {
+          final goal = Goal.fromMap(map);
+          await _repo.insertGoal(goal);
+        }
+        debugPrint('📂 Ripristinati ${decoded.length} obiettivi');
+      }
+      
+      final recurringJson = prefs.getString('backup_recurring');
+      if (recurringJson != null) {
+        final List<dynamic> decoded = jsonDecode(recurringJson);
+        for (var map in decoded) {
+          final recurring = Recurring.fromMap(map);
+          await _repo.insertRecurring(recurring);
+        }
+        debugPrint('📂 Ripristinate ${decoded.length} ricorrenti');
+      }
+    } catch (e) {
+      debugPrint('❌ Errore ripristino: $e');
+    }
+  }
 
   List<String> get allExpenseCats {
     final all = [...expenseCats, ...customExpenseCats];
@@ -104,8 +147,7 @@ class MoneyModel extends ChangeNotifier {
 
   double get netWorth => netBalance;
 
-  Future<void> addCustomCategory(String name, IconData icon, bool isIncome,
-      [Color? color]) async {
+  Future<void> addCustomCategory(String name, IconData icon, bool isIncome, [Color? color]) async {
     if (isIncome) {
       if (!incomeCats.contains(name) && !customIncomeCats.contains(name)) {
         customIncomeCats.add(name);
@@ -125,7 +167,6 @@ class MoneyModel extends ChangeNotifier {
     }
   }
 
-  // ✅ MODIFICATA: Rinomina TUTTE le categorie (predefinite + custom)
   Future<void> renameCategory({
     required String oldName,
     required String newName,
@@ -135,40 +176,25 @@ class MoneyModel extends ChangeNotifier {
     final trimmedNew = newName.trim();
 
     if (isIncome) {
-      // Rinomina in incomeCats (predefinite)
       final index = incomeCats.indexOf(oldName);
-      if (index != -1) {
-        incomeCats[index] = trimmedNew;
-      }
-      // Rinomina in customIncomeCats
+      if (index != -1) incomeCats[index] = trimmedNew;
+      
       final customIndex = customIncomeCats.indexOf(oldName);
-      if (customIndex != -1) {
-        customIncomeCats[customIndex] = trimmedNew;
-      }
-      // Rinomina nell'ordine
+      if (customIndex != -1) customIncomeCats[customIndex] = trimmedNew;
+      
       final orderIndex = _incomeCatsOrder.indexOf(oldName);
-      if (orderIndex != -1) {
-        _incomeCatsOrder[orderIndex] = trimmedNew;
-      }
+      if (orderIndex != -1) _incomeCatsOrder[orderIndex] = trimmedNew;
     } else {
-      // Rinomina in expenseCats (predefinite)
       final index = expenseCats.indexOf(oldName);
-      if (index != -1) {
-        expenseCats[index] = trimmedNew;
-      }
-      // Rinomina in customExpenseCats
+      if (index != -1) expenseCats[index] = trimmedNew;
+      
       final customIndex = customExpenseCats.indexOf(oldName);
-      if (customIndex != -1) {
-        customExpenseCats[customIndex] = trimmedNew;
-      }
-      // Rinomina nell'ordine
+      if (customIndex != -1) customExpenseCats[customIndex] = trimmedNew;
+      
       final orderIndex = _expenseCatsOrder.indexOf(oldName);
-      if (orderIndex != -1) {
-        _expenseCatsOrder[orderIndex] = trimmedNew;
-      }
+      if (orderIndex != -1) _expenseCatsOrder[orderIndex] = trimmedNew;
     }
 
-    // Sposta icona e colore
     if (customCategoryIcons.containsKey(oldName)) {
       customCategoryIcons[trimmedNew] = customCategoryIcons[oldName]!;
       customCategoryIcons.remove(oldName);
@@ -186,9 +212,7 @@ class MoneyModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ✅ MODIFICATA: Elimina TUTTE le categorie (predefinite + custom)
   Future<void> deleteCustomCategory(String name, bool isIncome) async {
-    // Non permettere eliminazione di "Altro"
     if (name == 'Altro') {
       debugPrint('❌ Impossibile eliminare la categoria "Altro"');
       return;
@@ -206,7 +230,6 @@ class MoneyModel extends ChangeNotifier {
 
     customCategoryIcons.remove(name);
     customCategoryColors.remove(name);
-    
     await _repo.renameCategoryInTransactions(name, 'Altro');
     await _repo.renameCategoryInRecurrings(name, 'Altro');
     await loadInitial();
@@ -220,7 +243,6 @@ class MoneyModel extends ChangeNotifier {
     } else {
       _expenseCatsOrder = newOrder;
     }
-
     await _saveCustomCategories();
     notifyListeners();
   }
@@ -230,25 +252,16 @@ class MoneyModel extends ChangeNotifier {
     IconData? icon,
     Color? color,
   }) async {
-    if (icon != null) {
-      customCategoryIcons[categoryName] = icon;
-    }
-
-    if (color != null) {
-      customCategoryColors[categoryName] = color;
-    }
-
+    if (icon != null) customCategoryIcons[categoryName] = icon;
+    if (color != null) customCategoryColors[categoryName] = color;
     await _saveCustomCategories();
     notifyListeners();
   }
 
   Future<void> _saveCustomCategories() async {
     final prefs = await SharedPreferences.getInstance();
-    
-    // ✅ SALVATO: Liste predefinite modificate
     await prefs.setString('expenseCats', jsonEncode(expenseCats));
     await prefs.setString('incomeCats', jsonEncode(incomeCats));
-    
     await prefs.setString('customExpenseCats', jsonEncode(customExpenseCats));
     await prefs.setString('customIncomeCats', jsonEncode(customIncomeCats));
 
@@ -261,135 +274,142 @@ class MoneyModel extends ChangeNotifier {
       (key, value) => MapEntry(key, value.value),
     );
     await prefs.setString('customCategoryColors', jsonEncode(colorsMap));
-
     await prefs.setString('expenseCatsOrder', jsonEncode(_expenseCatsOrder));
     await prefs.setString('incomeCatsOrder', jsonEncode(_incomeCatsOrder));
   }
 
   Future<void> _loadCustomCategories() async {
-    final prefs = await SharedPreferences.getInstance();
+  final prefs = await SharedPreferences.getInstance();
 
-    // ✅ CARICATO: Liste predefinite modificate
-    final expenseJson = prefs.getString('expenseCats');
-    if (expenseJson != null) {
-      expenseCats = List<String>.from(jsonDecode(expenseJson));
-    }
-
-    final incomeJson = prefs.getString('incomeCats');
-    if (incomeJson != null) {
-      incomeCats = List<String>.from(jsonDecode(incomeJson));
-    }
-
-    final customExpenseJson = prefs.getString('customExpenseCats');
-    if (customExpenseJson != null) {
-      customExpenseCats = List<String>.from(jsonDecode(customExpenseJson));
-    }
-
-    final customIncomeJson = prefs.getString('customIncomeCats');
-    if (customIncomeJson != null) {
-      customIncomeCats = List<String>.from(jsonDecode(customIncomeJson));
-    }
-
-    final iconsJson = prefs.getString('customCategoryIcons');
-    if (iconsJson != null) {
-      final Map<String, dynamic> decoded = jsonDecode(iconsJson);
-      customCategoryIcons = decoded.map(
-        (key, value) =>
-            MapEntry(key, IconData(value, fontFamily: 'MaterialIcons')),
-      );
-    }
-
-    final colorsJson = prefs.getString('customCategoryColors');
-    if (colorsJson != null) {
-      final Map<String, dynamic> decoded = jsonDecode(colorsJson);
-      customCategoryColors = decoded.map(
-        (key, value) => MapEntry(key, Color(value)),
-      );
-    }
-
-    final expenseOrderJson = prefs.getString('expenseCatsOrder');
-    if (expenseOrderJson != null) {
-      _expenseCatsOrder = List<String>.from(jsonDecode(expenseOrderJson));
-    }
-
-    final incomeOrderJson = prefs.getString('incomeCatsOrder');
-    if (incomeOrderJson != null) {
-      _incomeCatsOrder = List<String>.from(jsonDecode(incomeOrderJson));
-    }
+  final expenseJson = prefs.getString('expenseCats');
+  if (expenseJson != null) {
+    expenseCats = List<String>.from(jsonDecode(expenseJson));
   }
+
+  final incomeJson = prefs.getString('incomeCats');
+  if (incomeJson != null) {
+    incomeCats = List<String>.from(jsonDecode(incomeJson));
+  }
+
+  final customExpenseJson = prefs.getString('customExpenseCats');
+  if (customExpenseJson != null) {
+    customExpenseCats = List<String>.from(jsonDecode(customExpenseJson));
+  }
+
+  final customIncomeJson = prefs.getString('customIncomeCats');
+  if (customIncomeJson != null) {
+    customIncomeCats = List<String>.from(jsonDecode(customIncomeJson));
+  }
+
+  final iconsJson = prefs.getString('customCategoryIcons');
+  if (iconsJson != null) {
+    final Map<String, dynamic> decoded = jsonDecode(iconsJson);
+    customCategoryIcons = decoded.map(
+      (key, value) {
+        final codePoint = value as int;
+        return MapEntry(key, IconData(codePoint, fontFamily: 'MaterialIcons'));
+      },
+    );
+  }
+
+  final colorsJson = prefs.getString('customCategoryColors');
+  if (colorsJson != null) {
+    final Map<String, dynamic> decoded = jsonDecode(colorsJson);
+    customCategoryColors = decoded.map(
+      (key, value) {
+        final colorValue = value as int;
+        return MapEntry(key, Color(colorValue));
+      },
+    );
+  }
+
+  // ✅ CONTINUA QUI (nessuna graffa di chiusura extra!)
+  final expenseOrderJson = prefs.getString('expenseCatsOrder');
+  if (expenseOrderJson != null) {
+    _expenseCatsOrder = List<String>.from(jsonDecode(expenseOrderJson));
+  }
+
+  final incomeOrderJson = prefs.getString('incomeCatsOrder');
+  if (incomeOrderJson != null) {
+    _incomeCatsOrder = List<String>.from(jsonDecode(incomeOrderJson));
+  }
+}  // ✅ UNA SOLA graffa di chiusura
 
   List<MoneyTx> get recent => transactions.take(20).toList();
   List<Goal> get activeGoals => goals.where((g) => !g.isPurchased).toList();
   List<Goal> get completedGoals => goals.where((g) => g.isPurchased).toList();
 
   Future<void> processRecurringTransactions() async {
-    final now = DateTime.now();
-    bool hasNewTransactions = false;
+  final now = DateTime.now();
+  bool hasNewTransactions = false;
 
-    for (var recurring in recurringTransactions) {
-      if (recurring.dayOfMonth == now.day) {
-        if (recurring.lastProcessed != null) {
-          final lastProcessedDay = DateTime(
-            recurring.lastProcessed!.year,
-            recurring.lastProcessed!.month,
-            recurring.lastProcessed!.day,
-          );
-          final today = DateTime(now.year, now.month, now.day);
-          if (lastProcessedDay.isAtSameMomentAs(today)) {
-            continue;
-          }
-        }
+  for (var recurring in recurringTransactions) {
+    if (recurring.dayOfMonth == now.day) {
+      if (recurring.lastProcessed != null) {
+        final lastProcessedDay = DateTime(
+          recurring.lastProcessed!.year,
+          recurring.lastProcessed!.month,
+          recurring.lastProcessed!.day,
+        );
+        final today = DateTime(now.year, now.month, now.day);
+        if (lastProcessedDay.isAtSameMomentAs(today)) continue;
+      }
 
-        final scheduledTime = DateTime(
-          now.year,
-          now.month,
-          now.day,
-          recurring.time.hour,
-          recurring.time.minute,
+      final scheduledTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        recurring.time.hour,
+        recurring.time.minute,
+      );
+
+      if (now.isAfter(scheduledTime) || now.isAtSameMomentAs(scheduledTime)) {
+        final automaticTx = MoneyTx(
+          id: null,
+          isIncome: recurring.isIncome,
+          category: recurring.category,
+          amount: recurring.amount,
+          date: now,
+          note: recurring.note,
+          payment: recurring.payment,
         );
 
-        if (now.isAfter(scheduledTime) || now.isAtSameMomentAs(scheduledTime)) {
-          final automaticTx = MoneyTx(
-            id: null,
-            isIncome: recurring.isIncome,
-            category: recurring.category,
-            amount: recurring.amount,
-            date: now,
-            note: recurring.note,
-            payment: recurring.payment,
-          );
+        await _repo.insertTx(automaticTx);
 
-          await _repo.insertTx(automaticTx);
+        final updatedRecurring = Recurring(
+          id: recurring.id,
+          isIncome: recurring.isIncome,
+          category: recurring.category,
+          amount: recurring.amount,
+          dayOfMonth: recurring.dayOfMonth,
+          time: recurring.time,
+          payment: recurring.payment,
+          note: recurring.note,
+          lastProcessed: now,
+        );
 
-          final updatedRecurring = Recurring(
-            id: recurring.id,
-            isIncome: recurring.isIncome,
-            category: recurring.category,
-            amount: recurring.amount,
-            dayOfMonth: recurring.dayOfMonth,
-            time: recurring.time,
-            payment: recurring.payment,
-            note: recurring.note,
-            lastProcessed: now,
-          );
-
-          await _repo.updateRecurring(updatedRecurring);
-          hasNewTransactions = true;
-          debugPrint(
-              '✅ Transazione ricorrente creata: ${recurring.category} - €${recurring.amount}');
-        }
+        await _repo.updateRecurring(updatedRecurring);
+        
+        // 🔔 NUOVO: Invia notifica
+        await NotificationsService.notifyRecurringCreated(recurring);
+        
+        hasNewTransactions = true;
+        debugPrint('✅ Transazione ricorrente creata: ${recurring.category} - €${recurring.amount}');
       }
     }
-
-    if (hasNewTransactions) {
-      await loadInitial();
-      debugPrint('🔄 Transazioni ricorrenti aggiornate');
-    }
   }
+
+  if (hasNewTransactions) {
+    await loadInitial();
+    debugPrint('🔄 Transazioni ricorrenti aggiornate');
+  }
+}
+
 
   Future<void> resetAllData() async {
     loading = true;
     notifyListeners();
+    
     try {
       await _repo.resetDatabase();
       transactions.clear();
@@ -401,34 +421,24 @@ class MoneyModel extends ChangeNotifier {
       customCategoryColors.clear();
       _expenseCatsOrder.clear();
       _incomeCatsOrder.clear();
-      
-      // ✅ RESET: Ripristina categorie predefinite originali
+
       expenseCats = [
-        'Spesa',
-        'Trasporti',
-        'Svago',
-        'Shopping',
-        'Bollette',
-        'Ricariche',
-        'Casa',
-        'Salute',
-        'Sport',
-        'Regali',
-        'Viaggi',
-        'Investimenti',
-        'Altro'
+        'Spesa', 'Trasporti', 'Svago', 'Shopping', 'Bollette',
+        'Ricariche', 'Casa', 'Salute', 'Sport', 'Regali',
+        'Viaggi', 'Investimenti', 'Altro'
       ];
-      
       incomeCats = [
-        'Stipendio',
-        'Freelance',
-        'Investimenti',
-        'Regalo',
-        'Rimborso',
-        'Altro'
+        'Stipendio', 'Freelance', 'Investimenti',
+        'Regalo', 'Rimborso', 'Altro'
       ];
 
       await _saveCustomCategories();
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('backup_transactions');
+      await prefs.remove('backup_goals');
+      await prefs.remove('backup_recurring');
+      
       loading = false;
       notifyListeners();
       debugPrint('✅ Reset completo effettuato con successo');
@@ -440,8 +450,6 @@ class MoneyModel extends ChangeNotifier {
     }
   }
 
-  // ... [Il resto del codice rimane identico: getRecurringTransactionsForPeriod, netBalance, ecc.]
-  
   List<MoneyTx> getRecurringTransactionsForPeriod(DateTime start, DateTime end) {
     final List<MoneyTx> generatedTxs = [];
     final now = DateTime.now();
@@ -565,8 +573,7 @@ class MoneyModel extends ChangeNotifier {
       'Rimborso': CategoryStyle(Icons.undo, const Color(0xFF22C55E)),
     };
 
-    return styles[category] ??
-        CategoryStyle(Icons.help_outline, const Color(0xFF6B7280));
+    return styles[category] ?? CategoryStyle(Icons.help_outline, const Color(0xFF6B7280));
   }
 
   CategoryStyle getGoalStyle(String title) {
@@ -579,19 +586,28 @@ class MoneyModel extends ChangeNotifier {
       'INVESTIMENTI': CategoryStyle(Icons.trending_up, const Color(0xFF14B8A6)),
       'ALTRO': CategoryStyle(Icons.flag, const Color(0xFF6B7280)),
     };
-
-    return styles[title] ??
-        CategoryStyle(Icons.flag, const Color(0xFF6366F1));
+    return styles[title] ?? CategoryStyle(Icons.flag, const Color(0xFF6366F1));
   }
 
+  // ✅ MODIFICATO: loadInitial con ripristino automatico
   Future<void> loadInitial() async {
     loading = true;
     notifyListeners();
+
     transactions = await _repo.getAllTx();
     goals = await _repo.getAllGoals();
     recurringTransactions = await _repo.getRecurring();
+
+    if (transactions.isEmpty && goals.isEmpty && recurringTransactions.isEmpty) {
+      await _restoreFromPrefs();
+      transactions = await _repo.getAllTx();
+      goals = await _repo.getAllGoals();
+      recurringTransactions = await _repo.getRecurring();
+    }
+
     await _loadCustomCategories();
     await processRecurringTransactions();
+
     loading = false;
     notifyListeners();
   }
@@ -599,21 +615,25 @@ class MoneyModel extends ChangeNotifier {
   Future<void> addTx(MoneyTx tx) async {
     await _repo.insertTx(tx);
     await loadInitial();
+    await _backupToPrefs();
   }
 
   Future<void> updateTransaction(MoneyTx tx) async {
     await _repo.updateTx(tx);
     await loadInitial();
+    await _backupToPrefs();
   }
 
   Future<void> deleteTransaction(int id) async {
     await _repo.deleteTx(id);
     await loadInitial();
+    await _backupToPrefs();
   }
 
   Future<void> addGoal(Goal goal) async {
     await _repo.insertGoal(goal);
     await loadInitial();
+    await _backupToPrefs();
   }
 
   Future<void> contributeToGoal(int goalId, double amount) async {
@@ -627,18 +647,20 @@ class MoneyModel extends ChangeNotifier {
     );
     await _repo.updateGoal(updated);
     await loadInitial();
+    await _backupToPrefs();
   }
 
   Future<void> updateGoal(Goal goal) async {
     await _repo.updateGoal(goal);
     await loadInitial();
+    await _backupToPrefs();
   }
 
   Future<void> purchaseGoal(int goalId, String selectedCategory) async {
     final goal = goals.firstWhere((g) => g.id == goalId);
     if (netBalance < goal.target) {
       throw Exception(
-          'Saldo insufficiente! Hai solo €${netBalance.toStringAsFixed(2)}, servono €${goal.target.toStringAsFixed(2)}');
+        'Saldo insufficiente! Hai solo €${netBalance.toStringAsFixed(2)}, servono €${goal.target.toStringAsFixed(2)}');
     }
 
     final tx = MoneyTx(
@@ -652,10 +674,10 @@ class MoneyModel extends ChangeNotifier {
     );
 
     await addTx(tx);
-
     final updated = goal.copyWith(isPurchased: true);
     await _repo.updateGoal(updated);
     await loadInitial();
+    await _backupToPrefs();
   }
 
   Future<void> unpurchaseGoal(int goalId) async {
@@ -679,19 +701,20 @@ class MoneyModel extends ChangeNotifier {
     );
     await _repo.updateGoal(updated);
     await loadInitial();
+    await _backupToPrefs();
   }
 
   Future<void> deleteGoal(int id) async {
     await _repo.deleteGoal(id);
     await loadInitial();
+    await _backupToPrefs();
   }
 
   Future<void> addMoneyToGoal(Goal goal, double amount) async {
     if (availableBalance < amount) {
       throw Exception(
-          'Saldo disponibile insufficiente! Hai €${availableBalance.toStringAsFixed(2)} disponibili');
+        'Saldo disponibile insufficiente! Hai €${availableBalance.toStringAsFixed(2)} disponibili');
     }
-
     final updatedGoal = goal.copyWith(saved: goal.saved + amount);
     await updateGoal(updatedGoal);
   }
@@ -702,23 +725,28 @@ class MoneyModel extends ChangeNotifier {
   }
 
   Future<void> addRecurring(Recurring recurring) async {
-    await _repo.insertRecurring(recurring);
-    await loadInitial();
-  }
+  await _repo.insertRecurring(recurring);
+  await NotificationsService.scheduleRecurringNotification(recurring); // 🔔 NUOVO
+  await loadInitial();
+  await _backupToPrefs();
+}
 
   Future<void> updateRecurring(Recurring recurring) async {
     await _repo.updateRecurring(recurring);
     await loadInitial();
+    await _backupToPrefs();
   }
 
   Future<void> deleteRecurring(int id) async {
-    await _repo.deleteRecurring(id);
-    await loadInitial();
-    debugPrint('🗑️ Ricorrenza eliminata (transazioni passate conservate)');
-  }
+  await NotificationsService.cancelRecurringNotification(id); // 🔔 NUOVO
+  await _repo.deleteRecurring(id);
+  await loadInitial();
+  await _backupToPrefs();
+  debugPrint('🗑️ Ricorrenza eliminata (transazioni passate conservate)');
+}
 
-  // ... [CSV/Excel/MMBackup import rimangono identici]
-  
+  // ========== IMPORT CSV/EXCEL/MMBACKUP ==========
+
   Future<Map<String, int>> importFromCSV(
       String csvContent, Map<String, String> categoryMapping) async {
     final normalized = csvContent
@@ -726,7 +754,6 @@ class MoneyModel extends ChangeNotifier {
         .replaceAll('\r', '\n')
         .replaceAll('', '');
     final lines = normalized.split('\n');
-
     if (lines.isEmpty) return {'imported': 0, 'skipped': 0};
 
     int headerIndex = 0;
@@ -738,7 +765,6 @@ class MoneyModel extends ChangeNotifier {
     if (headerIndex >= lines.length) return {'imported': 0, 'skipped': lines.length};
 
     int imported = 0, skipped = 0;
-
     for (int i = headerIndex + 1; i < lines.length; i++) {
       final raw = lines[i].trim();
       if (raw.isEmpty) {
@@ -760,6 +786,7 @@ class MoneyModel extends ChangeNotifier {
     }
 
     await loadInitial();
+    await _backupToPrefs();
     return {'imported': imported, 'skipped': skipped};
   }
 
@@ -767,9 +794,7 @@ class MoneyModel extends ChangeNotifier {
       String line, Map<String, String> categoryMapping) {
     final s = line.replaceAll('"', '');
     final fields = parseCSVFields(s);
-
     if (fields.length < 3) return null;
-
     while (fields.length < 5) {
       fields.add('');
     }
@@ -798,7 +823,6 @@ class MoneyModel extends ChangeNotifier {
           .replaceAll(',', '.');
       final amountParsed = double.tryParse(amountStr);
       if (amountParsed == null) return null;
-
       double amount = amountParsed.abs();
 
       final typeField = fields.length > 4 ? fields[4] : '';
@@ -824,7 +848,6 @@ class MoneyModel extends ChangeNotifier {
     final fields = <String>[];
     bool inQuotes = false;
     String current = '';
-
     for (int i = 0; i < line.length; i++) {
       final ch = line[i];
       if (ch == '"') {
@@ -836,7 +859,6 @@ class MoneyModel extends ChangeNotifier {
         current += ch;
       }
     }
-
     fields.add(current.trim());
     return fields;
   }
@@ -861,7 +883,6 @@ class MoneyModel extends ChangeNotifier {
       'Regalo': 'Regalo',
       'Stipendio': 'Stipendio',
     };
-
     return mappings[rawCategory] ?? rawCategory;
   }
 
@@ -869,13 +890,11 @@ class MoneyModel extends ChangeNotifier {
     final unrecognized = <String>{};
     final normalized = csvContent.replaceAll('\r\n', '\n');
     final lines = normalized.split('\n');
-
     final startIndex = lines[0].toLowerCase().contains('data') ? 1 : 0;
 
     for (int i = startIndex; i < lines.length; i++) {
       final line = lines[i].trim();
       if (line.isEmpty) continue;
-
       final fields = parseCSVFields(line);
       if (fields.length > 2) {
         final rawCategory = fields[1].trim();
@@ -888,7 +907,6 @@ class MoneyModel extends ChangeNotifier {
         }
       }
     }
-
     return unrecognized;
   }
 
@@ -915,6 +933,7 @@ class MoneyModel extends ChangeNotifier {
       }
 
       await loadInitial();
+      await _backupToPrefs();
       debugPrint('✅ Importate $totalImported transazioni da Excel');
       return {'imported': totalImported, 'skipped': 0};
     } catch (e) {
@@ -926,7 +945,6 @@ class MoneyModel extends ChangeNotifier {
   Future<int> processStandardSheet(
       Sheet sheet, bool isIncome, Map<String, String> categoryMapping) async {
     int imported = 0;
-
     if (sheet.rows.isEmpty) return 0;
 
     final headerRow = sheet.rows.first;
@@ -935,7 +953,6 @@ class MoneyModel extends ChangeNotifier {
     for (int i = 0; i < headerRow.length; i++) {
       final cell = headerRow[i];
       if (cell?.value == null) continue;
-
       final header = cell!.value.toString().toLowerCase();
       if (header.contains('data')) dateCol = i;
       if (header.contains('categoria')) categoryCol = i;
@@ -998,7 +1015,6 @@ class MoneyModel extends ChangeNotifier {
   Future<int> processTransferSheet(
       Sheet sheet, Map<String, String> categoryMapping) async {
     int imported = 0;
-
     if (sheet.rows.isEmpty) return 0;
 
     final headerRow = sheet.rows.first;
@@ -1007,7 +1023,6 @@ class MoneyModel extends ChangeNotifier {
     for (int i = 0; i < headerRow.length; i++) {
       final cell = headerRow[i];
       if (cell?.value == null) continue;
-
       final header = cell!.value.toString().toLowerCase();
       if (header.contains('data')) dateCol = i;
       if (header.contains('uscita') && !header.contains('importo')) outCol = i;
@@ -1101,7 +1116,6 @@ class MoneyModel extends ChangeNotifier {
         for (int i = 0; i < headerRow.length; i++) {
           final cell = headerRow[i];
           if (cell?.value == null) continue;
-
           final header = cell!.value.toString().toLowerCase();
           if (header.contains('categoria')) {
             categoryCol = i;
@@ -1128,7 +1142,6 @@ class MoneyModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('❌ Errore analisi categorie Excel: $e');
     }
-
     return unrecognized;
   }
 
@@ -1152,6 +1165,7 @@ class MoneyModel extends ChangeNotifier {
       }
 
       await loadInitial();
+      await _backupToPrefs();
       debugPrint('✅ Importate $imported transazioni da MMBackup');
       return {'imported': imported, 'skipped': 0};
     } catch (e) {
@@ -1207,7 +1221,7 @@ class MoneyModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('❌ Errore analisi categorie MMBackup: $e');
     }
-
     return unrecognized;
   }
 }
+

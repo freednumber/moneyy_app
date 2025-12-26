@@ -1,12 +1,12 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart' as path_package; // ✅ CAMBIATO: usa alias
+import 'package:path/path.dart' as path_package;
 import 'theme_provider.dart';
 import 'pages/home_page.dart';
 import 'pages/planning_page.dart';
@@ -16,16 +16,22 @@ import 'pages/splash_page.dart';
 import 'pages/add_tx_page.dart';
 import 'pages/scan_receipt_page.dart';
 import 'widgets/liquid_glass_dock.dart';
-
-// ✅ 1. IMPORTA I NUOVI WIDGET
 import 'widgets/shader_helpers/background_capture_widget.dart';
 import 'dart:ui' as ui;
+import 'services/notifications_service.dart';
+import 'services/biometric_service.dart'; // 🔐 AGGIUNTO
 
-// ✅ CORRETTO: async aggiunto + dbPath definito
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // ✅ CANCELLA IL DATABASE VECCHIO
+  // Inizializza notifiche
+  await NotificationsService.initialize();
+  
+  // 🔔 CHIEDI PERMESSI E VERIFICA
+  final permissionGranted = await NotificationsService.requestPermissions();
+  debugPrint('🔔 Permessi notifiche: ${permissionGranted ? "✅ CONCESSI" : "❌ NEGATI"}');
+  
+  // Cancella database vecchio
   final dbPath = await getDatabasesPath();
   final dbFilePath = path_package.join(dbPath, 'moneyy.db');
   await deleteDatabase(dbFilePath);
@@ -49,17 +55,52 @@ class MoneyYApp extends StatefulWidget {
   State<MoneyYApp> createState() => _MoneyYAppState();
 }
 
-class _MoneyYAppState extends State<MoneyYApp> {
+class _MoneyYAppState extends State<MoneyYApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    // ✅ Ora il Provider è disponibile
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final model = Provider.of<MoneyModel>(context, listen: false);
-      model.loadInitial().then((_) {
-        model.processRecurringTransactions();
-      });
+    
+    // ✅ AGGIUNGI OBSERVER PER LIFECYCLE
+    WidgetsBinding.instance.addObserver(this);
+    
+    // 🔐 CONTROLLO BIOMETRICO ALL'AVVIO
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+      if (themeProvider.isBiometricEnabled) {
+        await Future.delayed(const Duration(milliseconds: 800));
+        final authenticated = await BiometricService.authenticate(
+          reason: 'Autentica per accedere a Moneyy',
+        );
+        if (!authenticated && mounted) {
+          SystemNavigator.pop();
+        }
+      }
+
+      // Carica dati
+      if (mounted) {
+        final model = Provider.of<MoneyModel>(context, listen: false);
+        model.loadInitial().then((_) {
+          model.processRecurringTransactions();
+        });
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    // ✅ RIMUOVI OBSERVER
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // ✅ CONTROLLA RICORRENTI QUANDO L'APP TORNA ATTIVA
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('🔄 App riattivata - Controllo ricorrenti...');
+      final model = Provider.of<MoneyModel>(context, listen: false);
+      model.processRecurringTransactions();
+    }
   }
 
   @override
@@ -88,8 +129,9 @@ class _MoneyYAppState extends State<MoneyYApp> {
 
 class MainNavigationPage extends StatefulWidget {
   const MainNavigationPage({super.key});
+
   @override
-  State createState() => _MainNavigationPageState();
+  State<MainNavigationPage> createState() => _MainNavigationPageState();
 }
 
 class _MainNavigationPageState extends State<MainNavigationPage>
@@ -99,85 +141,91 @@ class _MainNavigationPageState extends State<MainNavigationPage>
   late AnimationController _fabController;
   final GlobalKey planningKey = GlobalKey();
   late ValueNotifier<int> _dockIndex;
-
-  // ✅ 2. AGGIUNGI QUESTI PER LA CATTURA DELLO SFONDO
   final GlobalKey<BackgroundCaptureWidgetState> _captureKey = GlobalKey();
   final ValueNotifier<ui.Image?> _backgroundNotifier = ValueNotifier(null);
+  Timer? _recurringTimer;
 
   final List<DockItem> _dockItems = [
     DockItem(
-        icon: Icons.home_rounded,
-        label: 'Home',
-        activeColor: const Color(0xFF38F9D7)),
+      icon: Icons.home_rounded,
+      label: 'Home',
+      activeColor: const Color(0xFF38F9D7),
+    ),
     DockItem(
-        icon: Icons.calendar_month,
-        label: 'Planning',
-        activeColor: const Color(0xFF00E676)),
+      icon: Icons.calendar_month,
+      label: 'Planning',
+      activeColor: const Color(0xFF00E676),
+    ),
     DockItem(
-        icon: Icons.bar_chart_rounded,
-        label: 'Reports',
-        activeColor: const Color(0xFF00BFA5)),
+      icon: Icons.bar_chart_rounded,
+      label: 'Reports',
+      activeColor: const Color(0xFF00BFA5),
+    ),
     DockItem(
-        icon: Icons.settings_rounded,
-        label: 'Settings',
-        activeColor: const Color(0xFF76FF03)),
+      icon: Icons.settings_rounded,
+      label: 'Settings',
+      activeColor: const Color(0xFF76FF03),
+    ),
   ];
 
   @override
   void initState() {
     super.initState();
-    _fabController =
-        AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
+    _fabController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
     _dockIndex = ValueNotifier(_currentIndex);
     _initModel();
-    // ✅ 3. CAPTURA LO SFONDO AL PRIMO FRAME
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _captureKey.currentState?.capture();
+    });
+    
+    // ✅ CONTROLLA RICORRENTI OGNI MINUTO
+    _recurringTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      debugPrint('🔄 Timer: Controllo ricorrenti...');
+      _model?.processRecurringTransactions();
     });
   }
 
   @override
   void dispose() {
+  _recurringTimer?.cancel();
     _fabController.dispose();
     _dockIndex.dispose();
-    _backgroundNotifier.dispose(); // Pulisci il notifier
+    _backgroundNotifier.dispose();
     super.dispose();
   }
 
-  Future _initModel() async {
-    _model = Provider.of(context, listen: false);
+  Future<void> _initModel() async {
+    _model = Provider.of<MoneyModel>(context, listen: false);
   }
 
   void _onNavigate(int index, [bool? isIncome]) {
     if (index != _currentIndex) {
       HapticFeedback.selectionClick();
       _dockIndex.value = index;
+      setState(() => _currentIndex = index);
+      _captureKey.currentState?.capture();
     }
-    setState(() => _currentIndex = index);
-    // ✅ 4. RICATTURA LO SFONDO OGNI VOLTA CHE CAMBI PAGINA
-    _captureKey.currentState?.capture();
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    // L'altezza del dock la definiamo nel widget dock stesso
     final dockHeight = 82 + (bottomPadding > 0 ? 8 : 16);
-    
+
     final pages = [
       HomePage(onNavigate: _onNavigate),
       PlanningPage(key: planningKey),
       const ReportsPage(),
       const SettingsPage(),
     ];
-    
-    // ✅ 5. STRUTTURA DELLO SCAFFOLD CAMBIATA
-    // Non usiamo più bottomNavigationBar, ma uno Stack
+
     return Scaffold(
-      extendBody: true, // Fondamentale
+      extendBody: true,
       body: Stack(
         children: [
-          // Questo è lo sfondo che verrà "fotografato"
           BackgroundCaptureWidget(
             key: _captureKey,
             backgroundNotifier: _backgroundNotifier,
@@ -186,24 +234,23 @@ class _MainNavigationPageState extends State<MainNavigationPage>
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               transitionBuilder: (child, animation) => SlideTransition(
-                position:
-                    Tween(begin: const Offset(0.06, 0), end: Offset.zero)
-                        .animate(animation),
+                position: Tween<Offset>(
+                  begin: const Offset(0.06, 0),
+                  end: Offset.zero,
+                ).animate(animation),
                 child: FadeTransition(opacity: animation, child: child),
               ),
               child: KeyedSubtree(
-                  key: ValueKey(_currentIndex), child: pages[_currentIndex]),
+                key: ValueKey(_currentIndex),
+                child: pages[_currentIndex],
+              ),
             ),
           ),
-          
-          // FAB
           Positioned(
             right: 20,
-            bottom: dockHeight + 20, // Posizionato sopra il dock
+            bottom: dockHeight + 20,
             child: _buildContextFab(),
           ),
-
-          // IL NUOVO DOCK CON SHADER
           Positioned(
             left: 0,
             right: 0,
@@ -212,7 +259,6 @@ class _MainNavigationPageState extends State<MainNavigationPage>
               currentIndex: _currentIndex,
               onIndexChanged: _onNavigate,
               items: _dockItems,
-              // ✅ 6. PASSA L'IMMAGINE CATTURATA AL DOCK
               backgroundImageNotifier: _backgroundNotifier,
             ),
           ),
@@ -220,15 +266,10 @@ class _MainNavigationPageState extends State<MainNavigationPage>
       ),
     );
   }
-  
-  // ... (Tutto il resto del tuo codice _buildContextFab, _showQuickAddMenu, etc.
-  // resta invariato. Copio il resto del file da 'main.dart' che hai caricato)
 
   Widget _buildContextFab() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     if (_currentIndex == 0) {
-      // Home: FAB Aggiungi con modal
       return _buildGlassFab(
         color: const Color(0xFF6366F1),
         icon: Icons.add,
@@ -240,7 +281,6 @@ class _MainNavigationPageState extends State<MainNavigationPage>
         isDark: isDark,
       );
     } else if (_currentIndex == 1) {
-      // Planning: FAB Aggiungi
       return _buildGlassFab(
         color: const Color(0xFF10B981),
         icon: Icons.add,
@@ -258,7 +298,6 @@ class _MainNavigationPageState extends State<MainNavigationPage>
         isDark: isDark,
       );
     }
-    
     return const SizedBox.shrink();
   }
 
@@ -521,7 +560,7 @@ class _GlassQuickAction extends StatelessWidget {
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
-  
+
   const _GlassQuickAction({
     required this.icon,
     required this.title,
@@ -529,7 +568,7 @@ class _GlassQuickAction extends StatelessWidget {
     required this.color,
     required this.onTap,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -633,7 +672,6 @@ class ScanReceiptPageWithHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: PreferredSize(
@@ -663,7 +701,9 @@ class ScanReceiptPageWithHome extends StatelessWidget {
               ),
               elevation: 0,
               centerTitle: true,
-              backgroundColor: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
+              backgroundColor: isDark
+                  ? Colors.white.withOpacity(0.08)
+                  : Colors.white.withOpacity(0.85),
             ),
           ),
         ),

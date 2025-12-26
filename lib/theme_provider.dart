@@ -1,18 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider with ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.light;
+  bool _isBiometricEnabled = false;
 
   ThemeMode get themeMode => _themeMode;
+  bool get isBiometricEnabled => _isBiometricEnabled;
 
-  void toggleTheme() {
-    _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+  ThemeProvider() {
+    _loadTheme();
+    _loadBiometricSettings();
+  }
+
+  /// Carica il tema salvato
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isDark = prefs.getBool('isDarkMode') ?? false;
+    _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
     notifyListeners();
   }
 
-  void setThemeMode(ThemeMode mode) {
+  /// Carica le impostazioni biometriche
+  Future<void> _loadBiometricSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _isBiometricEnabled = prefs.getBool('isBiometricEnabled') ?? false;
+    notifyListeners();
+  }
+
+  /// Toggle tema (Light ↔ Dark)
+  Future<void> toggleTheme() async {
+    _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    notifyListeners();
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', _themeMode == ThemeMode.dark);
+  }
+
+  /// Imposta manualmente il tema
+  Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     notifyListeners();
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', mode == ThemeMode.dark);
+  }
+
+  /// Abilita/disabilita biometria
+  Future<void> setBiometricEnabled(bool value) async {
+    _isBiometricEnabled = value;
+    notifyListeners();
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isBiometricEnabled', value);
   }
 
   // 🎨 TEMA LIGHT MODERNO

@@ -91,21 +91,22 @@ class Goal {
   factory Goal.fromMap(Map map) {
   IconData? iconData;
   if (map['iconCodePoint'] != null) {
+    final codePoint = map['iconCodePoint'] as int;  // ✅ FIX
     iconData = IconData(
-      map['iconCodePoint'],
+      codePoint,
       fontFamily: 'MaterialIcons',
     );
-  } // ← Aggiungi questa parentesi
-  
-  return Goal(
-    id: map['id'],
-    title: map['title'],
-    target: map['target'],
-    saved: map['saved'],
-    isPurchased: map['isPurchased'] == 1,
-    icon: iconData,
-  );
-}
+  }
+
+    return Goal(
+      id: map['id'],
+      title: map['title'],
+      target: map['target'],
+      saved: map['saved'],
+      isPurchased: map['isPurchased'] == 1,
+      icon: iconData,
+    );
+  }
 
   Goal copyWith({
     int? id,
