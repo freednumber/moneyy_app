@@ -1,14 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:fl_chart/fl_chart.dart';
-import '../models.dart';
-import '../providers.dart';
+import 'package:intl/intl.dart';
 import 'dart:ui';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:table_calendar/table_calendar.dart';
 
-enum PeriodType { giorno, settimana, mese, anno }
-enum ChartMode { overview, income, expense }
+import '../providers/wallet_provider.dart';
+import '../providers/category_provider.dart';
+import '../models/models.dart';
+import 'add_tx_page.dart';
+
+// --- LOGICA DI FILTRO GLOBALE ---
+List<MoneyTx> filterTransactions(List<MoneyTx> allTxs, ReportType type, DateTime selectedDate) {
+  return allTxs.where((tx) {
+    switch (type) {
+      case ReportType.giorno:
+        return isSameDay(tx.date, selectedDate);
+      case ReportType.settimana:
+        final start = _getStartOfWeek(selectedDate);
+        final end = start.add(const Duration(days: 6));
+        final txDate = DateTime(tx.date.year, tx.date.month, tx.date.day);
+        final sDate = DateTime(start.year, start.month, start.day);
+        final eDate = DateTime(end.year, end.month, end.day);
+        return txDate.compareTo(sDate) >= 0 && txDate.compareTo(eDate) <= 0;
+      case ReportType.mese:
+        return tx.date.year == selectedDate.year && tx.date.month == selectedDate.month;
+      case ReportType.anno:
+        return tx.date.year == selectedDate.year;
+    }
+  }).toList();
+}
+
+DateTime _getStartOfWeek(DateTime date) {
+  return date.subtract(Duration(days: date.weekday - 1));
+}
+
+enum ReportType { giorno, settimana, mese, anno }
 
 class ReportsPage extends StatefulWidget {
   const ReportsPage({super.key});
@@ -17,1130 +45,528 @@ class ReportsPage extends StatefulWidget {
   State<ReportsPage> createState() => _ReportsPageState();
 }
 
-class _ReportsPageState extends State<ReportsPage>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
-  PeriodType selectedPeriod = PeriodType.mese;
-  ChartMode chartMode = ChartMode.overview;
-  DateTime selectedDate = DateTime.now();
-  late ValueNotifier<PeriodType> periodNotifier;
-
-  @override
-  void initState() {
-    super.initState();
-    periodNotifier = ValueNotifier(selectedPeriod);
-  }
-
-  @override
-  void dispose() {
-    periodNotifier.dispose();
-    super.dispose();
-  }
-
-  void navigatePrevious() {
-    setState(() {
-      switch (selectedPeriod) {
-        case PeriodType.giorno:
-          selectedDate = selectedDate.subtract(const Duration(days: 1));
-          break;
-        case PeriodType.settimana:
-          selectedDate = selectedDate.subtract(const Duration(days: 7));
-          break;
-        case PeriodType.mese:
-          selectedDate = DateTime(selectedDate.year, selectedDate.month - 1, 1);
-          break;
-        case PeriodType.anno:
-          selectedDate = DateTime(selectedDate.year - 1, 1, 1);
-          break;
-      }
-    });
-  }
-
-  void navigateNext() {
-    setState(() {
-      DateTime newDate;
-      final now = DateTime.now();
-
-      switch (selectedPeriod) {
-        case PeriodType.giorno:
-          newDate = selectedDate.add(const Duration(days: 1));
-          if (newDate.isAfter(now)) return;
-          selectedDate = newDate;
-          break;
-        case PeriodType.settimana:
-          newDate = selectedDate.add(const Duration(days: 7));
-          if (newDate.isAfter(now)) return;
-          selectedDate = newDate;
-          break;
-        case PeriodType.mese:
-          newDate = DateTime(selectedDate.year, selectedDate.month + 1, 1);
-          if (newDate.isAfter(now)) return;
-          selectedDate = newDate;
-          break;
-        case PeriodType.anno:
-          newDate = DateTime(selectedDate.year + 1, 1, 1);
-          if (newDate.isAfter(now)) return;
-          selectedDate = newDate;
-          break;
-      }
-    });
-  }
-
-  Future<void> pickPeriod() async {
-    switch (selectedPeriod) {
-      case PeriodType.giorno:
-        await showDayPicker();
-        break;
-      case PeriodType.settimana:
-        await showWeekPicker();
-        break;
-      case PeriodType.mese:
-        await showMonthPicker();
-        break;
-      case PeriodType.anno:
-        await showYearPicker();
-        break;
-    }
-  }
-
-  static const sliderDuration = Duration(milliseconds: 300);
-
-  Future<void> showDayPicker() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      locale: const Locale('it', 'IT'),
-    );
-
-    if (picked != null) {
-      setState(() => selectedDate = picked);
-    }
-  }
-
-  Future<void> showYearPicker() async {
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Seleziona Anno'),
-        content: SizedBox(
-          width: 300,
-          height: 300,
-          child: YearPicker(
-            firstDate: DateTime(2020),
-            lastDate: DateTime.now(),
-            selectedDate: selectedDate,
-            onChanged: (date) {
-              setState(() => selectedDate = DateTime(date.year, 1, 1));
-              Navigator.pop(context);
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> showMonthPicker() async {
-    final now = DateTime.now();
-    DateTime cursor = DateTime(now.year, now.month, 1);
-
-    await showModalBottomSheet(
-      context: context,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).dialogBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        final months = List.generate(36, (i) => DateTime(cursor.year, cursor.month - i, 1));
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Seleziona mese', style: TextStyle(fontWeight: FontWeight.w700)),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: months.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final m = months[index];
-                    final label = DateFormat('MMMM yyyy', 'it_IT').format(m);
-                    return ListTile(
-                      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() => selectedDate = m);
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> showWeekPicker() async {
-    DateTime startOfWeek(DateTime d) => d.subtract(Duration(days: d.weekday - 1));
-    final start = startOfWeek(DateTime.now());
-    final weeks = List.generate(52, (i) => start.subtract(Duration(days: 7 * i)));
-
-    await showModalBottomSheet(
-      context: context,
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).dialogBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Seleziona settimana', style: TextStyle(fontWeight: FontWeight.w700)),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Flexible(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: weeks.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final wStart = weeks[index];
-                    final wEnd = wStart.add(const Duration(days: 6));
-                    final label = '${DateFormat('d MMM', 'it_IT').format(wStart)} - ${DateFormat('d MMM yyyy', 'it_IT').format(wEnd)}';
-                    return ListTile(
-                      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() => selectedDate = wStart);
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+class _ReportsPageState extends State<ReportsPage> {
+  ReportType _currentType = ReportType.mese;
+  DateTime _selectedDate = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-    final model = Provider.of<MoneyModel>(context);
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final wallet = context.watch<WalletProvider>();
 
-    if (model.loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    final filteredTransactions = getFilteredTransactions(model);
+    final transactions = filterTransactions(wallet.transactions, _currentType, _selectedDate);
+    final income = transactions.where((t) => t.isIncome).fold(0.0, (sum, t) => sum + t.amount);
+    final expense = transactions.where((t) => !t.isIncome).fold(0.0, (sum, t) => sum + t.amount);
+    final balance = income - expense;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? const Color(0xFF0F172A) : Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          'Report Finanziario',
-          style: TextStyle(
-            color: isDarkMode ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        automaticallyImplyLeading: false,
-        elevation: 0,
-        centerTitle: true,
-        backgroundColor: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-      ),
-      body: SingleChildScrollView(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      body: SafeArea(
         child: Column(
           children: [
-            buildPeriodSelector(isDarkMode),
-            buildPeriodNavigator(isDarkMode),
-            buildChartSection(filteredTransactions, model, isDarkMode),
-            buildTransactionsList(filteredTransactions, model, isDarkMode),
+            const SizedBox(height: 20),
+            Text(
+              'Report Finanziario',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+            ),
+            const SizedBox(height: 20),
+            
+            // SELETTORE TIPO (SLIDER)
+            _buildTypeSelector(context, isDark),
+            
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                _showCustomDatePicker(context, isDark);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade300),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.calendar_month, color: Color(0xFF6366F1), size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      _getDateLabel(),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_drop_down, color: isDark ? Colors.white70 : Colors.black54),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            Column(
+              children: [
+                Text('Saldo Netto', style: TextStyle(fontSize: 14, color: isDark ? Colors.white60 : Colors.grey[600], fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                Text(
+                  wallet.format(balance),
+                  style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: balance >= 0 ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: _buildClickableSummaryCard(context: context, title: 'Entrate', amount: income, color: const Color(0xFF10B981), icon: Icons.arrow_upward, isDark: isDark, isIncome: true)),
+                        const SizedBox(width: 16),
+                        Expanded(child: _buildClickableSummaryCard(context: context, title: 'Uscite', amount: expense, color: const Color(0xFFEF4444), icon: Icons.arrow_downward, isDark: isDark, isIncome: false)),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    if (income > 0 || expense > 0) ...[
+                      Align(alignment: Alignment.centerLeft, child: Text('Panoramica', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87))),
+                      const SizedBox(height: 20),
+                      SizedBox(height: 250, child: _buildIncomeExpensePieChart(income, expense, isDark)),
+                      const SizedBox(height: 40),
+                    ] else ...[
+                      const SizedBox(height: 40),
+                      _buildEmptyChartState(isDark),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget buildPeriodSelector(bool isDarkMode) {
-  return Container(
-    margin: const EdgeInsets.all(16),
-    height: 58,
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDarkMode
-                ? Colors.white.withOpacity(0.08)
-                : Colors.white.withOpacity(0.85),
+  // --- SELETTORE TIPO ANIMATO (SLIDER) ---
+  Widget _buildTypeSelector(BuildContext context, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      height: 50,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final itemWidth = width / 4;
+          
+          return ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isDarkMode
-                  ? Colors.white.withOpacity(0.15)
-                  : Colors.white,
-              width: 1.2,
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: isDark ? Colors.white.withOpacity(0.15) : Colors.white, width: 1.2),
+                ),
+                child: Stack(
+                  children: [
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      left: _currentType.index * itemWidth,
+                      top: 4,
+                      bottom: 4,
+                      width: itemWidth,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 2))],
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: ReportType.values.map((type) {
+                        final isSelected = _currentType == type;
+                        return Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() {
+                                _currentType = type;
+                                _selectedDate = DateTime.now();
+                              });
+                            },
+                            child: Center(
+                              child: Text(
+                                type.name.capitalize(),
+                                style: TextStyle(
+                                  color: isSelected ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[600]),
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-          child: Stack(
-            children: [
-              // Slider animato con gradient
-              ValueListenableBuilder<PeriodType>(
-                valueListenable: periodNotifier,
-                builder: (context, period, _) {
-                  final idx = PeriodType.values.indexOf(period);
-                  final containerWidth = MediaQuery.of(context).size.width - 32;
-                  final tabWidth = containerWidth / 4;
-                  
-                  return AnimatedPositioned(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    left: 4 + (idx * tabWidth),
-                    top: 4,
-                    child: Container(
-                      width: tabWidth - 8,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6366F1).withOpacity(0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              
-              // Tab buttons
-              Row(
-                children: PeriodType.values.map((period) {
-                  final isSelected = selectedPeriod == period;
-                  return Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        setState(() {
-                          selectedPeriod = period;
-                          periodNotifier.value = period;
-                          
-                          // Reset data in base al periodo
-                          if (period == PeriodType.settimana) {
-                            final d = DateTime.now();
-                            selectedDate = d.subtract(Duration(days: d.weekday - 1));
-                          } else if (period == PeriodType.mese) {
-                            final d = DateTime.now();
-                            selectedDate = DateTime(d.year, d.month, 1);
-                          } else {
-                            selectedDate = DateTime.now();
-                          }
-                        });
-                      },
-                      child: Center(
-                        child: Text(
-                          getPeriodName(period),
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : (isDarkMode ? Colors.grey[400] : Colors.grey[600]),
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            fontSize: 15,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.visible,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
+          );
+        }
+      ),
+    );
+  }
+
+  Widget _buildIncomeExpensePieChart(double income, double expense, bool isDark) {
+    final total = income + expense;
+    if (total == 0) return _buildEmptyChartState(isDark);
+    final List<PieChartSectionData> sections = [];
+    if (income > 0) {
+      final percentage = (income / total * 100);
+      sections.add(PieChartSectionData(color: const Color(0xFF10B981), value: income, title: '${percentage.toStringAsFixed(0)}%', radius: 60, titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white), badgeWidget: _buildIconBadge(Icons.arrow_upward, const Color(0xFF10B981)), badgePositionPercentageOffset: .98));
+    }
+    if (expense > 0) {
+      final percentage = (expense / total * 100);
+      sections.add(PieChartSectionData(color: const Color(0xFFEF4444), value: expense, title: '${percentage.toStringAsFixed(0)}%', radius: 60, titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white), badgeWidget: _buildIconBadge(Icons.arrow_downward, const Color(0xFFEF4444)), badgePositionPercentageOffset: .98));
+    }
+    return PieChart(PieChartData(sectionsSpace: 4, centerSpaceRadius: 50, sections: sections));
+  }
+
+  Widget _buildIconBadge(IconData icon, Color color) {
+    return Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)]), child: Icon(icon, size: 16, color: color));
+  }
+
+  Widget _buildClickableSummaryCard({required BuildContext context, required String title, required double amount, required Color color, required IconData icon, required bool isDark, required bool isIncome}) {
+    return GestureDetector(
+      onTap: () { HapticFeedback.lightImpact(); Navigator.push(context, MaterialPageRoute(builder: (context) => ReportCategoryDetailPage(title: title, isIncome: isIncome, currentType: _currentType, selectedDate: _selectedDate, color: color))); },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.05) : Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.white), boxShadow: [BoxShadow(color: color.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 8))]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle), child: Icon(icon, color: color, size: 24)),
+            const SizedBox(height: 16),
+            Text(title, style: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Colors.grey[600], fontWeight: FontWeight.w500)),
+            const SizedBox(height: 4),
+            FittedBox(fit: BoxFit.scaleDown, child: Text(NumberFormat.currency(locale: 'it_IT', symbol: '€', decimalDigits: 0).format(amount), style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87))),
+            const SizedBox(height: 8),
+            Row(children: [Text('Vedi dettagli', style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)), const SizedBox(width: 4), Icon(Icons.arrow_forward_ios, size: 10, color: color)]),
+          ],
         ),
       ),
-    ),
-  );
+    );
+  }
+
+  Widget _buildEmptyChartState(bool isDark) {
+    return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.pie_chart_outline, size: 60, color: isDark ? Colors.white24 : Colors.grey[300]), const SizedBox(height: 16), Text("Nessun dato per questo periodo", style: TextStyle(color: isDark ? Colors.white54 : Colors.grey))]));
+  }
+
+  String _getDateLabel() {
+    final locale = 'it_IT';
+    switch (_currentType) {
+      case ReportType.giorno:
+        if (isSameDay(_selectedDate, DateTime.now())) return "Oggi";
+        return DateFormat('EEE d MMM yyyy', locale).format(_selectedDate);
+      case ReportType.settimana:
+        final start = _getStartOfWeek(_selectedDate);
+        final end = start.add(const Duration(days: 6));
+        return "${DateFormat('d MMM', locale).format(start)} - ${DateFormat('d MMM', locale).format(end)}";
+      case ReportType.mese:
+        return DateFormat('MMMM yyyy', locale).format(_selectedDate).capitalize();
+      case ReportType.anno:
+        return DateFormat('yyyy').format(_selectedDate);
+    }
+  }
+
+  void _showCustomDatePicker(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context, backgroundColor: Colors.transparent, isScrollControlled: true,
+      builder: (ctx) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              height: 500,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: isDark ? const Color(0xFF1E293B).withOpacity(0.95) : Colors.white.withOpacity(0.95), borderRadius: const BorderRadius.vertical(top: Radius.circular(28)), border: Border.all(color: Colors.white.withOpacity(0.2))),
+              child: Column(
+                children: [
+                  Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.4), borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 20),
+                  Text(_getPickerTitle(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                  const SizedBox(height: 20),
+                  Expanded(child: _buildSpecificPickerContent(ctx, isDark)),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _getPickerTitle() {
+    switch (_currentType) {
+      case ReportType.giorno: return "Seleziona Giorno";
+      case ReportType.settimana: return "Seleziona Settimana";
+      case ReportType.mese: return "Seleziona Mese";
+      case ReportType.anno: return "Seleziona Anno";
+    }
+  }
+
+  Widget _buildSpecificPickerContent(BuildContext ctx, bool isDark) {
+    final now = DateTime.now();
+    switch (_currentType) {
+      case ReportType.giorno:
+        return TableCalendar(
+          firstDay: DateTime(2020), lastDay: now, focusedDay: _selectedDate.isAfter(now) ? now : _selectedDate, currentDay: now, calendarFormat: CalendarFormat.month,
+          headerStyle: HeaderStyle(formatButtonVisible: false, titleCentered: true, titleTextStyle: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 18, fontWeight: FontWeight.bold), leftChevronIcon: Icon(Icons.chevron_left, color: isDark ? Colors.white : Colors.black87), rightChevronIcon: Icon(Icons.chevron_right, color: isDark ? Colors.white : Colors.black87)),
+          calendarStyle: CalendarStyle(defaultTextStyle: TextStyle(color: isDark ? Colors.white : Colors.black87), weekendTextStyle: const TextStyle(color: Color(0xFFEF4444)), todayDecoration: BoxDecoration(color: const Color(0xFF6366F1).withOpacity(0.3), shape: BoxShape.circle), selectedDecoration: const BoxDecoration(color: Color(0xFF6366F1), shape: BoxShape.circle), disabledTextStyle: const TextStyle(color: Colors.grey)),
+          selectedDayPredicate: (day) => isSameDay(_selectedDate, day),
+          onDaySelected: (selectedDay, focusedDay) { setState(() { _selectedDate = selectedDay; }); Navigator.pop(ctx); },
+        );
+      case ReportType.settimana:
+        return ListView.builder(
+          itemCount: 52 * 5,
+          itemBuilder: (context, index) {
+            final currentWeekStart = _getStartOfWeek(now);
+            final startOfWeek = currentWeekStart.subtract(Duration(days: index * 7));
+            final endOfWeek = startOfWeek.add(const Duration(days: 6));
+            final isSelected = isSameDay(startOfWeek, _getStartOfWeek(_selectedDate));
+            final label = "${DateFormat('d MMM', 'it_IT').format(startOfWeek)} - ${DateFormat('d MMM yyyy', 'it_IT').format(endOfWeek)}";
+            return InkWell(onTap: () { setState(() => _selectedDate = startOfWeek); Navigator.pop(ctx); }, child: Container(margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16), decoration: BoxDecoration(gradient: isSelected ? const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)]) : null, color: isSelected ? null : (isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100]), borderRadius: BorderRadius.circular(12)), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label, style: TextStyle(color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black87), fontSize: 16)), if (isSelected) const Icon(Icons.check_circle, color: Colors.white, size: 20)])));
+          },
+        );
+      case ReportType.mese:
+        return GridView.builder(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 1.8, crossAxisSpacing: 12, mainAxisSpacing: 12),
+          itemCount: 36,
+          itemBuilder: (context, index) {
+            final date = DateTime(now.year, now.month - index, 1);
+            final isSelected = date.year == _selectedDate.year && date.month == _selectedDate.month;
+            final label = "${DateFormat('MMM', 'it_IT').format(date).toUpperCase()} ${DateFormat('yy').format(date)}";
+            return InkWell(onTap: () { setState(() => _selectedDate = date); Navigator.pop(ctx); }, child: Container(decoration: BoxDecoration(color: isSelected ? const Color(0xFF6366F1) : (isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100]), borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87)))));
+          },
+        );
+      case ReportType.anno:
+        return ListView.builder(
+          itemCount: 10,
+          itemBuilder: (context, index) {
+            final year = now.year - index;
+            final isSelected = year == _selectedDate.year;
+            return InkWell(onTap: () { setState(() => _selectedDate = DateTime(year, 1, 1)); Navigator.pop(ctx); }, child: Container(margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: isSelected ? const Color(0xFF6366F1) : (isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100]), borderRadius: BorderRadius.circular(12)), alignment: Alignment.center, child: Text("$year", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black87)))));
+          },
+        );
+    }
+  }
 }
 
-  Widget buildPeriodNavigator(bool isDarkMode) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-            onPressed: navigatePrevious,
-            iconSize: 28,
-          ),
-          const SizedBox(width: 16),
-          InkWell(
-            onTap: pickPeriod,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: isDarkMode
-                    ? const Color(0xFF10B981).withOpacity(0.15)
-                    : const Color(0xFF10B981).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    getSelectedPeriodText(),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: isDarkMode ? const Color(0xFF34D399) : const Color(0xFF10B981),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.calendar_today,
-                    size: 16,
-                    color: isDarkMode ? const Color(0xFF34D399) : const Color(0xFF10B981),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-            onPressed: navigateNext,
-            iconSize: 28,
-          ),
-        ],
-      ),
-    );
-  }
+class ReportCategoryDetailPage extends StatelessWidget {
+  final String title;
+  final bool isIncome;
+  final ReportType currentType;
+  final DateTime selectedDate;
+  final Color color;
 
-  Widget buildChartSection(List<MoneyTx> transactions, MoneyModel model, bool isDarkMode) {
-    final totalIncome = transactions.where((tx) => tx.isIncome).fold(0.0, (sum, tx) => sum + tx.amount);
-    final totalExpense = transactions.where((tx) => !tx.isIncome).fold(0.0, (sum, tx) => sum + tx.amount);
-    final netBalance = totalIncome - totalExpense;
+  const ReportCategoryDetailPage({
+    super.key,
+    required this.title,
+    required this.isIncome,
+    required this.currentType,
+    required this.selectedDate,
+    required this.color,
+  });
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey[900]!.withOpacity(0.8) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDarkMode ? 0.4 : 0.1),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          if (totalIncome + totalExpense > 0) ...[
-            SizedBox(
-              height: 200,
-              child: PieChart(
-                PieChartData(
-                  sectionsSpace: 4,
-                  centerSpaceRadius: 60,
-                  sections: [
-                    if (totalIncome > 0)
-                      PieChartSectionData(
-                        color: Colors.green.shade600,
-                        value: totalIncome,
-                        title: '${((totalIncome / (totalIncome + totalExpense)) * 100).toInt()}%',
-                        radius: 50,
-                        titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    if (totalExpense > 0)
-                      PieChartSectionData(
-                        color: Colors.red.shade600,
-                        value: totalExpense,
-                        title: '${((totalExpense / (totalIncome + totalExpense)) * 100).toInt()}%',
-                        radius: 50,
-                        titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: buildTotalCard('Entrate', totalIncome, Colors.green.shade600, model, Icons.arrow_upward, isDarkMode),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: buildTotalCard('Uscite', totalExpense, Colors.red.shade600, model, Icons.arrow_downward, isDarkMode),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: netBalance >= 0
-                      ? [const Color(0xFF10B981), const Color(0xFF059669)]
-                      : [const Color(0xFFEF4444), const Color(0xFFDC2626)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: (netBalance >= 0 ? Colors.green : Colors.red).withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Saldo Netto',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  Text(
-                    model.format(netBalance.abs()),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            SizedBox(
-              height: 200,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.pie_chart_outline,
-                      size: 64,
-                      color: isDarkMode ? Colors.grey[600] : Colors.grey.shade400,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Nessuna transazione nel periodo',
-                      style: TextStyle(
-                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-  Widget buildTotalCard(String label, double amount, Color color, MoneyModel model, IconData icon, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: isDark ? color.withOpacity(0.15) : color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? color.withOpacity(0.4) : color.withOpacity(0.3),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(isDark ? 0.2 : 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
+    return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: Text(title, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(icon: Icon(Icons.arrow_back_ios_new, color: isDark ? Colors.white : Colors.black87), onPressed: () => Navigator.pop(context)),
       ),
-      child: Column(
-        children: [
-          Icon(icon, color: isDark ? color.withOpacity(0.9) : color, size: 28),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.grey[300] : Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.2,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            model.format(amount),
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : color,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      body: Consumer<WalletProvider>(
+        builder: (context, wallet, child) {
+          final currentTransactions = filterTransactions(wallet.transactions, currentType, selectedDate).where((t) => t.isIncome == isIncome).toList();
 
-  Widget buildTransactionsList(List<MoneyTx> transactions, MoneyModel model, bool isDarkMode) {
-    if (transactions.isEmpty) {
-      return Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(40),
-        decoration: BoxDecoration(
-          color: isDarkMode ? Colors.grey[900]!.withOpacity(0.6) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.2),
-          ),
-        ),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(
-                Icons.receipt_long_rounded,
-                size: 64,
-                color: isDarkMode ? Colors.grey[600] : Colors.grey[400],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Nessuna transazione trovata',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+          if (currentTransactions.isEmpty) return Center(child: Text("Nessuna transazione", style: TextStyle(color: isDark ? Colors.white54 : Colors.grey)));
 
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey[900]!.withOpacity(0.8) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.2),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDarkMode ? 0.4 : 0.1),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
+          final Map<String, List<MoneyTx>> grouped = {};
+          for (var tx in currentTransactions) {
+            if (!grouped.containsKey(tx.category)) grouped[tx.category] = [];
+            grouped[tx.category]!.add(tx);
+          }
+          final sortedKeys = grouped.keys.toList()..sort((k1, k2) => grouped[k2]!.fold(0.0, (s, t) => s + t.amount).compareTo(grouped[k1]!.fold(0.0, (s, t) => s + t.amount)));
+
+          return ListView.builder(
             padding: const EdgeInsets.all(20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Transazioni (${transactions.length})',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isDarkMode ? Colors.white : Colors.black87,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                if (transactions.isNotEmpty)
-                  Text(
-                    'Swipe → elimina',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDarkMode ? Colors.grey[400] : Colors.grey.shade600,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: transactions.length,
+            itemCount: sortedKeys.length,
             itemBuilder: (context, index) {
-              final tx = transactions[index];
-              final style = model.getTransactionStyle(tx.category);
-              final isRecurring = tx.isFromRecurring ?? false;
-              final isGoalSaving = tx.category == 'Risparmio' && tx.note != null && tx.note!.contains('Aggiunto a obiettivo');
+              final category = sortedKeys[index];
+              final txs = grouped[category]!;
+              final total = txs.fold(0.0, (sum, t) => sum + t.amount);
+              final catStyle = context.read<CategoryProvider>().getTransactionStyle(category);
 
-              return Dismissible(
-                key: Key('${tx.id}-${tx.date.millisecondsSinceEpoch}-${tx.category}'),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  margin: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: index == 0 ? 0 : 4,
-                    bottom: index == transactions.length - 1 ? 16 : 4,
-                  ),
-                  padding: const EdgeInsets.only(right: 20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  alignment: Alignment.centerRight,
-                  child: const Icon(Icons.delete, color: Colors.white, size: 28),
-                ),
-                confirmDismiss: (direction) async {
-                  HapticFeedback.mediumImpact();
-
-                  if (isRecurring) {
-                    return await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
-                        title: Text('Elimina Ricorrente', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black87)),
-                        content: Text('Vuoi eliminare questa transazione ricorrente? Non apparirà più nei report futuri.', style: TextStyle(color: isDarkMode ? Colors.grey[300] : Colors.black87)),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Elimina'),
-                          ),
-                        ],
-                      ),
-                    ) ?? false;
-                  }
-
-                  if (isGoalSaving) {
-                    return await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
-                        title: Text('Elimina Risparmio', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black87)),
-                        content: Text('Eliminando questo risparmio, l\'importo sarà rimosso dall\'obiettivo e tornerà sul saldo netto.', style: TextStyle(color: isDarkMode ? Colors.grey[300] : Colors.black87)),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Elimina'),
-                          ),
-                        ],
-                      ),
-                    ) ?? false;
-                  }
-
-                  return await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
-                      title: Text('Elimina Transazione', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black87)),
-                      content: Text('Sei sicuro di voler eliminare questa transazione?', style: TextStyle(color: isDarkMode ? Colors.grey[300] : Colors.black87)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annulla')),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Elimina', style: TextStyle(color: Colors.white)),
-                        ),
-                      ],
-                    ),
-                  ) ?? false;
-                },
-                onDismissed: (direction) async {
-                  if (isRecurring) {
-                    final recurring = model.recurringTransactions.firstWhere(
-                      (r) => r.category == tx.category && r.amount == tx.amount && r.isIncome == tx.isIncome,
-                    );
-                    if (recurring.id != null) {
-                      await model.deleteRecurring(recurring.id!);
-                    }
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Transazione ricorrente eliminata'), backgroundColor: Colors.red),
-                      );
-                    }
-                  } else if (isGoalSaving && tx.note != null) {
-                    final goalTitle = tx.note!.replaceAll('Aggiunto a obiettivo: ', '');
-                    final goal = model.goals.firstWhere((g) => g.title == goalTitle, orElse: () => model.goals.first);
-
-                    if (goal.id != null) {
-                      final updatedGoal = goal.copyWith(saved: goal.saved - tx.amount);
-                      await model.updateGoal(updatedGoal);
-                    }
-
-                    if (tx.id != null) {
-                      await model.deleteTransaction(tx.id!);
-                    }
-
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Risparmio eliminato. €${tx.amount.toStringAsFixed(2)} rimossi dall\'obiettivo'), backgroundColor: Colors.orange),
-                      );
-                    }
-                  } else {
-                    if (tx.id != null) {
-                      await model.deleteTransaction(tx.id!);
-                    }
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Transazione eliminata'), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating),
-                      );
-                    }
-                  }
-                },
-                child: InkWell(
-                  onTap: (!isRecurring && !isGoalSaving) ? () => showEditTransactionDialog(tx, model, isDarkMode) : null,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    margin: EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      top: index == 0 ? 0 : 4,
-                      bottom: index == transactions.length - 1 ? 16 : 4,
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? Colors.grey[850]!.withOpacity(0.5) : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isRecurring
-                            ? const Color(0xFF6366F1).withOpacity(isDarkMode ? 0.4 : 0.3)
-                            : (isDarkMode ? Colors.white.withOpacity(0.08) : Colors.grey.withOpacity(0.2)),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        if (isRecurring)
-                          Container(
-                            margin: const EdgeInsets.only(right: 12),
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6366F1).withOpacity(0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.repeat, color: Color(0xFF6366F1), size: 16),
-                          ),
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [style.color, style.color.withOpacity(0.8)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: style.color.withOpacity(0.3),
-                                blurRadius: 6,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Icon(style.icon, color: Colors.white, size: 24),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                tx.category,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 15,
-                                  color: isDarkMode ? Colors.white : Colors.black87,
-                                  letterSpacing: 0.1,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                tx.note ?? DateFormat('d MMMM yyyy', 'it_IT').format(tx.date),
-                                style: TextStyle(
-                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                                  fontSize: 13,
-                                  letterSpacing: 0.1,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              tx.isIncome ? '+${model.format(tx.amount)}' : '-${model.format(tx.amount)}',
-                              style: TextStyle(
-                                color: tx.isIncome
-                                    ? (isDarkMode ? const Color(0xFF34D399) : Colors.green.shade700)
-                                    : (isDarkMode ? const Color(0xFFFF6B6B) : Colors.red.shade700),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              DateFormat('HH:mm', 'it_IT').format(tx.date),
-                              style: TextStyle(
-                                color: isDarkMode ? Colors.grey[500] : Colors.grey[500],
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.05) : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade100), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4))]),
+                child: Theme(
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: catStyle.color.withOpacity(0.2), shape: BoxShape.circle), child: Icon(catStyle.icon, color: catStyle.color, size: 24)),
+                    title: Text(category, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                    trailing: Text(wallet.format(total), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+                    children: txs.map((tx) => _buildSlideTransactionCard(context, tx, wallet, isDark)).toList(),
                   ),
                 ),
               );
             },
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  void showEditTransactionDialog(MoneyTx tx, MoneyModel model, bool isDark) {
-    final amountController = TextEditingController(text: tx.amount.toStringAsFixed(2));
-    final noteController = TextEditingController(text: tx.note ?? '');
-    DateTime selectedDate = tx.date;
-    PaymentMethod selectedPayment = tx.payment;
+  Widget _buildSlideTransactionCard(BuildContext context, MoneyTx tx, WalletProvider wallet, bool isDark) {
+    return Dismissible(
+      key: Key(tx.id.toString()),
+      direction: DismissDirection.horizontal,
+      background: Container(alignment: Alignment.centerLeft, padding: const EdgeInsets.symmetric(horizontal: 20), color: Colors.blue, child: const Icon(Icons.edit, color: Colors.white)),
+      secondaryBackground: Container(alignment: Alignment.centerRight, padding: const EdgeInsets.symmetric(horizontal: 20), color: Colors.red, child: const Icon(Icons.delete, color: Colors.white)),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.endToStart) {
+          // 🔥 FIX: Usa il dialog Glass personalizzato
+          return await _showGlassConfirmDialog(context, 'Eliminare?', 'Vuoi davvero eliminare questa transazione?', 'Elimina', Colors.red, isDark);
+        } else {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => AddTxPage(isIncome: tx.isIncome, existingTx: tx)));
+          return false;
+        }
+      },
+      onDismissed: (direction) {
+        if (direction == DismissDirection.endToStart && tx.id != null) {
+          wallet.deleteTransaction(tx.id!);
+        }
+      },
+      child: _buildTransactionCard(context, tx, wallet, isDark),
+    );
+  }
 
-    showDialog(
+  // 🔥 NUOVO DIALOGO GLASS PER CONFERMA
+  Future<bool?> _showGlassConfirmDialog(BuildContext context, String title, String content, String confirmText, Color confirmColor, bool isDark) {
+    return showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-          title: Text('Modifica ${tx.category}', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-          content: SingleChildScrollView(
+      builder: (ctx) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10))],
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                  decoration: InputDecoration(
-                    labelText: 'Importo',
-                    prefixText: '€ ',
-                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
-                  ),
-                ),
+                Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87), textAlign: TextAlign.center),
                 const SizedBox(height: 16),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('Data: ${DateFormat('d MMMM yyyy', 'it_IT').format(selectedDate)}', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now(),
-                    );
-                    if (date != null) {
-                      setDialogState(() => selectedDate = date);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<PaymentMethod>(
-                  value: selectedPayment,
-                  decoration: InputDecoration(
-                    labelText: 'Metodo di pagamento',
-                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
-                  ),
-                  dropdownColor: isDark ? Colors.grey[800] : Colors.white,
-                  items: PaymentMethod.values.map((method) {
-                    return DropdownMenuItem(
-                      value: method,
-                      child: Text(method.name.toUpperCase(), style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setDialogState(() => selectedPayment = val);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: noteController,
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                  decoration: InputDecoration(
-                    labelText: 'Note (opzionale)',
-                    labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
-                  ),
-                  maxLines: 2,
+                Text(content, style: TextStyle(fontSize: 16, color: isDark ? Colors.white70 : Colors.black54), textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => Navigator.pop(ctx, false),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.2), borderRadius: BorderRadius.circular(16)), child: Text('Annulla', textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold))),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => Navigator.pop(ctx, true),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(padding: const EdgeInsets.symmetric(vertical: 14), decoration: BoxDecoration(color: confirmColor, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: confirmColor.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))]), child: Text(confirmText, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annulla')),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
-              onPressed: () async {
-                final amount = double.tryParse(amountController.text);
-                if (amount == null || amount <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Inserisci un importo valido'), backgroundColor: Colors.red),
-                  );
-                  return;
-                }
-
-                final updated = MoneyTx(
-                  id: tx.id,
-                  isIncome: tx.isIncome,
-                  category: tx.category,
-                  amount: amount,
-                  date: selectedDate,
-                  payment: selectedPayment,
-                  note: noteController.text.isEmpty ? null : noteController.text,
-                );
-
-                await model.updateTransaction(updated);
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Transazione aggiornata!'), backgroundColor: Color(0xFF10B981)),
-                  );
-                }
-              },
-              child: const Text('Salva'),
-            ),
-          ],
         ),
       ),
     );
   }
 
-  // ✅ FUNZIONI AGGIUNTE
-  String getPeriodName(PeriodType period) {
-    switch (period) {
-      case PeriodType.giorno:
-        return 'Giorno';
-      case PeriodType.settimana:
-        return 'Settimana';
-      case PeriodType.mese:
-        return 'Mese';
-      case PeriodType.anno:
-        return 'Anno';
-    }
+  Widget _buildTransactionCard(BuildContext context, MoneyTx tx, WalletProvider wallet, bool isDark) {
+    final style = context.read<CategoryProvider>().getTransactionStyle(tx.category);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade50, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200, width: 1)),
+      child: Row(
+        children: [
+          Container(width: 48, height: 48, decoration: BoxDecoration(gradient: LinearGradient(colors: [style.color, style.color.withOpacity(0.7)]), borderRadius: BorderRadius.circular(12)), child: Icon(style.icon, color: Colors.white, size: 24)),
+          const SizedBox(width: 12),
+          Expanded(
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // ✅ MODIFICA QUI
+      Row(
+        children: [
+          Flexible( // Usa Flexible per evitare overflow se il testo è lungo
+            child: Text(
+              tx.note != null && tx.note!.isNotEmpty ? tx.note! : tx.category,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (tx.isRecurring) ...[
+            const SizedBox(width: 6),
+            Icon(
+              Icons.repeat,
+              size: 14,
+              color: isDark ? Colors.white60 : Colors.grey,
+            ),
+          ],
+        ],
+      ),
+      const SizedBox(height: 4),
+      Text(
+        DateFormat('d MMM yyyy - HH:mm', 'it_IT').format(tx.date),
+        style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.grey[600]),
+      ),
+    ],
+  ),
+),
+          Text('${tx.isIncome ? '+' : '-'} ${wallet.format(tx.amount)}', style: TextStyle(fontWeight: FontWeight.bold, color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444), fontSize: 14)),
+        ],
+      ),
+    );
   }
+}
 
-  String getSelectedPeriodText() {
-    switch (selectedPeriod) {
-      case PeriodType.giorno:
-        return DateFormat('d MMMM yyyy', 'it_IT').format(selectedDate);
-      case PeriodType.settimana:
-        final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
-        final endOfWeek = startOfWeek.add(const Duration(days: 6));
-        return '${DateFormat('d', 'it_IT').format(startOfWeek)} - ${DateFormat('d MMMM', 'it_IT').format(endOfWeek)}';
-      case PeriodType.mese:
-        return DateFormat('MMMM yyyy', 'it_IT').format(selectedDate);
-      case PeriodType.anno:
-        return DateFormat('yyyy', 'it_IT').format(selectedDate);
-    }
-  }
-
-  List<MoneyTx> getFilteredTransactions(MoneyModel model) {
-    DateTime start, end;
-
-    switch (selectedPeriod) {
-      case PeriodType.giorno:
-        start = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-        end = start.add(const Duration(days: 1));
-        break;
-      case PeriodType.settimana:
-        start = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
-        end = start.add(const Duration(days: 7));
-        break;
-      case PeriodType.mese:
-        start = DateTime(selectedDate.year, selectedDate.month, 1);
-        end = DateTime(selectedDate.year, selectedDate.month + 1, 1);
-        break;
-      case PeriodType.anno:
-        start = DateTime(selectedDate.year, 1, 1);
-        end = DateTime(selectedDate.year + 1, 1, 1);
-        break;
-    }
-
-    // ✅ CORRETTO: Solo transazioni reali, NO ricorrenti
-    final monthTxs = model.transactions
-        .where((tx) =>
-            tx.date.isAfter(start.subtract(const Duration(days: 1))) &&
-            tx.date.isBefore(end))
-        .toList();
-
-    // Ordina per data decrescente
-    monthTxs.sort((a, b) => b.date.compareTo(a.date));
-    
-    return monthTxs;
+extension StringExtension on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }

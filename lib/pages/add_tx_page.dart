@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../providers.dart';
-import '../models.dart';
+
+// ✅ IMPORT NUOVI E CORRETTI
+import '../providers/wallet_provider.dart';
+import '../providers/category_provider.dart';
+import '../models/transaction_model.dart'; // Assicurati che MoneyTx e PaymentMethod siano qui o esportati da qui
 import 'category_manager_page.dart';
 
 class AddTxPage extends StatefulWidget {
@@ -71,7 +74,9 @@ class _AddTxPageState extends State<AddTxPage> {
       return;
     }
 
-    final model = Provider.of<MoneyModel>(context, listen: false);
+    // ✅ CORREZIONE: Usiamo WalletProvider invece di MoneyModel
+    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+    
     final tx = MoneyTx(
       id: widget.existingTx?.id,
       isIncome: _isIncome,
@@ -84,9 +89,9 @@ class _AddTxPageState extends State<AddTxPage> {
 
     try {
       if (widget.existingTx == null) {
-        await model.addTx(tx);
+        await walletProvider.addTx(tx);
       } else {
-        await model.updateTransaction(tx);
+        await walletProvider.updateTransaction(tx);
       }
 
       if (mounted) {
@@ -118,11 +123,14 @@ class _AddTxPageState extends State<AddTxPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final model = Provider.of<MoneyModel>(context);
+    
+    // ✅ CORREZIONE: Usiamo CategoryProvider per ottenere le categorie
+    final catProvider = Provider.of<CategoryProvider>(context);
 
+    // Usa le liste dal nuovo provider
     final categories = _isIncome
-        ? model.allIncomeCats
-        : model.allExpenseCats.where((c) => c != 'Altro').toList();
+        ? catProvider.allIncomeCats
+        : catProvider.allExpenseCats.where((c) => c != 'Altro').toList();
 
     final visibleCategories = _showAllCategories
         ? categories
@@ -133,7 +141,6 @@ class _AddTxPageState extends State<AddTxPage> {
       appBar: _buildAppBar(isDark),
       body: Stack(
         children: [
-          // ✅ CONTENUTO SCROLLABILE
           SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
             child: Column(
@@ -143,7 +150,8 @@ class _AddTxPageState extends State<AddTxPage> {
                 const SizedBox(height: 24),
                 _buildAmountField(isDark),
                 const SizedBox(height: 24),
-                _buildCategorySection(isDark, visibleCategories, categories),
+                // Passiamo catProvider per ottenere gli stili
+                _buildCategorySection(isDark, visibleCategories, categories, catProvider),
                 const SizedBox(height: 24),
                 _buildDateField(isDark),
                 const SizedBox(height: 24),
@@ -154,7 +162,6 @@ class _AddTxPageState extends State<AddTxPage> {
             ),
           ),
 
-          // ✅ BOTTONE IN SOVRIMPRESSIONE
           Positioned(
             left: 0,
             right: 0,
@@ -351,9 +358,8 @@ class _AddTxPageState extends State<AddTxPage> {
     );
   }
 
-  Widget _buildCategorySection(bool isDark, List<String> visibleCategories, List<String> allCategories) {
-    final model = Provider.of<MoneyModel>(context, listen: false);
-
+  // ✅ CORREZIONE: Aggiunto CategoryProvider come parametro
+  Widget _buildCategorySection(bool isDark, List<String> visibleCategories, List<String> allCategories, CategoryProvider catProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -379,7 +385,8 @@ class _AddTxPageState extends State<AddTxPage> {
           itemCount: visibleCategories.length,
           itemBuilder: (context, index) {
             final cat = visibleCategories[index];
-            final style = model.getTransactionStyle(cat);
+            // ✅ Usa il nuovo provider per lo stile
+            final style = catProvider.getTransactionStyle(cat);
             final isSelected = _selectedCategory == cat;
 
             return GestureDetector(
@@ -485,16 +492,16 @@ class _AddTxPageState extends State<AddTxPage> {
         ],
 
         const SizedBox(height: 12),
-GestureDetector(
-  onTap: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const CategoryManagerPage(),
-      ),
-    );
-  },
-  child: Container(
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CategoryManagerPage(),
+              ),
+            );
+          },
+          child: Container(
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
             decoration: BoxDecoration(
               gradient: LinearGradient(

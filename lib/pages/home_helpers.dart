@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../models.dart';
-import '../providers.dart';
+import '../providers/wallet_provider.dart';   // ✅ NUOVO
+import '../providers/category_provider.dart'; // ✅ NUOVO
+import '../models/transaction_model.dart';    // ✅ NUOVO
 
 // Questo file contiene solo i metodi che mancavano nella classe _HomePageState.
 // Inserito come mixin per chiarezza; alternativamente si possono incollare direttamente nella classe.
@@ -153,12 +154,44 @@ mixin HomePageGlassHelpers {
           ),
           SizedBox(width: isCompact ? 12 : 16),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(tx.category, style: TextStyle(fontWeight: FontWeight.w600, fontSize: isCompact ? 14 : 16, color: isDark ? Colors.white : const Color(0xFF1E293B))),
-              SizedBox(height: 4),
-              Text(DateFormat('d MMM yyyy', 'it_IT').format(tx.date), style: TextStyle(fontSize: isCompact ? 11 : 12, color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[500])),
-            ]),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // ✅ MODIFICA QUI
+      Row(
+        children: [
+          Flexible(
+            child: Text(
+              tx.category,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: isCompact ? 14 : 16,
+                color: isDark ? Colors.white : const Color(0xFF1E293B),
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
+          if (tx.isRecurring) ...[
+            const SizedBox(width: 6),
+            Icon(
+              Icons.repeat,
+              size: isCompact ? 12 : 14,
+              color: isDark ? Colors.white60 : Colors.grey,
+            ),
+          ],
+        ],
+      ),
+      SizedBox(height: 4),
+      Text(
+        DateFormat('d MMM yyyy', 'it_IT').format(tx.date),
+        style: TextStyle(
+          fontSize: isCompact ? 11 : 12,
+          color: isDark ? Colors.white.withOpacity(0.6) : Colors.grey[500],
+        ),
+      ),
+    ],
+  ),
+),
           Text(
             '${tx.isIncome ? '+' : '-'} ${model.format(tx.amount)}',
             style: TextStyle(fontWeight: FontWeight.bold, color: tx.isIncome ? const Color(0xFF10B981) : const Color(0xFFEF4444), fontSize: isCompact ? 14 : 16),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers.dart';
+import '../providers/wallet_provider.dart';   // ✅ NUOVO
+import '../providers/category_provider.dart'; // ✅ NUOVO
+import '../models/transaction_model.dart';    // ✅ NUOVO
 import '../widgets/liquid_glass_card.dart';
 
 class MoneyyGlassHome extends StatelessWidget {

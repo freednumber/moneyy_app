@@ -3,13 +3,37 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui';
 import '../theme_provider.dart';
-import '../providers.dart';
+import '../providers/wallet_provider.dart';
+import '../providers/category_provider.dart';
 import 'io_page.dart';
 import '../services/biometric_service.dart';
 import '../services/notifications_service.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  // Stato locale per lo switch per aggiornamento immediato
+  bool _isBiometricSwitchOn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricState();
+  }
+
+  Future<void> _loadBiometricState() async {
+    final enabled = await BiometricService.getEnabled();
+    if (mounted) {
+      setState(() {
+        _isBiometricSwitchOn = enabled;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,62 +125,68 @@ class SettingsPage extends StatelessWidget {
                       builder: (context, snapshot) {
                         final isAvailable = snapshot.data ?? false;
                         
-                        return Consumer<ThemeProvider>(
-                          builder: (context, themeProvider, _) {
-                            return SwitchListTile(
-                              title: FutureBuilder<String>(
-                                future: BiometricService.getBiometricTypeName(),
-                                builder: (context, nameSnapshot) {
-                                  return Text(
-                                    'Sblocco con ${nameSnapshot.data ?? "biometria"}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? Colors.white : Colors.black87,
-                                    ),
-                                  );
-                                },
-                              ),
-                              subtitle: Text(
-                                isAvailable
-                                    ? 'Proteggi i tuoi dati con autenticazione biometrica'
-                                    : 'Non disponibile su questo dispositivo',
+                        return SwitchListTile(
+                          title: FutureBuilder<String>(
+                            future: BiometricService.getBiometricTypeName(),
+                            builder: (context, nameSnapshot) {
+                              return Text(
+                                'Sblocco con ${nameSnapshot.data ?? "biometria"}',
                                 style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : Colors.black87,
                                 ),
-                              ),
-                              value: themeProvider.isBiometricEnabled,
-                              onChanged: isAvailable
-                                  ? (value) async {
-                                      if (value) {
-                                        final authenticated = await BiometricService.authenticate(
-                                          reason: 'Verifica la tua identità per abilitare lo sblocco biometrico',
+                              );
+                            },
+                          ),
+                          subtitle: Text(
+                            isAvailable
+                                ? 'Proteggi i tuoi dati con autenticazione biometrica'
+                                : 'Hardware non disponibile o permessi negati',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            ),
+                          ),
+                          value: _isBiometricSwitchOn,
+                          activeColor: const Color(0xFF6366F1),
+                          onChanged: isAvailable
+                              ? (bool newValue) async {
+                                  // Se attiviamo lo switch
+                                  if (newValue) {
+                                    // 1. Chiediamo auth: questo triggera il PERMESSO IOS se è la prima volta
+                                    final authenticated = await BiometricService.authenticate(
+                                      reason: 'Conferma per attivare Face ID',
+                                    );
+                                    
+                                    if (authenticated) {
+                                      await BiometricService.setEnabled(true);
+                                      setState(() => _isBiometricSwitchOn = true);
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('✅ Sblocco attivato! Al prossimo avvio sarà richiesto.')),
                                         );
-                                        
-                                        if (authenticated) {
-                                          themeProvider.setBiometricEnabled(true);
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('✅ Sblocco biometrico attivato'),
-                                                backgroundColor: Colors.green,
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      } else {
-                                        themeProvider.setBiometricEnabled(false);
                                       }
                                     }
-                                  : null,
-                              secondary: Icon(
-                                Icons.fingerprint,
-                                color: isAvailable
-                                    ? (isDark ? const Color(0xFF38F9D7) : const Color(0xFF10B981))
-                                    : Colors.grey,
-                              ),
-                            );
-                          },
+                                  }
+                                  // Se disattiviamo lo switch
+                                  else {
+                                    final authenticated = await BiometricService.authenticate(
+                                      reason: 'Conferma per disattivare Face ID',
+                                    );
+
+                                    if (authenticated) {
+                                      await BiometricService.setEnabled(false);
+                                      setState(() => _isBiometricSwitchOn = false);
+                                    }
+                                  }
+                                }
+                              : null,
+                          secondary: Icon(
+                            Icons.fingerprint,
+                            color: isAvailable
+                                ? (isDark ? const Color(0xFF38F9D7) : const Color(0xFF10B981))
+                                : Colors.grey,
+                          ),
                         );
                       },
                     ),
@@ -166,56 +196,52 @@ class SettingsPage extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // 🔔 SEZIONE NOTIFICHE
-_buildGlassCard(
-  context,
-  'Notifiche',
-  Icons.notifications,
-  isDark,
-  [
-    ListTile(
-      leading: Icon(
-        Icons.notifications_active,
-        color: isDark ? const Color(0xFF38F9D7) : const Color(0xFF10B981),
-      ),
-      title: Text(
-        'Test notifica immediata',
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          color: isDark ? Colors.white : Colors.black87,
-        ),
-      ),
-      subtitle: Text(
-        'Verifica che le notifiche funzionino',
-        style: TextStyle(
-          fontSize: 12,
-          color: isDark ? Colors.grey[400] : Colors.grey[600],
-        ),
-      ),
-      trailing: const Icon(Icons.chevron_right_rounded, size: 20),
-      onTap: () async {
-        HapticFeedback.lightImpact();
-        
-        // Test notifica immediata
-        await NotificationsService.notifyMonthlySummary(
-          income: 2500.00,
-          expense: 1800.00,
-          balance: 700.00,
-        );
-        
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Notifica di test inviata!'),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      },
-    ),
-  ],
-),
-
+                _buildGlassCard(
+                  context,
+                  'Notifiche',
+                  Icons.notifications,
+                  isDark,
+                  [
+                    ListTile(
+                      leading: Icon(
+                        Icons.notifications_active,
+                        color: isDark ? const Color(0xFF38F9D7) : const Color(0xFF10B981),
+                      ),
+                      title: Text(
+                        'Test notifica immediata',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Verifica che le notifiche funzionino',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        ),
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+                      onTap: () async {
+                        HapticFeedback.lightImpact();
+                        await NotificationsService.notifyMonthlySummary(
+                          income: 2500.00,
+                          expense: 1800.00,
+                          balance: 700.00,
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('✅ Notifica di test inviata!'),
+                              backgroundColor: Colors.green,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
 
                 const SizedBox(height: 16),
 
@@ -306,7 +332,7 @@ _buildGlassCard(
                         ),
                       ),
                       trailing: Text(
-                        '1.0.0+5',
+                        '1.0.0+7',
                         style: TextStyle(
                           color: isDark ? Colors.grey[300] : Colors.grey[600],
                           fontWeight: FontWeight.w600,
@@ -319,34 +345,16 @@ _buildGlassCard(
                     ListTile(
                       leading: const Icon(Icons.star, color: Color(0xFF6366F1)),
                       title: Text(
-                        'Liquid Glass UI',
+                        'Moneyy',
                         style: TextStyle(
                           color: isDark ? Colors.white : Colors.black87,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       subtitle: Text(
-                        'Apple WWDC 2025 style',
+                        'Gestisci le tue finanze con stile',
                         style: TextStyle(
                           color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        ),
-                      ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: const Color(0xFF6366F1).withOpacity(0.3),
-                          ),
-                        ),
-                        child: Text(
-                          'NEW',
-                          style: TextStyle(
-                            color: isDark ? const Color(0xFF8B9BFF) : const Color(0xFF6366F1),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                          ),
                         ),
                       ),
                     ),
@@ -430,7 +438,6 @@ _buildGlassCard(
   }
 
   void _showResetDialog(BuildContext context) {
-    final model = Provider.of<MoneyModel>(context, listen: false);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
@@ -610,52 +617,40 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
 
   @override
   Widget build(BuildContext context) {
-    final model = Provider.of<MoneyModel>(context, listen: false);
-    
     return Column(
       children: [
-        TextField(
-          controller: _controller,
-          style: TextStyle(
-            color: _isValid
-                ? Colors.red
-                : (widget.isDark ? Colors.white : Colors.black87),
-            fontWeight: _isValid ? FontWeight.bold : FontWeight.normal,
-          ),
-          decoration: InputDecoration(
-            hintText: 'Scrivi RESET',
-            hintStyle: TextStyle(
-              color: widget.isDark ? Colors.grey[500] : Colors.grey[400],
-            ),
-            filled: true,
-            fillColor: widget.isDark
+        Container(
+          decoration: BoxDecoration(
+            color: widget.isDark
                 ? Colors.grey[800]!.withOpacity(0.6)
-                : Colors.grey[100],
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: _isValid
-                    ? Colors.red
-                    : (widget.isDark ? Colors.grey[600]! : Colors.grey[300]!),
-                width: 2,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: _isValid ? Colors.red : const Color(0xFF6366F1),
-                width: 2,
-              ),
-            ),
+                : Colors.grey[200],
+            borderRadius: BorderRadius.circular(12),
           ),
-          textAlign: TextAlign.center,
-          textCapitalization: TextCapitalization.characters,
+          child: TextField(
+            controller: _controller,
+            style: TextStyle(
+              color: _isValid
+                  ? Colors.red
+                  : (widget.isDark ? Colors.white : Colors.black87),
+              fontWeight: _isValid ? FontWeight.bold : FontWeight.normal,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Scrivi RESET',
+              hintStyle: TextStyle(
+                color: widget.isDark ? Colors.grey[500] : Colors.grey[400],
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            textAlign: TextAlign.center,
+            textCapitalization: TextCapitalization.characters,
+          ),
         ),
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: _isValid ? () => _performReset(context, model) : null,
+            onPressed: _isValid ? () => _performReset(context) : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: _isValid ? Colors.red : Colors.grey,
               foregroundColor: Colors.white,
@@ -679,8 +674,8 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
     );
   }
 
-  Future<void> _performReset(BuildContext context, MoneyModel model) async {
-    Navigator.pop(context);
+  Future<void> _performReset(BuildContext context) async {
+    Navigator.pop(context); // Chiudi dialog
     
     showDialog(
       context: context,
@@ -717,14 +712,6 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Non chiudere l\'app',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: widget.isDark ? Colors.grey[400] : Colors.grey[600],
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -735,14 +722,15 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
     );
 
     try {
-      await model.resetAllData();
+      await Provider.of<WalletProvider>(context, listen: false).resetAllData();
+      await Provider.of<CategoryProvider>(context, listen: false).resetCategoriesToDefault();
+      
       if (context.mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Reset completato! L\'app è stata ripulita.'),
+            content: Text('✅ Reset completato!'),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -752,12 +740,7 @@ class _ResetConfirmationFieldState extends State<_ResetConfirmationField> {
       if (context.mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Errore durante il reset: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-            behavior: SnackBarBehavior.floating,
-          ),
+          SnackBar(content: Text('Errore: $e'), backgroundColor: Colors.red),
         );
       }
     }

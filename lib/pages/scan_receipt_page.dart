@@ -11,18 +11,22 @@ import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 import 'package:image_cropper/image_cropper.dart';
 import 'dart:ui';
-import '../models.dart';
-import '../providers.dart';
+
+// ✅ IMPORT CORRETTI
+import '../providers/wallet_provider.dart';
+import '../providers/category_provider.dart';
+import '../models/models.dart'; // Importa MoneyTx e PaymentMethod
 
 class ScanReceiptPage extends StatefulWidget {
   const ScanReceiptPage({super.key});
   @override
-  State createState() => _ScanReceiptPageState();
+  State<ScanReceiptPage> createState() => _ScanReceiptPageState();
 }
 
 class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
+  
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
   File? _processedImage;
@@ -34,11 +38,15 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
   double _extractedAmount = 0.0;
   String _suggestedCategory = 'Spesa';
   DateTime _extractedDate = DateTime.now();
+  
   late TextEditingController _merchantController;
   late TextEditingController _amountController;
   late TextEditingController _noteController;
+  
   String _selectedCategory = 'Spesa';
   DateTime _selectedDate = DateTime.now();
+  
+  // Nota: Chiave API Demo gratuita. Per produzione, usa la tua chiave.
   static const String _ocrSpaceUrl = 'https://api.ocr.space/parse/image';
   static const String _ocrSpaceApiKey = 'K89996646088957';
 
@@ -62,14 +70,19 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
   Widget build(BuildContext context) {
     super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-  backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-  elevation: 0,
-  title: const Text('Scansiona Scontrino', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-  centerTitle: true,
-),
+        backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        elevation: 0,
+        title: const Text('Scansiona Scontrino', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+        centerTitle: true,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
@@ -96,7 +109,7 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
   }
 
   Widget _buildQualityIndicator(bool isDark) {
-    if (_imageQualityScore == 0) return SizedBox.shrink();
+    if (_imageQualityScore == 0) return const SizedBox.shrink();
     
     Color color;
     String label;
@@ -457,7 +470,11 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
   }
 
   Widget _buildCategorySelector(bool isDark) {
-    final model = context.watch<MoneyModel>();
+    // ✅ USO DEL NUOVO PROVIDER CATEGORIE
+    final catProvider = context.watch<CategoryProvider>();
+    // Usiamo le categorie di spesa (dato che lo scontrino è una spesa)
+    final categories = catProvider.allExpenseCats;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
@@ -470,22 +487,22 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
             border: Border.all(color: isDark ? Colors.white.withOpacity(0.15) : Colors.grey[300]!, width: 1.2),
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedCategory,
+            value: categories.contains(_selectedCategory) ? _selectedCategory : categories.first,
             decoration: const InputDecoration(
               labelText: 'Categoria',
               border: InputBorder.none,
               prefixIcon: Icon(Icons.category, color: Color(0xFF6366F1)),
             ),
             dropdownColor: isDark ? Colors.grey[800] : Colors.white,
-            items: model.expenseCats.map((cat) {
-              final style = model.getTransactionStyle(cat);
+            items: categories.map((cat) {
+              final style = catProvider.getTransactionStyle(cat);
               return DropdownMenuItem(
                 value: cat,
                 child: Row(
                   children: [
                     Icon(style.icon, color: style.color, size: 20),
                     const SizedBox(width: 12),
-                    Text(cat),
+                    Text(cat, style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
                   ],
                 ),
               );
@@ -817,7 +834,9 @@ class _ScanReceiptPageState extends State<ScanReceiptPage> with AutomaticKeepAli
       note: '${_merchantController.text}${_noteController.text.isNotEmpty ? ' - ${_noteController.text}' : ''}',
       payment: PaymentMethod.carta,
     );
-    context.read<MoneyModel>().addTx(tx);
+    // ✅ USO DEL NUOVO PROVIDER
+    context.read<WalletProvider>().addTx(tx);
+    
     HapticFeedback.heavyImpact();
     _showSnackBar('Transazione salvata!', const Color(0xFF10B981));
     _resetScanner();

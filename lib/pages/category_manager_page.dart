@@ -2,7 +2,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../providers.dart';
+// ✅ IMPORT NUOVO
+import '../providers/category_provider.dart';
 
 class CategoryManagerPage extends StatefulWidget {
   const CategoryManagerPage({super.key});
@@ -187,7 +188,8 @@ class _CategoryManagerPageState extends State<CategoryManagerPage>
               onPressed: () {
                 final name = nameController.text.trim();
                 if (name.isNotEmpty) {
-                  context.read<MoneyModel>().addCustomCategory(
+                  // ✅ USO DEL NUOVO PROVIDER
+                  context.read<CategoryProvider>().addCustomCategory(
                         name,
                         selectedIcon,
                         !_isExpenseTab,
@@ -290,8 +292,10 @@ class _CategoryManagerPageState extends State<CategoryManagerPage>
   void _showEditCategoryDialog(String category) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final nameController = TextEditingController(text: category);
-    final model = context.read<MoneyModel>();
-    final style = model.getTransactionStyle(category);
+    
+    // ✅ USO DEL NUOVO PROVIDER
+    final provider = context.read<CategoryProvider>();
+    final style = provider.getTransactionStyle(category);
 
     IconData selectedIcon = style.icon;
     Color selectedColor = style.color;
@@ -445,14 +449,15 @@ class _CategoryManagerPageState extends State<CategoryManagerPage>
                 final newName = nameController.text.trim();
                 if (newName.isNotEmpty) {
                   if (newName != category) {
-                    await model.renameCategory(
+                    // ✅ USO DEL NUOVO PROVIDER
+                    await provider.renameCategory(
                       oldName: category,
                       newName: newName,
                       isIncome: !_isExpenseTab,
                     );
                   }
-                  // ✅ Aggiorna sempre icona e colore
-                  await model.updateCategoryStyle(
+                  
+                  await provider.updateCategoryStyle(
                     categoryName: newName,
                     icon: selectedIcon,
                     color: selectedColor,
@@ -517,8 +522,8 @@ class _CategoryManagerPageState extends State<CategoryManagerPage>
           ),
           ElevatedButton(
             onPressed: () async {
-              // ✅ FIX: await + chiudi dialog PRIMA di rebuild
-              await context.read<MoneyModel>().deleteCustomCategory(
+              // ✅ USO DEL NUOVO PROVIDER
+              await context.read<CategoryProvider>().deleteCustomCategory(
                     category,
                     !_isExpenseTab,
                   );
@@ -540,11 +545,12 @@ class _CategoryManagerPageState extends State<CategoryManagerPage>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final model = Provider.of<MoneyModel>(context);
+    // ✅ USO DEL NUOVO PROVIDER
+    final provider = Provider.of<CategoryProvider>(context);
     
-    // ✅ FIX: Rebuild dinamico dopo ogni modifica
-    final expenseCategories = model.allExpenseCats.where((c) => c != 'Altro').toList();
-    final incomeCategories = model.allIncomeCats.where((c) => c != 'Altro').toList();
+    // Filtriamo "Altro" come facevi prima
+    final expenseCategories = provider.allExpenseCats.where((c) => c != 'Altro').toList();
+    final incomeCategories = provider.allIncomeCats.where((c) => c != 'Altro').toList();
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
@@ -556,8 +562,9 @@ class _CategoryManagerPageState extends State<CategoryManagerPage>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildCategoryList(isDark, expenseCategories, model, false),
-                _buildCategoryList(isDark, incomeCategories, model, true),
+                // Passiamo il provider
+                _buildCategoryList(isDark, expenseCategories, provider, false),
+                _buildCategoryList(isDark, incomeCategories, provider, true),
               ],
             ),
           ),
@@ -707,7 +714,8 @@ class _CategoryManagerPageState extends State<CategoryManagerPage>
     );
   }
 
-  Widget _buildCategoryList(bool isDark, List<String> categories, MoneyModel model, bool isIncome) {
+  // ✅ CORREZIONE: Usa CategoryProvider come tipo per 'provider'
+  Widget _buildCategoryList(bool isDark, List<String> categories, CategoryProvider provider, bool isIncome) {
     return ReorderableListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
       itemCount: categories.length,
@@ -717,11 +725,11 @@ class _CategoryManagerPageState extends State<CategoryManagerPage>
         if (newIndex > oldIndex) newIndex--;
         final item = newOrder.removeAt(oldIndex);
         newOrder.insert(newIndex, item);
-        await model.reorderCategories(newOrder, isIncome);
+        await provider.reorderCategories(newOrder, isIncome);
       },
       itemBuilder: (context, index) {
         final category = categories[index];
-        final style = model.getTransactionStyle(category);
+        final style = provider.getTransactionStyle(category);
 
         return Padding(
           key: ValueKey(category),

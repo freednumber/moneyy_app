@@ -59,6 +59,7 @@ dependencies:
 
   # Chart per reports (se non già presente)
   fl_chart: ^0.66.2
+  table_calendar: ^3.2.0
 
 dev_dependencies:
   flutter_test:

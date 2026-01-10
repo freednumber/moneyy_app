@@ -536,6 +536,12 @@
       "languageVersion": "3.3"
     },
     {
+      "name": "simple_gesture_detector",
+      "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/simple_gesture_detector-0.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "sky_engine",
       "rootUri": "file:///Users/emanueleantonazzo/dev/flutter/bin/cache/pkg/sky_engine",
       "packageUri": "lib/",
@@ -600,6 +606,12 @@
       "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/synchronized-3.4.0",
       "packageUri": "lib/",
       "languageVersion": "3.8"
+    },
+    {
+      "name": "table_calendar",
+      "rootUri": "file:///Users/emanueleantonazzo/.pub-cache/hosted/pub.dev/table_calendar-3.2.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
     },
     {
       "name": "term_glyph",
@@ -669,8 +681,8 @@
     }
   ],
   "generator": "pub",
-  "generatorVersion": "3.10.0",
+  "generatorVersion": "3.10.4",
   "flutterRoot": "file:///Users/emanueleantonazzo/dev/flutter",
-  "flutterVersion": "3.38.1",
+  "flutterVersion": "3.38.5",
   "pubCache": "file:///Users/emanueleantonazzo/.pub-cache"
 }
